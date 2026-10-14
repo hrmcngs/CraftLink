@@ -307,4 +307,5 @@ F8画面下の「接続先」ボタンで切り替えるとQRとURLも切り替�
 - macOS / Apple M2上の `runClient` でForge・CraftLink読み込みとリソース初期化を確認。独自入力用の3つのMixinがMinecraft / LocalPlayerに適用されることもログで確認。
 - 携帯UIのジョイスティック方向・設定値検査と、PC設定のWebSocket配信をテスト。
 - Chromiumのブラウザ検証（通信はモック）で移動＋視点の同時タッチ、指キャンセル時解除、設定表示時の攻撃解除、操作方式切替、140%サイズでの横画面・縦画面・小画面配置、CSPエラーなしを確認。Safari/Android実機の検証ではありません。
+- 携帯設定UI追加後の追加Minecraft起動確認では、ローカルForgeの再コンパイル用キャッシュに `ZipException: invalid CEN header` が発生したため中断。先行する全ビルド・テストと配布JARのZIP検査は成功しています。今回追加したMinecraft内設定画面の実画面確認は未完了です。
 - スマホ実機でのQR接続・USB接続、ワールド内の操作、通常マルチプレイヤーは未検証。上記の手動確認項目を実施してください。
