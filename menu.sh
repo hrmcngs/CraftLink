@@ -1,0 +1,57 @@
+#!/bin/sh
+# Interactive entry point; the existing scripts own builds and USB cleanup.
+set -u
+project_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
+case "${1:-}" in
+  '') ;;
+  -h|--help) printf 'Usage: sh menu.sh\n対話式メニューからビルド・LAN起動・Android USB起動を選択します。\n'; exit 0 ;;
+  *) printf 'Usage: sh menu.sh\n' >&2; exit 2 ;;
+esac
+mode=online
+port=
+trap 'exit 130' INT
+trap 'exit 143' TERM
+while :; do
+  printf '\nCraftLink — Minecraft 1.20.1 Forge\n'
+  printf '依存取得: %s / 起動ポート: %s\n' "$mode" "${port:-標準}"
+  printf '  1) MODをビルド\n  2) Minecraftを起動（LAN / Wi-Fi）\n  3) Minecraftを起動（Android USB / Wi-Fi不要）\n  4) 起動用データを準備（起動しない・スマホ不要）\n  5) オンライン / オフライン切り替え\n  6) 起動ポートを変更\n  7) 接続方法を表示\n  0) 終了\n選択 > '
+  IFS= read -r choice || { printf '\n'; exit 0; }
+  case "$choice" in
+    0|q|quit) exit 0 ;;
+    5)
+      if [ "$mode" = online ]; then mode=offline; else mode=online; fi
+      printf '初回はオンラインで依存を取得してください。オフラインは取得済みキャッシュを使います。\n'
+      continue ;;
+    6)
+      printf 'ポート（1024〜65535、空欄で標準に戻す）> '
+      IFS= read -r candidate || { printf '\n'; exit 0; }
+      case "$candidate" in
+        '') port= ;;
+        *[!0-9]*|??????*) printf '1024〜65535の整数を入力してください。\n'; continue ;;
+        *)
+          # Strip leading zeroes before POSIX numeric comparisons.
+          while [ "${candidate#0}" != "$candidate" ]; do candidate=${candidate#0}; done
+          if [ -n "$candidate" ] && [ "$candidate" -ge 1024 ] && [ "$candidate" -le 65535 ]; then
+            port=$candidate
+          else printf '1024〜65535の整数を入力してください。\n'; fi ;;
+      esac
+      continue ;;
+    7)
+      printf '\n起動後、F8 →「接続を開始」→ スマホでQRを読む → PCで接続を許可。\nLAN: PCとスマホが通信できる同じネットワークを使用します。\nUSB: AndroidのUSBデバッグを有効にし、PCを許可してケーブル接続します。adbが必要です。\niPhoneはこのAndroid USBモードには対応していません。\n依存取得のオンライン/オフライン設定は、スマホの接続方式とは別です。\n詳細: %s/README.md\n' "$project_dir"
+      continue ;;
+    1) set -- sh "$project_dir/build.sh" "$mode" ;;
+    2|3|4)
+      set -- sh "$project_dir/run.sh"
+      if [ "$choice" = 3 ]; then set -- "$@" usb; else set -- "$@" lan; fi
+      if [ "$choice" = 4 ]; then set -- "$@" --prepare; fi
+      if [ "$mode" = offline ]; then set -- "$@" --offline; fi
+      if [ -n "$port" ]; then set -- "$@" --port "$port"; fi ;;
+    *) printf 'メニューの番号を入力してください。\n'; continue ;;
+  esac
+  if "$@"; then
+    printf '\n処理が完了しました。\n'
+  else
+    result=$?
+    printf '\n処理に失敗しました（終了コード: %s）。上のエラーを確認して再実行できます。\n' "$result" >&2
+  fi
+done
