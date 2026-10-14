@@ -14,5 +14,9 @@ public final class LinkConfig {
             .define("advertisedHost", "", v -> v instanceof String s && (s.isEmpty() || NetworkAddresses.validHost(s)));
         SPEC = b.build();
     }
+    public static ConnectionSettings launchSettings() {
+        return ConnectionSettings.resolve(PORT.get(), BIND_ADDRESS.get(), ADVERTISED_HOST.get(),
+            System.getProperty("craftlink.transport", "lan"), System.getProperty("craftlink.port", ""));
+    }
     private LinkConfig() {}
 }

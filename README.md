@@ -140,6 +140,56 @@ sh build.sh offline
 JDK・Node.js・Gradle Wrapperの配布物・Gradleの依存キャッシュ・node_modulesが必要です。
 初回からネットワークなしでビルドできるという意味ではありません。依存を変更した場合はオンラインビルドを再実行してください。
 
+## シェルから起動（通常 / Wi-Fi不要のUSB）
+
+ビルドは `sh build.sh`、開発用Minecraftの起動は次の2通りです。
+
+```sh
+sh run.sh       # 通常起動：Wi-Fiまたは有線LANで接続
+sh run-usb.sh   # Android USB起動：Wi-Fi不要
+```
+
+どちらも必要なWeb・JavaコードをコンパイルしてからForgeの `runClient` を起動します。
+**開発用クライアント** のため、公式ランチャーのログイン済みアカウントや既存プロファイルでの起動を代替するものではありません。
+通常プレイ用のインスタンスではビルドしたJARを `mods` に導入してください。
+
+USB用はAndroidのUSBデバッグとPCのADBが必要です。接続済みのUSB端末を確認し、ADB転送を設定した後、
+この起動に限ってポート8765・待ち受け127.0.0.1・QR用ホスト127.0.0.1を使用します。
+既存のForge設定ファイルには書き込みません。起動後は **F8 → 接続を開始 → QR読み取り → PCで承認** してください。
+サーバーはスクリプト実行だけでは自動開始しません。
+
+```sh
+sh run.sh usb                   # run-usb.sh と同じ
+sh run-usb.sh --port 9876        # ADBとMODに同じポートを指定
+sh run.sh lan --port 9876        # 通常接続でポートを指定
+```
+
+USBスクリプトが新規作成した転送は、Minecraftの終了や起動失敗時に解除します。
+元から同じ宛先へ設定されていた転送は再利用して残し、別の宛先への転送は上書きせずエラーにします。
+iPhoneはADB非対応なので、このUSB起動スクリプトの対象外です。上記のUSBインターネット共有手順を使用してください。
+
+### インターネット接続なしで起動
+
+初回はオンラインで、Minecraftの実行用資産・ネイティブライブラリを準備します。
+MODのビルドだけでは起動用キャッシュがすべて揃うとは限りません。
+
+```sh
+sh run.sh --prepare             # ファイル取得・起動準備のみ。ゲーム画面を開かない
+sh run.sh --offline             # 取得済みキャッシュで通常起動
+sh run-usb.sh --offline         # 取得済みキャッシュでAndroid USB起動
+```
+
+USBモードの「Wi-Fi不要」はスマホとの通信方式、`--offline` は起動時の依存ダウンロードを止める指定です。
+初回準備済みなら併用できます。Minecraft/Forge自体の任意のバージョン確認等まで遮断するファイアウォール機能ではありません。
+オフラインでは認証を要するオンラインマルチプレイヤーへの接続はできません。
+キャッシュが不足する場合は再度オンラインで `--prepare` を実行してください。
+
+スクリプトの回帰テスト（Python 3、テスト専用）:
+
+```sh
+python3 -m unittest discover -s scripts/tests
+```
+
 ## 設計
 
 - `CraftLink.java`: Forgeクライアント初期化、F8登録、クライアントtick。
@@ -153,6 +203,7 @@ JDK・Node.js・Gradle Wrapperの配布物・Gradleの依存キャッシュ・no
 - `input/RemoteInput.java`: PC側Inputを保持したままスマホの移動意図を合成する専用Input。
 - `input/RemoteButtons.java`: PC側と分離した押下状態・押下エッジ。
 - `mixin/`: 通常の攻撃・使用ルーチンの呼び出し、長押し・ダッシュ意図の統合。
+- `config/ConnectionSettings.java`: 通常・USB起動プロファイルの一時設定。
 - `config/LinkConfig.java`: `config/craftlink-client.toml` の `port`（標準8765）。変更後は停止・再開始。
 - `web/src/`: Pointer Eventsのマルチタッチ、30Hzの状態送信、ハートビート、再接続。
 
@@ -233,7 +284,9 @@ F8画面下の「接続先」ボタンで切り替えるとQRとURLも切り替�
 - JUnit: トークン、入力上限・消費・タイムアウト、実HTTP/WebSocket、承認前入力拒否、
   不正トークン・2台目拒否、切断時解除、クライアント間のURL独立性・再発行後の古いトークン拒否を確認。
 - 生成QRを読み戻し、トークンを含む専用Web URLと完全一致することを確認。
+- 起動設定: USB用localhost・ADBと一致するポート・通常設定の保持を確認。シェルテストで起動引数、USB転送の所有権・競合・失敗時解除を確認。
 - 独自移動入力: PC側Inputの保持、スマホ解除時のPC押下維持、逆方向の相殺、同方向の速度上限、減速、単発操作の押下エッジを確認。
 - `npm audit`: 検出0件（ロックファイル作成・更新時点）。Java依存全体の脆弱性監査を意味しません。
+- `sh run.sh --offline` から取得済みキャッシュでのMinecraft起動と、`sh run-usb.sh --offline --prepare` の準備処理を確認。
 - macOS / Apple M2上の `runClient` でForge・CraftLink読み込みとリソース初期化を確認。独自入力用の3つのMixinがMinecraft / LocalPlayerに適用されることもログで確認。
 - スマホ実機でのQR接続・USB接続、ワールド内の操作、通常マルチプレイヤーは未検証。上記の手動確認項目を実施してください。

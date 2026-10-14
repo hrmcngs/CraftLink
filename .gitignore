@@ -9,3 +9,5 @@ web/dist/
 
 logs/
 crash-reports/
+
+__pycache__/

@@ -54,7 +54,7 @@ class LinkServerTest {
     @Test void usbLoopbackModeServesControllerAndKeepsTokenWhenCycling() throws Exception {
         LinkServer server = new LinkServer();
         try {
-            server.start(0, "127.0.0.1", "");
+            server.start(0, "127.0.0.1", "127.0.0.1");
             await(server::running);
             String url = server.url();
             assertTrue(url.startsWith("http://127.0.0.1:"));

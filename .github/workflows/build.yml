@@ -17,6 +17,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - uses: gradle/actions/setup-gradle@v4
+      - run: python3 -m unittest discover -s scripts/tests
       - run: sh build.sh
       - uses: actions/upload-artifact@v4
         with:

@@ -51,7 +51,7 @@ public final class LinkServer {
         if (running) return;
         status = "起動中";
         try {
-            hosts = bindAddress.equals("127.0.0.1") && advertisedHost.isEmpty()
+            hosts = bindAddress.equals("127.0.0.1") && (advertisedHost.isEmpty() || advertisedHost.equals("127.0.0.1"))
                 ? List.of("127.0.0.1") : NetworkAddresses.discover(advertisedHost);
             session = new Session(); boss = new NioEventLoopGroup(1); workers = new NioEventLoopGroup(2);
             listener = new ServerBootstrap().group(boss, workers).channel(NioServerSocketChannel.class)

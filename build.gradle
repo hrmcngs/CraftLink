@@ -7,9 +7,22 @@ version = '0.1.0'
 group = 'dev.craftlink'
 base { archivesName = 'craftlink-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+def craftlinkTransport = providers.gradleProperty('craftlinkTransport').getOrElse('lan')
+if (!(craftlinkTransport in ['lan', 'usb'])) throw new GradleException('craftlinkTransport must be lan or usb')
+def craftlinkPort = providers.gradleProperty('craftlinkPort').orNull
+if (craftlinkPort != null && (!(craftlinkPort ==~ /[0-9]{1,5}/) || craftlinkPort.toInteger() < 1024 || craftlinkPort.toInteger() > 65535)) {
+    throw new GradleException('craftlinkPort must be 1024..65535')
+}
 minecraft {
     mappings channel: 'official', version: '1.20.1'
-    runs { client { workingDirectory project.file('run'); mods { craftlink { source sourceSets.main } } } }
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'craftlink.transport', craftlinkTransport
+            if (craftlinkPort != null) property 'craftlink.port', craftlinkPort
+            mods { craftlink { source sourceSets.main } }
+        }
+    }
 }
 repositories { mavenCentral(); maven { url = 'https://repo.spongepowered.org/repository/maven-public/' } }
 mixin { add sourceSets.main, 'craftlink.refmap.json'; config 'craftlink.mixins.json' }
