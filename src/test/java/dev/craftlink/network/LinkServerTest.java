@@ -51,6 +51,31 @@ class LinkServerTest {
             ws.sendClose(1000, "done").join(); await(() -> server.devices() == 0); assertTrue(server.input.take().held().isEmpty());
         } finally { server.shutdown(); }
     }
+    @Test void usbLoopbackModeServesControllerAndKeepsTokenWhenCycling() throws Exception {
+        LinkServer server = new LinkServer();
+        try {
+            server.start(0, "127.0.0.1", "");
+            await(server::running);
+            String url = server.url();
+            assertTrue(url.startsWith("http://127.0.0.1:"));
+            server.nextAddress();
+            assertEquals(url, server.url());
+            var response = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(url.split("#")[0])).build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("CraftLink"));
+        } finally { server.shutdown(); }
+    }
+    @Test void customHostIsAdvertisedWithoutChangingBoundInterface() throws Exception {
+        LinkServer server = new LinkServer();
+        try {
+            server.start(0, "127.0.0.1", "usb-pc.example");
+            await(server::running);
+            assertTrue(server.url().startsWith("http://usb-pc.example:"));
+            String token = server.url().split("#")[1];
+            server.nextAddress();
+            assertEquals(token, server.url().split("#")[1]);
+        } finally { server.shutdown(); }
+    }
     private static void assertRejected(HttpClient client, String origin, String token) throws Exception {
         var closed = new CountDownLatch(1);
         WebSocket other = client.newWebSocketBuilder().header("Origin", origin)

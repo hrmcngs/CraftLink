@@ -25,32 +25,43 @@ public final class LinkServer {
     private Channel listener, device;
     private Session session;
     private volatile boolean running, approved;
-    private volatile String status = "停止中", address = "";
+    private volatile String status = "停止中", address = "", selectedHost = "";
+    private List<String> hosts = List.of();
+    private int hostIndex, activePort;
     public String status() { return status; }
     public String url() { return address; }
     public boolean running() { return running; }
+    public String selectedHost() { return selectedHost; }
+    public synchronized void nextAddress() {
+        if (!running || hosts.isEmpty()) return;
+        hostIndex = (hostIndex + 1) % hosts.size();
+        updateAddress();
+    }
+    private void updateAddress() {
+        selectedHost = hosts.get(hostIndex);
+        address = "http://" + selectedHost + ":" + activePort + "/#" + session.token();
+    }
     public synchronized boolean pending() { return device != null && !approved; }
     public synchronized int devices() { return device == null ? 0 : 1; }
-    public void start(int port) { lifecycle.execute(() -> startInternal(port)); }
-    private synchronized void startInternal(int port) {
+    public void start(int port) { start(port, "0.0.0.0", ""); }
+    public void start(int port, String bindAddress, String advertisedHost) {
+        lifecycle.execute(() -> startInternal(port, bindAddress, advertisedHost));
+    }
+    private synchronized void startInternal(int port, String bindAddress, String advertisedHost) {
         if (running) return;
         status = "起動中";
         try {
+            hosts = bindAddress.equals("127.0.0.1") && advertisedHost.isEmpty()
+                ? List.of("127.0.0.1") : NetworkAddresses.discover(advertisedHost);
             session = new Session(); boss = new NioEventLoopGroup(1); workers = new NioEventLoopGroup(2);
             listener = new ServerBootstrap().group(boss, workers).channel(NioServerSocketChannel.class)
                 .childOption(ChannelOption.TCP_NODELAY, true).childHandler(new ChannelInitializer<SocketChannel>() {
                     protected void initChannel(SocketChannel ch) { ch.pipeline().addLast(new IdleStateHandler(5, 0, 0), new HttpServerCodec(), new HttpObjectAggregator(8192), new Handler()); }
-                }).bind("0.0.0.0", port).sync().channel();
-            address = "http://" + lanAddress() + ":" + port + "/#" + session.token();
+                }).bind(bindAddress, port).sync().channel();
+            activePort = ((InetSocketAddress) listener.localAddress()).getPort();
+            hostIndex = 0; updateAddress();
             running = true; status = "接続待ち";
         } catch (Exception e) { stopInternal(); status = "起動失敗: " + e.getClass().getSimpleName(); }
-    }
-    private static String lanAddress() throws SocketException {
-        for (NetworkInterface nic : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            if (!nic.isUp() || nic.isLoopback() || nic.isVirtual()) continue;
-            for (InetAddress ip : Collections.list(nic.getInetAddresses())) if (ip instanceof Inet4Address && ip.isSiteLocalAddress()) return ip.getHostAddress();
-        }
-        return "127.0.0.1";
     }
     public void stop() { lifecycle.execute(this::stopInternal); }
     private synchronized void stopInternal() {
@@ -58,7 +69,7 @@ public final class LinkServer {
         if (listener != null) { listener.close(); listener = null; }
         if (boss != null) { boss.shutdownGracefully(0, 2, TimeUnit.SECONDS); boss = null; }
         if (workers != null) { workers.shutdownGracefully(0, 2, TimeUnit.SECONDS); workers = null; }
-        session = null; address = ""; status = "停止中";
+        session = null; hosts = List.of(); address = selectedHost = ""; status = "停止中";
     }
     public void shutdown() { if (closed.compareAndSet(false, true)) { stop(); lifecycle.shutdown(); } }
     public synchronized void approve() { if (device != null) { approved = true; status = "接続済み"; send(device, "{\"type\":\"approved\"}"); } }

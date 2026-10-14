@@ -1,7 +1,7 @@
 # CraftLink
 
 **Minecraft Java Edition 1.20.1 / Forge 47.4.10以上（47系） / Java 17** 用のクライアントMOD。
-同じLANにあるスマートフォンのブラウザをタッチコントローラーとして使います。アプリ、外部サービス、サーバー側MODは不要です。
+LANまたはUSB接続したスマートフォンのブラウザをタッチコントローラーとして使います。アプリ、外部サービス、サーバー側MODは不要です。
 
 ## 導入・接続
 
@@ -9,12 +9,52 @@
 2. `craftlink-forge-1.20.1-0.1.0.jar` をMinecraftの `mods` に配置します。`-thin.jar` は配布用ではありません。
 3. Minecraftを起動し、ワールドまたはマルチプレイヤーサーバーに入ります。
 4. **F8** →「接続を開始」。キーはMinecraftの「操作設定」で変更できます。
-5. PCと同じWi-FiのスマホでQRを読み取り、ブラウザで開きます。
+5. PCに到達できるLANのスマホでQRを読み取り、ブラウザで開きます（PCは有線LANでも可）。USB接続は下記の手順を使用します。
 6. Minecraftで「接続を許可して戻る」を押します。横向きで操作してください。
 7. 終了時はスマホの「切断」、またはF8画面の「端末を切断」「停止」を使います。
 
 PCのファイアウォールに確認された場合、プライベートLANに限りTCP 8765を許可します。
 初回ビルド・Minecraft導入後の利用にはインターネット接続は不要です。
+
+## USBケーブルで接続（同じWi-Fiは不要）
+
+### Android：ADB USB転送
+
+スマホ用アプリは不要ですが、PCに [Android SDK Platform-Tools（adb）](https://developer.android.com/tools/releases/platform-tools) が必要です。
+スマホで「開発者向けオプション」→「USBデバッグ」を有効にし、データ通信対応ケーブルでPCへ接続して、このPCを許可します。
+
+1. PCのシェルで `bash scripts/android-usb.sh` を実行します。標準ポート8765をUSB経由でPCへ転送します。
+2. MinecraftでF8 →「接続を開始」。
+3. 下部の「接続先」を押して **127.0.0.1** を選びます。
+4. そのQRをAndroidで読み取り、Chromeで開きます。スマホのlocalhostがUSB経由でPCへ転送されます。
+5. PCで「接続を許可して戻る」。Wi-Fiを共有する必要はありません。
+6. 終了時に切断し、PCで `adb -d reverse --remove tcp:8765` を実行します。
+
+別ポートなら `bash scripts/android-usb.sh 9876` とMOD側の `port = 9876` を一致させてください。
+スクリプトはUSB端末が複数ある場合に勝手に1台を選びません。対象以外を外すか、
+`adb -s SERIAL reverse tcp:8765 tcp:8765` を明示的に実行してください。
+ケーブルの抜き差し・端末再起動後は転送を再設定します。デバッグ許可は利用後に無効化できます。
+この方式は [Android公式のadb reverse](https://developer.android.com/develop/ui/views/layout/webapps/access-local-server) に基づきます。
+
+### iPhone：USBインターネット共有
+
+iOSにはAndroidのADB転送がありません。ケーブルを挿すだけでSafariからPCのHTTPサーバーへ接続できる機能は、このMODでは提供しません。
+代替は [Apple公式のUSBインターネット共有](https://support.apple.com/en-ie/111785) で作るローカルネットワークです。
+
+1. iPhoneのインターネット共有を有効にし、USB接続してPCを信頼します。WindowsではApple DevicesまたはiTunesが必要です。
+2. PCのネットワーク設定で、iPhone USB側に割り当てられた **PCのIPv4アドレス** を確認します。
+3. CraftLinkを開始し、「接続先」でそのアドレスを選び、QRをiPhoneのSafariで開きます。
+4. 一覧にない場合は `advertisedHost` にそのPC側アドレスを設定し、停止・再開始します。
+
+Appleの手順はUSBネットワーク作成までのものです。iPhone側からPCへのHTTP接続の到達性はOS・ドライバー・ファイアウォール等に依存し、
+**この経路の実機検証は未実施**です。USB共有が使えない端末・契約ではLAN接続を使用してください。
+
+### 有線LAN・別のWi-Fi
+
+PCが有線LAN、スマホがWi-Fiでも、相互に通信できる同じルーター配下なら使えます。
+別のWi-Fiや外出先からは、既存のプライベートVPNなどでスマホからPCへ到達できる経路が必要です。
+VPNのPC側IPを「接続先」で選ぶか `advertisedHost` に設定します。仮想インターフェースと100.64.0.0/10のアドレスも候補に含めます。
+VPNの構築やインターネットへのポート公開はMODが自動実行するものではありません。
 
 ## 操作
 
@@ -39,7 +79,8 @@ PCのファイアウォールに確認された場合、プライベートLANに
 必要: **JDK 17、Node.js 22、npm**。Gradle Wrapper同梱。初回のみ依存ライブラリのダウンロードが必要です。
 
 ```sh
-./gradlew build
+bash scripts/build.sh
+# または ./gradlew build
 # Windows
 # gradlew.bat build
 ```
@@ -60,11 +101,34 @@ npm --prefix web run dev # UI開発用。MODの接続はJAR内Web資産を使用
 Javaコンパイルのみは `./gradlew compileJava`。Webを編集した場合は `build` でJARへ反映します。
 GitHub Actionsでもビルドし、配布用JARをArtifactに保存します。
 
+## シェルから簡単にビルド
+
+macOS / Linux / WindowsのGit Bash等で、リポジトリのルートから実行します。
+スクリプトは自身の位置からプロジェクトを見つけるため、別の作業ディレクトリからの実行にも対応します。
+
+```sh
+bash scripts/build.sh
+```
+
+Java・Node.js・npmを確認し、WebとMODをまとめてビルドして、完成したJARのパスを表示します。
+有線・Wi-Fiのどちらで依存を取得しても同じです。
+初回のオンラインビルドで取得済みの依存を使う場合は、次も利用できます。
+
+```sh
+bash scripts/build.sh offline
+```
+
+オフラインモードではGradleの `--offline` と `-PwebOffline=true` を使用し、npmのインストールを行わず、
+既存の `web/node_modules` とロックファイルのバージョン整合性を確認してビルドします。
+JDK・Node.js・Gradle Wrapperの配布物・Gradleの依存キャッシュ・node_modulesが必要です。
+初回からネットワークなしでビルドできるという意味ではありません。依存を変更した場合はオンラインビルドを再実行してください。
+
 ## 設計
 
 - `CraftLink.java`: Forgeクライアント初期化、F8登録、クライアントtick。
 - `gui/LinkScreen.java`: 起動・停止・承認・切断・URLコピー・ローカルQR生成。
 - `network/LinkServer.java`: NettyのHTTP / WebSocket、非同期起動・停止。
+- `network/NetworkAddresses.java`: 有線・USB・VPNを含む接続先候補の列挙。
 - `security/Session.java`: 256bitトークン、30分のセッション期限。
 - `input/RemoteState.java`: サイズを制限した最新入力のメールボックス。
 - `input/InputBridge.java`: Minecraftメインスレッド上の通常キー入力とプレイヤー操作。
@@ -90,9 +154,12 @@ GitHub Actionsでもビルドし、配布用JARをArtifactに保存します。
 
 **HTTP / WSは暗号化されません。信頼できる家庭内LAN専用です。** ポート転送やインターネット公開はしないでください。
 QRとURLは他人に見せないでください。読み取り可能な人はPCに承認要求を送れます。
-PCのネットワークインターフェースはIPv4のプライベートアドレスから自動選択します。複数NIC・VPNで誤選択された場合は、
-URLのホストをPCのWi-Fi IPv4に置き換え、フラグメントのトークンを保持して開いてください。
-`127.0.0.1` が表示される場合はLAN接続を確認して再開始してください。
+PCのIPv4プライベートアドレスを自動列挙します。有線LAN・Wi-Fi・USBテザリング・仮想VPNの候補を、
+F8画面下の「接続先」ボタンで切り替えるとQRとURLも切り替わります。トークンは同じセッション内で維持します。
+`127.0.0.1` はAndroid USB転送用です。通常のWi-Fi接続時にはPCのLANアドレスを選択してください。
+任意の到達可能なIPv4/DNSホストは設定ファイルの `advertisedHost` で先頭候補にできます。
+`bindAddress` は待ち受け先で、標準は `0.0.0.0`（全IPv4インターフェース）、Android USB専用なら `127.0.0.1` にできます。
+接続先の選択や設定だけでネットワーク経路が作られるわけではありません。
 
 ## iOS / Android と既知の制限
 
@@ -113,12 +180,13 @@ URLのホストをPCのWi-Fi IPv4に置き換え、フラグメントのトー�
 
 自動テストに加えて、リリース前に以下を確認してください。
 
-1. JARを通常のForge環境へ導入し、F8の開始・停止・QR・URLを確認。
+1. JARを通常のForge環境へ導入し、F8の開始・停止・QR・URL・接続先切り替えを確認。
 2. iOS Safari / Android Chromeで接続し、承認前には操作できないこと、2台目が操作できないことを確認。
 3. 前進＋視点＋ジャンプの同時操作、斜め移動、長押し掘削・アイテム使用を確認。
 4. 切断、Wi-Fiオフ、ブラウザを閉じる、画面ロックで押下が残らないことを確認。
 5. 再接続・再承認、30分の期限切れ、ポート競合、Minecraft終了時のポート解放を確認。
-6. シングルプレイヤーと通常のマルチプレイヤー双方で確認。専用サーバー側への導入は不要です。
+6. AndroidでADB USB転送を設定し、Wi-Fiを切った状態で127.0.0.1のQR接続を確認。iPhone USB共有は別途到達性を確認。
+7. シングルプレイヤーと通常のマルチプレイヤー双方で確認。専用サーバー側への導入は不要です。
 
 ## 参照・ライセンス
 
@@ -135,4 +203,4 @@ URLのホストをPCのWi-Fi IPv4に置き換え、フラグメントのトー�
   不正トークン・2台目拒否、切断時解除を確認。
 - `npm audit`: 検出0件（ロックファイル作成・更新時点）。Java依存全体の脆弱性監査を意味しません。
 - macOS / Apple M2上の `runClient` でForge・CraftLink読み込みとリソース初期化を確認。
-- スマホ実機でのQR接続、ワールド内の操作、通常マルチプレイヤーは未検証。上記の手動確認項目を実施してください。
+- スマホ実機でのQR接続・USB接続、ワールド内の操作、通常マルチプレイヤーは未検証。上記の手動確認項目を実施してください。

@@ -17,7 +17,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew build --console=plain
+      - run: bash scripts/build.sh
       - uses: actions/upload-artifact@v4
         with:
           name: CraftLink-Forge-1.20.1

@@ -20,8 +20,35 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
-tasks.register('webInstall', Exec) { workingDir 'web'; commandLine 'npm', 'ci'; inputs.file('web/package-lock.json'); outputs.dir('web/node_modules') }
-tasks.register('webBuild', Exec) { dependsOn 'webInstall'; workingDir 'web'; commandLine 'npm', 'run', 'build'; inputs.files(fileTree('web/src'), 'web/index.html', 'web/tsconfig.json', 'web/package.json', 'web/package-lock.json'); outputs.dir('web/dist') }
+def webOffline = providers.gradleProperty('webOffline').map { it.toBoolean() }.getOrElse(false)
+tasks.register('webInstall', Exec) {
+    workingDir 'web'
+    commandLine 'npm', 'ci', '--no-audit', '--no-fund'
+    inputs.file('web/package-lock.json')
+    outputs.dir('web/node_modules')
+    onlyIf { !webOffline }
+}
+tasks.register('verifyOfflineWeb') {
+    onlyIf { webOffline }
+    doLast {
+        if (!file('web/node_modules/typescript/bin/tsc').exists() || !file('web/node_modules/vite/bin/vite.js').exists()) {
+            throw new GradleException('Offline web dependencies missing. Run bash scripts/build.sh online first.')
+        }
+        if (!file('web/node_modules/.package-lock.json').exists()) {
+            throw new GradleException('Offline npm lock missing. Run bash scripts/build.sh online first.')
+        }
+        def parser = new groovy.json.JsonSlurper()
+        def locked = parser.parse(file('web/package-lock.json')).packages
+        def installed = parser.parse(file('web/node_modules/.package-lock.json')).packages
+        locked.each { path, expected ->
+            // Optional platform binaries may legitimately be absent on this machine.
+            if (path && !expected.optional && installed[path]?.version != expected.version) {
+                throw new GradleException("Offline npm dependencies differ from lockfile: ${path}. Run bash scripts/build.sh online first.")
+            }
+        }
+    }
+}
+tasks.register('webBuild', Exec) { dependsOn 'webInstall', 'verifyOfflineWeb'; workingDir 'web'; commandLine 'npm', 'run', 'build'; inputs.files(fileTree('web/src'), 'web/index.html', 'web/tsconfig.json', 'web/package.json', 'web/package-lock.json'); outputs.dir('web/dist') }
 processResources { dependsOn 'webBuild'; from('web/dist') { into 'web' } }
 jar { archiveClassifier = 'thin' }
 shadowJar {
