@@ -1,0 +1,43 @@
+package dev.craftlink.gui;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.common.BitMatrix;
+import dev.craftlink.CraftLink.Client;
+import dev.craftlink.config.LinkConfig;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+
+public final class LinkScreen extends Screen {
+    private final Screen parent;
+    private String qrUrl = "";
+    private BitMatrix qr;
+    public LinkScreen(Screen parent) { super(Component.literal("CraftLink 0.1.0")); this.parent = parent; }
+    @Override protected void init() {
+        int x = width / 2;
+        addRenderableWidget(Button.builder(Component.literal("接続を開始"), b -> Client.SERVER.start(LinkConfig.PORT.get())).bounds(x - 155, height - 76, 100, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("停止"), b -> Client.SERVER.stop()).bounds(x - 50, height - 76, 100, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("端末を切断"), b -> Client.SERVER.disconnect()).bounds(x + 55, height - 76, 100, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("接続を許可して戻る"), b -> { if (Client.SERVER.pending()) { Client.SERVER.approve(); minecraft.setScreen(null); } }).bounds(x - 155, height - 51, 205, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("戻る"), b -> onClose()).bounds(x + 55, height - 51, 100, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("URLをコピー"), b -> minecraft.keyboardHandler.setClipboard(Client.SERVER.url())).bounds(x - 50, height - 26, 100, 20).build());
+    }
+    @Override public void render(GuiGraphics g, int mx, int my, float partial) {
+        renderBackground(g);
+        g.drawCenteredString(font, title, width / 2, 9, 0xffffff);
+        g.drawCenteredString(font, Client.SERVER.status() + " / 端末: " + Client.SERVER.devices() + " / ポート: " + LinkConfig.PORT.get(), width / 2, 25, 0xaaffaa);
+        String url = Client.SERVER.url();
+        if (!url.equals(qrUrl)) { qrUrl = url; qr = null; if (!url.isEmpty()) try { qr = new QRCodeWriter().encode(url, BarcodeFormat.QR_CODE, 1, 1); } catch (Exception ignored) {} }
+        if (qr != null) {
+            int scale = Math.max(1, Math.min(3, (height - 135) / qr.getWidth()));
+            int size = qr.getWidth() * scale, left = (width - size) / 2;
+            g.fill(left, 42, left + size, 42 + size, 0xffffffff);
+            for (int y = 0; y < qr.getHeight(); y++) for (int x = 0; x < qr.getWidth(); x++) if (qr.get(x,y)) g.fill(left + x * scale, 42 + y * scale, left + (x + 1) * scale, 42 + (y + 1) * scale, 0xff000000);
+        }
+        g.drawCenteredString(font, font.plainSubstrByWidth(url, width - 12), width / 2, height - 90, 0xffffff);
+        super.render(g, mx, my, partial);
+    }
+    @Override public boolean isPauseScreen() { return false; }
+    @Override public void onClose() { minecraft.setScreen(parent); }
+}

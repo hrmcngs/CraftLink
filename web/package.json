@@ -1,0 +1,1 @@
+{"name":"craftlink-controller","version":"0.1.0","private":true,"type":"module","scripts":{"build":"tsc --noEmit && vite build","dev":"vite --host 127.0.0.1"},"devDependencies":{"typescript":"5.7.3","vite":"6.4.4"}}

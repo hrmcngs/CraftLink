@@ -1,0 +1,11 @@
+.gradle/
+build/
+run/
+web/node_modules/
+web/dist/
+.idea/
+*.iml
+.DS_Store
+
+logs/
+crash-reports/

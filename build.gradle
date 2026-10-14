@@ -1,0 +1,37 @@
+plugins {
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+version = '0.1.0'
+group = 'dev.craftlink'
+base { archivesName = 'craftlink-forge-1.20.1' }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    runs { client { workingDirectory project.file('run'); mods { craftlink { source sourceSets.main } } } }
+}
+repositories { mavenCentral() }
+configurations { embedded }
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.4.10'
+    embedded 'com.google.zxing:core:3.5.3'
+    embedded 'io.netty:netty-codec-http:4.1.137.Final'
+    implementation 'io.netty:netty-codec-http:4.1.137.Final'
+    implementation 'com.google.zxing:core:3.5.3'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+tasks.register('webInstall', Exec) { workingDir 'web'; commandLine 'npm', 'ci'; inputs.file('web/package-lock.json'); outputs.dir('web/node_modules') }
+tasks.register('webBuild', Exec) { dependsOn 'webInstall'; workingDir 'web'; commandLine 'npm', 'run', 'build'; inputs.files(fileTree('web/src'), 'web/index.html', 'web/tsconfig.json', 'web/package.json', 'web/package-lock.json'); outputs.dir('web/dist') }
+processResources { dependsOn 'webBuild'; from('web/dist') { into 'web' } }
+jar { archiveClassifier = 'thin' }
+shadowJar {
+    archiveClassifier = ''
+    configurations = [project.configurations.embedded]
+    relocate 'io.netty', 'dev.craftlink.internal.netty'
+    relocate 'com.google.zxing', 'dev.craftlink.internal.zxing'
+    exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
+}
+reobf { shadowJar {} }
+shadowJar.finalizedBy 'reobfShadowJar'
+build.dependsOn shadowJar
+test { useJUnitPlatform() }

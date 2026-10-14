@@ -1,0 +1,71 @@
+package dev.craftlink.network;
+import dev.craftlink.input.RemoteState;
+import dev.craftlink.security.Session;
+import org.junit.jupiter.api.Test;
+import java.net.*;
+import java.net.http.*;
+import java.time.Duration;
+import java.util.Set;
+import java.util.concurrent.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+class LinkServerTest {
+    @Test void sessionTokensAreIndependent() {
+        Session a = new Session(), b = new Session();
+        assertTrue(a.accepts(a.token())); assertFalse(a.accepts(b.token())); assertFalse(a.accepts(null));
+        assertEquals(43, a.token().length());
+    }
+    @Test void mailboxBoundsConsumesAndReleases() throws Exception {
+        RemoteState state = new RemoteState();
+        state.update(Set.of("forward"), 1000, -1000, 3);
+        var first = state.take(); assertEquals(180, first.yaw()); assertEquals(-180, first.pitch()); assertEquals(3, first.slot());
+        assertEquals(0, state.take().yaw()); assertEquals(-1, state.take().slot());
+        Thread.sleep(800); assertTrue(state.take().held().isEmpty());
+        state.update(Set.of("attack"), 1, 1, 0); state.clear(); assertTrue(state.take().held().isEmpty());
+    }
+    @Test void websocketRequiresApprovalAndDisconnectReleasesInput() throws Exception {
+        int port; try (var socket = new java.net.ServerSocket(0)) { port = socket.getLocalPort(); }
+        LinkServer server = new LinkServer();
+        try {
+            server.start(port); await(() -> server.running());
+            String origin = "http://127.0.0.1:" + port;
+            HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+            assertEquals(404, client.send(HttpRequest.newBuilder(URI.create(origin + "/missing")).build(), HttpResponse.BodyHandlers.discarding()).statusCode());
+            var messages = new LinkedBlockingQueue<String>();
+            WebSocket ws = client.newWebSocketBuilder().header("Origin", origin).buildAsync(URI.create("ws://127.0.0.1:" + port + "/ws"), new WebSocket.Listener() {
+                public void onOpen(WebSocket socket) { socket.request(1); }
+                public CompletionStage<?> onText(WebSocket socket, CharSequence data, boolean last) { messages.add(data.toString()); socket.request(1); return null; }
+            }).get(3, TimeUnit.SECONDS);
+            assertRejected(client, origin, "invalid");
+            assertEquals(0, server.devices());
+            String token = server.url().split("#")[1];
+            ws.sendText("{\"type\":\"hello\",\"token\":\"" + token + "\"}", true).join();
+            assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("pending"));
+            String input = "{\"type\":\"input\",\"held\":[\"attack\"],\"dx\":0,\"dy\":0,\"slot\":-1}";
+            ws.sendText(input, true).join(); Thread.sleep(80); assertTrue(server.input.take().held().isEmpty());
+            server.approve(); assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("approved"));
+            ws.sendText(input, true).join(); await(() -> server.input.take().held().contains("attack"));
+            assertRejected(client, origin, token);
+            assertEquals(1, server.devices());
+            assertTrue(server.input.take().held().contains("attack"));
+            ws.sendClose(1000, "done").join(); await(() -> server.devices() == 0); assertTrue(server.input.take().held().isEmpty());
+        } finally { server.shutdown(); }
+    }
+    private static void assertRejected(HttpClient client, String origin, String token) throws Exception {
+        var closed = new CountDownLatch(1);
+        WebSocket other = client.newWebSocketBuilder().header("Origin", origin)
+            .buildAsync(URI.create(origin.replace("http://", "ws://") + "/ws"), new WebSocket.Listener() {
+                public void onOpen(WebSocket socket) { socket.request(1); }
+                public CompletionStage<?> onClose(WebSocket socket, int code, String reason) { closed.countDown(); return null; }
+                public void onError(WebSocket socket, Throwable error) { closed.countDown(); }
+            }).get(3, TimeUnit.SECONDS);
+        other.sendText("{\"type\":\"hello\",\"token\":\"" + token + "\"}", true).join();
+        assertTrue(closed.await(3, TimeUnit.SECONDS));
+        other.abort();
+    }
+    private static void await(java.util.function.BooleanSupplier predicate) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!predicate.getAsBoolean() && System.nanoTime() < deadline) Thread.sleep(20);
+        assertTrue(predicate.getAsBoolean());
+    }
+}
