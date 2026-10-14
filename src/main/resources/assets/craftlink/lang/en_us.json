@@ -1,1 +1,13 @@
-{"key.craftlink.open":"Open CraftLink","key.categories.craftlink":"CraftLink"}
+{
+  "key.craftlink.open": "Open CraftLink",
+  "key.categories.craftlink": "CraftLink",
+  "craftlink.controls.title": "Mobile Controller Settings…",
+  "craftlink.controls.layout": "Control scheme",
+  "craftlink.controls.sensitivity": "Look sensitivity",
+  "craftlink.controls.size": "Button size",
+  "craftlink.controls.connect": "Connect mobile device…",
+  "craftlink.controls.subtitle": "CraftLink · Touch controls",
+  "craftlink.controls.help": "Settings also apply to the connected phone. Move and look with separate fingers. PC key bindings stay unchanged.",
+  "craftlink.layout.mobile": "Mobile-style joystick",
+  "craftlink.layout.classic": "Directional buttons"
+}

@@ -1,1 +1,13 @@
-{"key.craftlink.open":"CraftLinkを開く","key.categories.craftlink":"CraftLink"}
+{
+  "key.craftlink.open": "CraftLinkを開く",
+  "key.categories.craftlink": "CraftLink",
+  "craftlink.controls.title": "携帯コントローラー設定…",
+  "craftlink.controls.layout": "操作方式",
+  "craftlink.controls.sensitivity": "視点感度",
+  "craftlink.controls.size": "ボタンサイズ",
+  "craftlink.controls.connect": "携帯端末を接続…",
+  "craftlink.controls.subtitle": "CraftLink · タッチ操作",
+  "craftlink.controls.help": "設定は接続中のスマートフォンにも反映されます。移動と視点操作を別々の指で操作できます。PCのキー割り当ては変わりません。",
+  "craftlink.layout.mobile": "携帯版風ジョイスティック",
+  "craftlink.layout.classic": "方向ボタン"
+}

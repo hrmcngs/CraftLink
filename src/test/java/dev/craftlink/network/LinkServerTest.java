@@ -44,6 +44,9 @@ class LinkServerTest {
             String input = "{\"type\":\"input\",\"held\":[\"attack\"],\"dx\":0,\"dy\":0,\"slot\":-1}";
             ws.sendText(input, true).join(); Thread.sleep(80); assertTrue(server.input.take().held().isEmpty());
             server.approve(); assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("approved"));
+            assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("\"layout\":\"mobile\""));
+            server.setControllerPreferences(new ControllerPreferences("classic", .25, 120));
+            assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("\"layout\":\"classic\""));
             ws.sendText(input, true).join(); await(() -> server.input.take().held().contains("attack"));
             assertRejected(client, origin, token);
             assertEquals(1, server.devices());

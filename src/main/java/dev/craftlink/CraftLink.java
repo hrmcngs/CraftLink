@@ -32,6 +32,7 @@ public final class CraftLink {
         private static void init() {
             FMLJavaModLoadingContext.get().getModEventBus().addListener(Client::register);
             MinecraftForge.EVENT_BUS.register(Client.class);
+            MinecraftForge.EVENT_BUS.register(dev.craftlink.gui.ControlsIntegration.class);
             Runtime.getRuntime().addShutdownHook(new Thread(SERVER::shutdown, "CraftLink shutdown"));
         }
         @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { SERVER.shutdown(); }
@@ -39,6 +40,7 @@ public final class CraftLink {
         @SubscribeEvent public static void tick(TickEvent.ClientTickEvent e) {
             if (e.phase != TickEvent.Phase.START) return;
             Minecraft mc = Minecraft.getInstance();
+            SERVER.setControllerPreferences(LinkConfig.controllerPreferences());
             while (OPEN.consumeClick()) mc.setScreen(new LinkScreen(mc.screen));
             INPUT.tick(mc);
         }

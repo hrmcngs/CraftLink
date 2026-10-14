@@ -5,7 +5,7 @@ export class Link {
   private pingAt = 0;
   private lastPong = 0;
   ready = false;
-  constructor(private token: string, private status: (text: string) => void, private reset: () => void) {}
+  constructor(private token: string, private status: (text: string) => void, private reset: () => void, private preferences: (value: unknown) => void = () => {}) {}
   connect() {
     if (this.stopped) return;
     this.status('接続中…');
@@ -13,6 +13,7 @@ export class Link {
     ws.onopen = () => { this.lastPong = performance.now(); ws.send(JSON.stringify({type: 'hello', token: this.token})); };
     ws.onmessage = e => {
       const data = JSON.parse(e.data);
+      if (data.type === 'preferences') { this.preferences(data); return; }
       if (data.type === 'revoked') { this.disconnect(); this.status('PCで接続が解除されました'); return; }
       if (data.type === 'pending') this.status('PCでF8を押し、接続を許可してください');
       if (data.type === 'approved') { this.ready = true; this.status('接続済み'); }

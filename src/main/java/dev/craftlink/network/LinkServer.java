@@ -28,6 +28,12 @@ public final class LinkServer {
     private volatile String status = "停止中", address = "", selectedHost = "";
     private List<String> hosts = List.of();
     private int hostIndex, activePort;
+    private ControllerPreferences preferences = new ControllerPreferences("mobile", 0.15, 100);
+    public synchronized void setControllerPreferences(ControllerPreferences next) {
+        if (preferences.equals(next)) return;
+        preferences = next;
+        if (approved && device != null) send(device, preferences.message());
+    }
     public String status() { return status; }
     public String url() { return address; }
     public boolean running() { return running; }
@@ -80,7 +86,7 @@ public final class LinkServer {
         session = null; hosts = List.of(); address = selectedHost = ""; status = "停止中";
     }
     public void shutdown() { if (closed.compareAndSet(false, true)) { stop(); lifecycle.shutdown(); } }
-    public synchronized void approve() { if (device != null) { approved = true; status = "接続済み"; send(device, "{\"type\":\"approved\"}"); } }
+    public synchronized void approve() { if (device != null) { approved = true; status = "接続済み"; send(device, "{\"type\":\"approved\"}"); send(device, preferences.message()); } }
     public synchronized void disconnect() { Channel old = device; device = null; approved = false; input.clear(); if (old != null) { if (old.isActive()) old.writeAndFlush(new TextWebSocketFrame("{\"type\":\"revoked\"}")).addListener(ChannelFutureListener.CLOSE); else old.close(); } if (running) status = "接続待ち"; }
     private static void send(Channel ch, String json) { ch.writeAndFlush(new TextWebSocketFrame(json)); }
     private final class Handler extends SimpleChannelInboundHandler<Object> {
