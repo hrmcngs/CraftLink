@@ -76,6 +76,22 @@ class LinkServerTest {
             assertEquals(token, server.url().split("#")[1]);
         } finally { server.shutdown(); }
     }
+    @Test void eachClientInstanceHasPrivateUrlAndRenewalInvalidatesOldToken() throws Exception {
+        LinkServer first = new LinkServer(), second = new LinkServer();
+        try {
+            first.start(0, "127.0.0.1", ""); second.start(0, "127.0.0.1", "");
+            await(first::running); await(second::running);
+            String oldUrl = first.url(), oldToken = oldUrl.split("#")[1];
+            String secondUrl = second.url();
+            assertNotEquals(oldToken, secondUrl.split("#")[1]);
+            first.renewSession();
+            await(() -> !oldUrl.equals(first.url()));
+            assertEquals(oldUrl.split("#")[0], first.url().split("#")[0]);
+            assertEquals(secondUrl, second.url());
+            assertEquals(0, first.devices());
+            assertRejected(HttpClient.newHttpClient(), oldUrl.split("/#")[0], oldToken);
+        } finally { first.shutdown(); second.shutdown(); }
+    }
     private static void assertRejected(HttpClient client, String origin, String token) throws Exception {
         var closed = new CountDownLatch(1);
         WebSocket other = client.newWebSocketBuilder().header("Origin", origin)

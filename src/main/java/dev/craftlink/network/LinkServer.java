@@ -63,6 +63,14 @@ public final class LinkServer {
             running = true; status = "接続待ち";
         } catch (Exception e) { stopInternal(); status = "起動失敗: " + e.getClass().getSimpleName(); }
     }
+    /** Generate a new private URL and invalidate the old token without rebinding the port. */
+    public void renewSession() { lifecycle.execute(this::renewSessionInternal); }
+    private synchronized void renewSessionInternal() {
+        if (!running) return;
+        disconnect();
+        session = new Session();
+        updateAddress();
+    }
     public void stop() { lifecycle.execute(this::stopInternal); }
     private synchronized void stopInternal() {
         running = false; disconnect();

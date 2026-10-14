@@ -16,6 +16,23 @@ LANまたはUSB接続したスマートフォンのブラウザをタッチコ�
 PCのファイアウォールに確認された場合、プライベートLANに限りTCP 8765を許可します。
 初回ビルド・Minecraft導入後の利用にはインターネット接続は不要です。
 
+## ユーザーごとのWebリンク・QR
+
+各ユーザーが自分のMinecraftで「接続を開始」を押すと、そのMinecraftに接続する専用Web URLとQRを自動生成します。
+F8画面のタイトルには操作先のMinecraftユーザー名を表示します。
+URLは固定の共通URLではなく、PCの接続先アドレス・ポート・ランダムな一時セッショントークンから生成します。
+別ユーザーのMinecraftや別の起動セッションとはトークンを共有しません。Webサーバーを別途公開する必要はありません。
+
+- 「URLをコピー」で、QRと同じ専用Webリンクをコピーできます。
+- 「QR再発行」で接続中の端末を切断し、古いURLを無効にして新しいURL・QRを生成できます。ポートや接続先はそのままです。
+- 接続先IPを切り替えた場合もQRは自動更新します（同じセッションのトークンを維持）。
+- 有効期限は30分。期限切れ後は「QR再発行」、または停止・再開始で更新できます。
+
+ここでの「ユーザーごと」は **各Minecraftクライアントの接続セッションごと** です。
+ユーザー名を知っているだけでは接続できず、トークンとPC側の承認が必要です。恒久的なアカウント用URLやオンラインログインサービスではありません。
+同じPCで複数のMinecraftを同時に動かす場合は、各インスタンスの設定で異なるポートを指定します。
+QR自体は接続経路を作りません。LANではPCへ到達できるネットワーク、Android USBではADB転送が必要です。
+
 ## USBケーブルで接続（同じWi-Fiは不要）
 
 ### Android：ADB USB転送
@@ -79,7 +96,7 @@ VPNの構築やインターネットへのポート公開はMODが自動実行�
 必要: **JDK 17、Node.js 22、npm**。Gradle Wrapper同梱。初回のみ依存ライブラリのダウンロードが必要です。
 
 ```sh
-bash scripts/build.sh
+sh build.sh
 # または ./gradlew build
 # Windows
 # gradlew.bat build
@@ -107,7 +124,7 @@ macOS / Linux / WindowsのGit Bash等で、リポジトリのルートから実�
 スクリプトは自身の位置からプロジェクトを見つけるため、別の作業ディレクトリからの実行にも対応します。
 
 ```sh
-bash scripts/build.sh
+sh build.sh
 ```
 
 Java・Node.js・npmを確認し、WebとMODをまとめてビルドして、完成したJARのパスを表示します。
@@ -115,7 +132,7 @@ Java・Node.js・npmを確認し、WebとMODをまとめてビルドして、完
 初回のオンラインビルドで取得済みの依存を使う場合は、次も利用できます。
 
 ```sh
-bash scripts/build.sh offline
+sh build.sh offline
 ```
 
 オフラインモードではGradleの `--offline` と `-PwebOffline=true` を使用し、npmのインストールを行わず、
@@ -126,7 +143,8 @@ JDK・Node.js・Gradle Wrapperの配布物・Gradleの依存キャッシュ・no
 ## 設計
 
 - `CraftLink.java`: Forgeクライアント初期化、F8登録、クライアントtick。
-- `gui/LinkScreen.java`: 起動・停止・承認・切断・URLコピー・ローカルQR生成。
+- `gui/LinkScreen.java`: 起動・停止・承認・切断・URLコピー・QR再発行・ユーザー名表示。
+- `gui/ConnectionQr.java`: 専用WebリンクからローカルでQRを生成。
 - `network/LinkServer.java`: NettyのHTTP / WebSocket、非同期起動・停止。
 - `network/NetworkAddresses.java`: 有線・USB・VPNを含む接続先候補の列挙。
 - `security/Session.java`: 256bitトークン、30分のセッション期限。
@@ -160,7 +178,7 @@ Mixinでスマホの長押し意図を統合するため、キー状態を変え
 - WebSocketの受信停止は5秒で切断。1秒周期のpingで往復遅延を表示。
 - 一時的な通信切断時は2秒後に再接続し、PCで再承認が必要。
 - 明示的な切断では自動再接続を停止。再開にはページ再読み込みが必要です。
-- セッションは開始から30分で期限切れ。「停止」→「接続を開始」でQRを更新してください。
+- セッションは開始から30分で期限切れ。「QR再発行」、または「停止」→「接続を開始」でQRを更新してください。
 - 終了時はshutdown hookで通信停止。任意キー入力、OSコマンド、ファイル操作用の通信APIはありません。
 
 **HTTP / WSは暗号化されません。信頼できる家庭内LAN専用です。** ポート転送やインターネット公開はしないでください。
@@ -213,7 +231,8 @@ F8画面下の「接続先」ボタンで切り替えるとQRとURLも切り替�
 
 - JDK 17 / Node.js 22の `./gradlew build` 成功。TypeScript検査・Web同梱・再難読化済みJAR生成。
 - JUnit: トークン、入力上限・消費・タイムアウト、実HTTP/WebSocket、承認前入力拒否、
-  不正トークン・2台目拒否、切断時解除を確認。
+  不正トークン・2台目拒否、切断時解除、クライアント間のURL独立性・再発行後の古いトークン拒否を確認。
+- 生成QRを読み戻し、トークンを含む専用Web URLと完全一致することを確認。
 - 独自移動入力: PC側Inputの保持、スマホ解除時のPC押下維持、逆方向の相殺、同方向の速度上限、減速、単発操作の押下エッジを確認。
 - `npm audit`: 検出0件（ロックファイル作成・更新時点）。Java依存全体の脆弱性監査を意味しません。
 - macOS / Apple M2上の `runClient` でForge・CraftLink読み込みとリソース初期化を確認。独自入力用の3つのMixinがMinecraft / LocalPlayerに適用されることもログで確認。
