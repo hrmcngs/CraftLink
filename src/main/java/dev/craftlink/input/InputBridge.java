@@ -1,39 +1,73 @@
 package dev.craftlink.input;
-import java.util.*;
-import net.minecraft.client.*;
+
+import dev.craftlink.mixin.MinecraftActions;
+import java.util.Set;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
 
+/** Remote intent is applied on the game thread, without synthetic key presses. */
 public final class InputBridge {
     private final RemoteState state;
-    private Set<String> previous = Set.of();
-    private final Set<KeyMapping> owned = new HashSet<>();
+    private final RemoteButtons buttons = new RemoteButtons();
+    private LocalPlayer controlled;
+    private RemoteInput movement;
+    private boolean immediateAttack, remoteUsing;
     public InputBridge(RemoteState state) { this.state = state; }
+    private boolean active(Minecraft mc) {
+        return mc.player != null && mc.player == controlled && mc.level != null && mc.gameMode != null
+            && mc.screen == null && mc.getOverlay() == null && !mc.isPaused();
+    }
+    public boolean held(String action) { return active(Minecraft.getInstance()) && buttons.held(action); }
+    private Set<String> movementButtons() { return active(Minecraft.getInstance()) ? buttons.held() : Set.of(); }
     public void tick(Minecraft mc) {
         var snapshot = state.take();
-        if (mc.player == null || mc.level == null || mc.screen != null) { release(); previous = Set.of(); return; }
-        Set<String> held = snapshot.held();
-        Map<String, KeyMapping> bindings = Map.ofEntries(
-            Map.entry("forward", mc.options.keyUp), Map.entry("back", mc.options.keyDown),
-            Map.entry("left", mc.options.keyLeft), Map.entry("right", mc.options.keyRight),
-            Map.entry("jump", mc.options.keyJump), Map.entry("sneak", mc.options.keyShift),
-            Map.entry("sprint", mc.options.keySprint), Map.entry("attack", mc.options.keyAttack), Map.entry("use", mc.options.keyUse));
-        bindings.forEach((name, key) -> {
-            if (held.contains(name)) {
-                key.setDown(true); owned.add(key);
-                if (!previous.contains(name) && (name.equals("attack") || name.equals("use"))) KeyMapping.click(key.getKey());
-            } else if (owned.remove(key)) key.setDown(false);
-        });
+        immediateAttack = false;
+        if (controlled != mc.player) {
+            if (controlled != null && controlled.input == movement) controlled.input = movement.local();
+            controlled = mc.player; movement = null; remoteUsing = false; buttons.clear();
+        }
+        if (controlled != null && controlled.input != movement) {
+            // Preserve another mod's replacement Input as the local source.
+            movement = new RemoteInput(controlled.input, this::movementButtons);
+            controlled.input = movement;
+        }
+        if (controlled != null && mc.gameMode != null) {
+            // A GUI or a lost connection must release only remote ownership.
+            // Reading physical ownership here never changes the key or its click queue.
+            if (remoteUsing && (!active(mc) || !snapshot.held().contains("use"))) {
+                if (controlled.isUsingItem() && !mc.options.keyUse.isDown()) mc.gameMode.releaseUsingItem(controlled);
+                remoteUsing = false;
+            }
+            if (!active(mc) && buttons.held("attack") && !mc.options.keyAttack.isDown()) mc.gameMode.stopDestroyBlock();
+        }
+        if (!active(mc)) { buttons.clear(); return; }
+        buttons.update(snapshot.held());
         mc.player.setYRot(mc.player.getYRot() + (float)snapshot.yaw());
         mc.player.setXRot(Math.max(-90, Math.min(90, mc.player.getXRot() + (float)snapshot.pitch())));
-        if (snapshot.slot() >= 0) mc.player.getInventory().selected = snapshot.slot();
-        if (edge(held, "inventory")) KeyMapping.click(mc.options.keyInventory.getKey());
-        if (edge(held, "drop")) mc.player.drop(false);
-        if (edge(held, "swap")) mc.player.connection.send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ZERO, Direction.DOWN));
-        if (edge(held, "escape")) mc.pauseGame(false);
-        previous = held;
+        if (snapshot.slot() >= 0) {
+            if (mc.player.isSpectator()) mc.gui.getSpectatorGui().onHotbarSelected(snapshot.slot());
+            else mc.player.getInventory().selected = snapshot.slot();
+        }
+        if (buttons.pressed("drop") && !mc.player.isSpectator() && mc.player.drop(false)) mc.player.swing(InteractionHand.MAIN_HAND);
+        if (buttons.pressed("swap") && !mc.player.isSpectator()) mc.player.connection.send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.SWAP_ITEM_WITH_OFFHAND, BlockPos.ZERO, Direction.DOWN));
+        if (buttons.pressed("inventory")) {
+            if (mc.gameMode.isServerControlledInventory()) mc.player.sendOpenInventory();
+            else { mc.getTutorial().onOpenInventory(); mc.setScreen(new InventoryScreen(mc.player)); }
+        } else if (buttons.pressed("escape")) mc.pauseGame(false);
     }
-    private boolean edge(Set<String> held, String key) { return held.contains(key) && !previous.contains(key); }
-    private void release() { owned.forEach(k -> k.setDown(false)); owned.clear(); }
+    /** Called once at Minecraft's ordinary interaction processing point. */
+    public void interactions(Minecraft mc, MinecraftActions actions) {
+        if (!active(mc)) return;
+        if (buttons.pressed("attack") && !mc.player.isUsingItem()) immediateAttack = actions.craftlink$startAttack();
+        if (buttons.held("use") && !mc.player.isUsingItem()
+            && (buttons.pressed("use") || actions.craftlink$useDelay() == 0)) {
+            actions.craftlink$startUseItem(); remoteUsing = mc.player.isUsingItem();
+        }
+    }
+    public boolean continueAttack() { return held("attack") && !immediateAttack; }
 }

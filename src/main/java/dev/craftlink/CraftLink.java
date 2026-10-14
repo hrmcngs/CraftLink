@@ -28,7 +28,7 @@ public final class CraftLink {
     public static final class Client {
         public static final LinkServer SERVER = new LinkServer();
         public static final KeyMapping OPEN = new KeyMapping("key.craftlink.open", GLFW.GLFW_KEY_F8, "key.categories.craftlink");
-        private static final InputBridge INPUT = new InputBridge(SERVER.input);
+        public static final InputBridge INPUT = new InputBridge(SERVER.input);
         private static void init() {
             FMLJavaModLoadingContext.get().getModEventBus().addListener(Client::register);
             MinecraftForge.EVENT_BUS.register(Client.class);

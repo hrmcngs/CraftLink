@@ -1,6 +1,7 @@
 plugins {
     id 'net.minecraftforge.gradle' version '[6.0,6.2)'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'org.spongepowered.mixin' version '0.7.38'
 }
 version = '0.1.0'
 group = 'dev.craftlink'
@@ -10,10 +11,12 @@ minecraft {
     mappings channel: 'official', version: '1.20.1'
     runs { client { workingDirectory project.file('run'); mods { craftlink { source sourceSets.main } } } }
 }
-repositories { mavenCentral() }
+repositories { mavenCentral(); maven { url = 'https://repo.spongepowered.org/repository/maven-public/' } }
+mixin { add sourceSets.main, 'craftlink.refmap.json'; config 'craftlink.mixins.json' }
 configurations { embedded }
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.4.10'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
     embedded 'com.google.zxing:core:3.5.3'
     embedded 'io.netty:netty-codec-http:4.1.137.Final'
     implementation 'io.netty:netty-codec-http:4.1.137.Final'
@@ -53,6 +56,7 @@ processResources { dependsOn 'webBuild'; from('web/dist') { into 'web' } }
 jar { archiveClassifier = 'thin' }
 shadowJar {
     archiveClassifier = ''
+    manifest { attributes 'MixinConfigs': 'craftlink.mixins.json' }
     configurations = [project.configurations.embedded]
     relocate 'io.netty', 'dev.craftlink.internal.netty'
     relocate 'com.google.zxing', 'dev.craftlink.internal.zxing'
