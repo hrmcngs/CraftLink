@@ -13,6 +13,14 @@ def craftlinkPort = providers.gradleProperty('craftlinkPort').orNull
 if (craftlinkPort != null && (!(craftlinkPort ==~ /[0-9]{1,5}/) || craftlinkPort.toInteger() < 1024 || craftlinkPort.toInteger() > 65535)) {
     throw new GradleException('craftlinkPort must be 1024..65535')
 }
+sourceSets {
+    devClient {
+        java.srcDirs = []
+        resources.srcDirs = []
+        output.classesDirs.setFrom(files(layout.buildDirectory.dir('dev-client')).builtBy('prepareDevClient'))
+        output.resourcesDir = layout.buildDirectory.dir('dev-client').get().asFile
+    }
+}
 minecraft {
     mappings channel: 'official', version: '1.20.1'
     runs {
@@ -20,7 +28,7 @@ minecraft {
             workingDirectory project.file('run')
             property 'craftlink.transport', craftlinkTransport
             if (craftlinkPort != null) property 'craftlink.port', craftlinkPort
-            mods { craftlink { source sourceSets.main } }
+            mods { craftlink { source sourceSets.devClient } }
         }
     }
 }
@@ -73,9 +81,27 @@ shadowJar {
     configurations = [project.configurations.embedded]
     relocate 'io.netty', 'dev.craftlink.internal.netty'
     relocate 'com.google.zxing', 'dev.craftlink.internal.zxing'
-    exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
+    exclude 'META-INF/services/reactor.blockhound.integration.BlockHoundIntegration', 'META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
 }
 reobf { shadowJar {} }
 shadowJar.finalizedBy 'reobfShadowJar'
 build.dependsOn shadowJar
 test { useJUnitPlatform() }
+
+// Run the same relocated libraries as the distribution, without production name remapping.
+tasks.register('devShadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+    dependsOn classes
+    from sourceSets.main.output
+    archiveClassifier = 'dev'
+    configurations = [project.configurations.embedded]
+    relocate 'io.netty', 'dev.craftlink.internal.netty'
+    relocate 'com.google.zxing', 'dev.craftlink.internal.zxing'
+    manifest { attributes 'MixinConfigs': 'craftlink.mixins.json' }
+    exclude 'META-INF/services/reactor.blockhound.integration.BlockHoundIntegration', 'META-INF/INDEX.LIST', 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'module-info.class', 'META-INF/versions/**/module-info.class'
+}
+tasks.register('prepareDevClient', Sync) {
+    dependsOn devShadowJar
+    from { zipTree(tasks.devShadowJar.archiveFile.get().asFile) }
+    into layout.buildDirectory.dir('dev-client')
+}
+tasks.matching { it.name == 'runClient' }.configureEach { dependsOn 'prepareDevClient' }

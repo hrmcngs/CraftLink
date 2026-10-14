@@ -9,5 +9,8 @@
   "craftlink.controls.subtitle": "CraftLink · タッチ操作",
   "craftlink.controls.help": "設定は接続中のスマートフォンにも反映されます。移動と視点操作を別々の指で操作できます。PCのキー割り当ては変わりません。",
   "craftlink.layout.mobile": "携帯版風ジョイスティック",
-  "craftlink.layout.classic": "方向ボタン"
+  "craftlink.layout.classic": "方向ボタン",
+  "craftlink.layout.tap": "ジョイスティック＋直接タップ",
+  "craftlink.layout.classic_tap": "方向ボタン＋直接タップ",
+  "craftlink.controls.video": "Minecraft映像の転送を許可"
 }

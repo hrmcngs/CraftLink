@@ -2,6 +2,7 @@ package dev.craftlink.network;
 
 import com.google.gson.*;
 import dev.craftlink.input.RemoteState;
+import dev.craftlink.input.TouchEvent;
 import dev.craftlink.security.Session;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
@@ -29,6 +30,18 @@ public final class LinkServer {
     private List<String> hosts = List.of();
     private int hostIndex, activePort;
     private ControllerPreferences preferences = new ControllerPreferences("mobile", 0.15, 100);
+    private boolean videoRequested, videoAllowed = true;
+    private int awaitingFrame;
+    private long videoEpoch;
+    public synchronized void setVideoAllowed(boolean allowed) { videoAllowed = allowed; }
+    public synchronized boolean videoActive() { return approved && device != null && videoRequested && videoAllowed; }
+    public synchronized boolean canStream() { return videoActive() && awaitingFrame == 0 && device.isWritable(); }
+    public synchronized long videoEpoch() { return videoEpoch; }
+    public synchronized void publishVideo(long epoch, int frame, byte[] packet) {
+        if (epoch != videoEpoch || !canStream()) return;
+        awaitingFrame = frame;
+        device.writeAndFlush(new BinaryWebSocketFrame(Unpooled.wrappedBuffer(packet)));
+    }
     public synchronized void setControllerPreferences(ControllerPreferences next) {
         if (preferences.equals(next)) return;
         preferences = next;
@@ -87,7 +100,7 @@ public final class LinkServer {
     }
     public void shutdown() { if (closed.compareAndSet(false, true)) { stop(); lifecycle.shutdown(); } }
     public synchronized void approve() { if (device != null) { approved = true; status = "接続済み"; send(device, "{\"type\":\"approved\"}"); send(device, preferences.message()); } }
-    public synchronized void disconnect() { Channel old = device; device = null; approved = false; input.clear(); if (old != null) { if (old.isActive()) old.writeAndFlush(new TextWebSocketFrame("{\"type\":\"revoked\"}")).addListener(ChannelFutureListener.CLOSE); else old.close(); } if (running) status = "接続待ち"; }
+    public synchronized void disconnect() { Channel old = device; device = null; approved = false; videoRequested = false; awaitingFrame = 0; videoEpoch++; input.clear(); if (old != null) { if (old.isActive()) old.writeAndFlush(new TextWebSocketFrame("{\"type\":\"revoked\"}")).addListener(ChannelFutureListener.CLOSE); else old.close(); } if (running) status = "接続待ち"; }
     private static void send(Channel ch, String json) { ch.writeAndFlush(new TextWebSocketFrame(json)); }
     private final class Handler extends SimpleChannelInboundHandler<Object> {
         private boolean upgraded, authenticated;
@@ -110,6 +123,17 @@ public final class LinkServer {
                 String type = data.get("type").getAsString();
                 if (type.equals("ping")) { send(device, "{\"type\":\"pong\"}"); return; }
                 if (type.equals("disconnect")) { disconnect(); return; }
+                if (approved && type.equals("video")) {
+                    videoRequested = data.get("enabled").getAsBoolean(); awaitingFrame = 0; videoEpoch++; return;
+                }
+                if (approved && type.equals("frameAck")) {
+                    if (data.get("frame").getAsInt() == awaitingFrame) awaitingFrame = 0;
+                    return;
+                }
+                if (videoActive() && type.equals("touch")) {
+                    input.touch(new TouchEvent(data.get("phase").getAsString(), data.get("frame").getAsInt(), data.get("x").getAsDouble(), data.get("y").getAsDouble()));
+                    return;
+                }
                 if (!approved || !type.equals("input")) return;
                 Set<String> keys = new HashSet<>();
                 JsonArray buttons = data.getAsJsonArray("held");
@@ -136,7 +160,7 @@ public final class LinkServer {
             byte[] bytes; try (var stream = LinkServer.class.getResourceAsStream(resource)) { bytes = stream == null ? null : stream.readAllBytes(); }
             var response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, bytes == null ? HttpResponseStatus.NOT_FOUND : HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes == null ? new byte[0] : bytes));
             String mime = path.endsWith(".js") ? "text/javascript" : path.endsWith(".css") ? "text/css" : "text/html; charset=utf-8";
-            response.headers().set(HttpHeaderNames.CONTENT_TYPE, mime).set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes()).set("Cache-Control", "no-store").set("Referrer-Policy", "no-referrer").set("X-Content-Type-Options", "nosniff").set("Content-Security-Policy", "default-src 'self'; connect-src 'self' ws:; style-src 'self'; frame-ancestors 'none'");
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, mime).set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes()).set("Cache-Control", "no-store").set("Referrer-Policy", "no-referrer").set("X-Content-Type-Options", "nosniff").set("Content-Security-Policy", "default-src 'self'; connect-src 'self' ws:; style-src 'self'; img-src 'self' blob:; frame-ancestors 'none'");
             ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
         @Override public void channelInactive(ChannelHandlerContext ctx) { synchronized (LinkServer.this) { if (device == ctx.channel()) disconnect(); } }

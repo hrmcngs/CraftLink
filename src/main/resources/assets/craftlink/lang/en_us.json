@@ -9,5 +9,8 @@
   "craftlink.controls.subtitle": "CraftLink · Touch controls",
   "craftlink.controls.help": "Settings also apply to the connected phone. Move and look with separate fingers. PC key bindings stay unchanged.",
   "craftlink.layout.mobile": "Mobile-style joystick",
-  "craftlink.layout.classic": "Directional buttons"
+  "craftlink.layout.classic": "Directional buttons",
+  "craftlink.layout.tap": "Joystick & tap to interact",
+  "craftlink.layout.classic_tap": "D-pad & tap to interact",
+  "craftlink.controls.video": "Allow Minecraft video streaming"
 }

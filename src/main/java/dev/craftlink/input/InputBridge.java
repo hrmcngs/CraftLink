@@ -14,18 +14,26 @@ import net.minecraft.world.InteractionHand;
 public final class InputBridge {
     private final RemoteState state;
     private final RemoteButtons buttons = new RemoteButtons();
+    public final VideoTouchInput videoTouch;
     private LocalPlayer controlled;
     private RemoteInput movement;
     private boolean immediateAttack, remoteUsing;
-    public InputBridge(RemoteState state) { this.state = state; }
+    public InputBridge(RemoteState state, dev.craftlink.video.VideoStreamer video) { this.state = state; this.videoTouch = new VideoTouchInput(video); }
     private boolean active(Minecraft mc) {
         return mc.player != null && mc.player == controlled && mc.level != null && mc.gameMode != null
             && mc.screen == null && mc.getOverlay() == null && !mc.isPaused();
     }
     public boolean held(String action) { return active(Minecraft.getInstance()) && buttons.held(action); }
-    private Set<String> movementButtons() { return active(Minecraft.getInstance()) ? buttons.held() : Set.of(); }
+    private Set<String> movementButtons() {
+        if (!active(Minecraft.getInstance())) return Set.of();
+        var held = new java.util.HashSet<>(buttons.held());
+        for (String key : Set.of("jump", "forward", "back", "left", "right")) if (buttons.pressed(key)) held.add(key);
+        return held;
+    }
     public void tick(Minecraft mc) {
         var snapshot = state.take();
+        videoTouch.tick(mc, snapshot.touches());
+        if (mc.screen != null && snapshot.presses().contains("escape")) { mc.screen.onClose(); buttons.clear(); return; }
         immediateAttack = false;
         if (controlled != mc.player) {
             if (controlled != null && controlled.input == movement) controlled.input = movement.local();
@@ -46,7 +54,7 @@ public final class InputBridge {
             if (!active(mc) && buttons.held("attack") && !mc.options.keyAttack.isDown()) mc.gameMode.stopDestroyBlock();
         }
         if (!active(mc)) { buttons.clear(); return; }
-        buttons.update(snapshot.held());
+        buttons.update(snapshot.held(), snapshot.presses());
         mc.player.setYRot(mc.player.getYRot() + (float)snapshot.yaw());
         mc.player.setXRot(Math.max(-90, Math.min(90, mc.player.getXRot() + (float)snapshot.pitch())));
         if (snapshot.slot() >= 0) {
@@ -63,11 +71,13 @@ public final class InputBridge {
     /** Called once at Minecraft's ordinary interaction processing point. */
     public void interactions(Minecraft mc, MinecraftActions actions) {
         if (!active(mc)) return;
+        videoTouch.interactions(mc, actions);
+        if (!active(mc)) return;
         if (buttons.pressed("attack") && !mc.player.isUsingItem()) immediateAttack = actions.craftlink$startAttack();
-        if (buttons.held("use") && !mc.player.isUsingItem()
+        if ((buttons.held("use") || buttons.pressed("use")) && !mc.player.isUsingItem()
             && (buttons.pressed("use") || actions.craftlink$useDelay() == 0)) {
             actions.craftlink$startUseItem(); remoteUsing = mc.player.isUsingItem();
         }
     }
-    public boolean continueAttack() { return held("attack") && !immediateAttack; }
+    public boolean continueAttack() { return held("attack") && !immediateAttack || active(Minecraft.getInstance()) && videoTouch.heldAttack(); }
 }

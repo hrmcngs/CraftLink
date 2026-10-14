@@ -28,8 +28,12 @@ public final class TouchSettingsScreen extends Screen {
             value -> { LinkConfig.TOUCH_SENSITIVITY.set(Math.round(value * 100) / 100.0); publish(); }, false));
         addRenderableWidget(new SettingSlider(left + 160, top + 24, 150, "craftlink.controls.size", LinkConfig.TOUCH_BUTTON_SIZE.get(), 80, 140,
             value -> { LinkConfig.TOUCH_BUTTON_SIZE.set((int)Math.round(value)); publish(); }, true));
+        addRenderableWidget(CycleButton.onOffBuilder(LinkConfig.VIDEO_ENABLED.get())
+            .create(left, top + 48, 310, 20, Component.translatable("craftlink.controls.video"), (button, enabled) -> {
+                LinkConfig.VIDEO_ENABLED.set(enabled); Client.SERVER.setVideoAllowed(enabled);
+            }));
         addRenderableWidget(Button.builder(Component.translatable("craftlink.controls.connect"), b -> minecraft.setScreen(new LinkScreen(this)))
-            .bounds(width / 2 - 100, top + 52, 200, 20).build());
+            .bounds(width / 2 - 100, top + 76, 200, 20).build());
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> onClose()).bounds(width / 2 - 100, height - 27, 200, 20).build());
     }
     private void publish() { Client.SERVER.setControllerPreferences(LinkConfig.controllerPreferences()); }
@@ -37,7 +41,7 @@ public final class TouchSettingsScreen extends Screen {
         renderBackground(g);
         g.drawCenteredString(font, title, width / 2, 15, 0xffffff);
         g.drawCenteredString(font, Component.translatable("craftlink.controls.subtitle"), width / 2, 35, 0xa0a0a0);
-        if (height >= 220) g.drawWordWrap(font, Component.translatable("craftlink.controls.help"), width / 2 - 150, Math.max(48, height / 6 + 24) + 82, 300, 0xa0a0a0);
+        if (height >= 280) g.drawWordWrap(font, Component.translatable("craftlink.controls.help"), width / 2 - 150, Math.max(48, height / 6 + 24) + 106, 300, 0xa0a0a0);
         super.render(g, mx, my, partial);
     }
     @Override public void removed() { LinkConfig.SPEC.save(); super.removed(); }

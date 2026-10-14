@@ -32,9 +32,11 @@ class LinkServerTest {
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
             assertEquals(404, client.send(HttpRequest.newBuilder(URI.create(origin + "/missing")).build(), HttpResponse.BodyHandlers.discarding()).statusCode());
             var messages = new LinkedBlockingQueue<String>();
+            var frames = new LinkedBlockingQueue<Integer>();
             WebSocket ws = client.newWebSocketBuilder().header("Origin", origin).buildAsync(URI.create("ws://127.0.0.1:" + port + "/ws"), new WebSocket.Listener() {
                 public void onOpen(WebSocket socket) { socket.request(1); }
                 public CompletionStage<?> onText(WebSocket socket, CharSequence data, boolean last) { messages.add(data.toString()); socket.request(1); return null; }
+                public CompletionStage<?> onBinary(WebSocket socket, java.nio.ByteBuffer data, boolean last) { frames.add(data.remaining()); socket.request(1); return null; }
             }).get(3, TimeUnit.SECONDS);
             assertRejected(client, origin, "invalid");
             assertEquals(0, server.devices());
@@ -43,8 +45,22 @@ class LinkServerTest {
             assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("pending"));
             String input = "{\"type\":\"input\",\"held\":[\"attack\"],\"dx\":0,\"dy\":0,\"slot\":-1}";
             ws.sendText(input, true).join(); Thread.sleep(80); assertTrue(server.input.take().held().isEmpty());
+            assertFalse(server.canStream());
             server.approve(); assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("approved"));
             assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("\"layout\":\"mobile\""));
+            ws.sendText("{\"type\":\"video\",\"enabled\":true}", true).join();
+            await(server::canStream);
+            long epoch = server.videoEpoch();
+            server.publishVideo(epoch, 1, new byte[]{1, 2, 3});
+            assertEquals(3, frames.poll(3, TimeUnit.SECONDS));
+            assertFalse(server.canStream());
+            server.publishVideo(epoch, 2, new byte[]{4});
+            assertNull(frames.poll(80, TimeUnit.MILLISECONDS));
+            ws.sendText("{\"type\":\"frameAck\",\"frame\":2}", true).join();
+            Thread.sleep(80); assertFalse(server.canStream());
+            ws.sendText("{\"type\":\"frameAck\",\"frame\":1}", true).join();
+            await(server::canStream);
+            server.setVideoAllowed(false); assertFalse(server.videoActive());
             server.setControllerPreferences(new ControllerPreferences("classic", .25, 120));
             assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("\"layout\":\"classic\""));
             ws.sendText(input, true).join(); await(() -> server.input.take().held().contains("attack"));

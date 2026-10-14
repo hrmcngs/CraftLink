@@ -5,18 +5,26 @@ export class Link {
   private pingAt = 0;
   private lastPong = 0;
   ready = false;
-  constructor(private token: string, private status: (text: string) => void, private reset: () => void, private preferences: (value: unknown) => void = () => {}) {}
+  private videoEnabled = true;
+  constructor(private token: string, private status: (text: string) => void, private reset: () => void, private preferences: (value: unknown) => void = () => {}, private frame: (blob: Blob) => Promise<number | undefined> = async () => undefined) {}
   connect() {
     if (this.stopped) return;
     this.status('接続中…');
     const ws = this.socket = new WebSocket(`ws://${location.host}/ws`);
     ws.onopen = () => { this.lastPong = performance.now(); ws.send(JSON.stringify({type: 'hello', token: this.token})); };
-    ws.onmessage = e => {
+    ws.onmessage = async e => {
+      if (typeof e.data !== 'string') {
+        try {
+          const id=await this.frame(e.data instanceof Blob ? e.data : new Blob([e.data]));
+          if (id!==undefined && this.socket===ws && this.ready) ws.send(JSON.stringify({type:'frameAck',frame:id}));
+        } catch { this.status('映像の受信に失敗しました'); }
+        return;
+      }
       const data = JSON.parse(e.data);
       if (data.type === 'preferences') { this.preferences(data); return; }
       if (data.type === 'revoked') { this.disconnect(); this.status('PCで接続が解除されました'); return; }
       if (data.type === 'pending') this.status('PCでF8を押し、接続を許可してください');
-      if (data.type === 'approved') { this.ready = true; this.status('接続済み'); }
+      if (data.type === 'approved') { this.ready = true; this.status('接続済み'); ws.send(JSON.stringify({type:'video',enabled:this.videoEnabled})); }
       if (data.type === 'pong') { this.lastPong = performance.now(); if (this.ready) this.status(`接続済み · ${Math.round(this.lastPong - this.pingAt)} ms`); }
     };
     ws.onclose = () => {
@@ -26,6 +34,7 @@ export class Link {
     ws.onerror = () => ws.close();
   }
   send(data: unknown) { if (this.ready && this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(data)); }
+  setVideoEnabled(enabled:boolean) { this.videoEnabled=enabled; this.send({type:'video',enabled}); }
   heartbeat() {
     if (this.socket?.readyState !== WebSocket.OPEN) return;
     if (performance.now() - this.lastPong > 5000) { this.socket.close(); return; }

@@ -18,6 +18,10 @@ abstract class MinecraftInputMixin {
     private boolean craftlink$continueMining(boolean keyboardAttack) {
         return keyboardAttack || Client.INPUT.continueAttack();
     }
+    @Inject(method = "continueAttack", at = @At("HEAD"))
+    private void craftlink$touchTarget(boolean held, CallbackInfo ci) { Client.INPUT.videoTouch.beforeMining((Minecraft)(Object)this); }
+    @Inject(method = "continueAttack", at = @At("RETURN"))
+    private void craftlink$restoreTarget(boolean held, CallbackInfo ci) { Client.INPUT.videoTouch.afterMining((Minecraft)(Object)this); }
     // Vanilla releases item use when the physical mouse is up. Remote hold is a separate owner.
     @Redirect(method = "handleKeybinds", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;releaseUsingItem(Lnet/minecraft/world/entity/player/Player;)V"))
     private void craftlink$releaseUse(MultiPlayerGameMode gameMode, Player player) {
