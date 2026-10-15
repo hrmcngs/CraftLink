@@ -14,7 +14,7 @@ let look:{id:number;x:number;y:number}|undefined;
 const feedback=()=>root.querySelectorAll<HTMLElement>('[data-key]').forEach(b=>b.classList.toggle('pressed',[...held.values()].includes(b.dataset.key!)));
 function send(force=false){if(!ready||socket?.readyState!==WebSocket.OPEN)return;const packet=JSON.stringify({type:'input',held:[...new Set(held.values())],dx:Math.max(-180,Math.min(180,dx)),dy:Math.max(-180,Math.min(180,dy))});const now=performance.now();if(force||dx!==0||dy!==0||packet!==lastSent||now-sentAt>=250){socket.send(packet);lastSent=packet;sentAt=now;dx=0;dy=0;}}
 function release(){held.clear();look=undefined;dx=0;dy=0;feedback();send(true);}
-function update(){ready=!stopped&&approved&&!paused&&!document.hidden;root.dataset.enabled=String(ready);if(stopped)return;status.textContent=!approved?'主催者のきょかをまってね':paused?'主催者がとめています':document.hidden?'おやすみ中':'うごかせるよ';}
+function update(){ready=!stopped&&approved&&!paused&&!document.hidden;root.dataset.enabled=String(ready);root.querySelectorAll<HTMLButtonElement>('[data-key]').forEach(button=>button.disabled=!ready);if(stopped)return;document.querySelector('footer')!.textContent=!approved?'PCで F8 → みんなで参加 →「許可して開始」を押してください':paused?'操作は一時停止中です。PCで「許可して開始」または「開始 / 再開」を押してください':'移動・ジャンプ・視点を同時に操作できます';status.textContent=!approved?'PCで接続を許可してください':paused?'一時停止中 · PCで開始してください':document.hidden?'おやすみ中':'うごかせるよ';}
 function connect(){
  if(stopped)return;
  approved=false;ready=false;status.textContent='せつぞく中…';
@@ -31,7 +31,7 @@ ws.onmessage=async e=>{
   if(data.type==='pong'){lastPong=performance.now();if(ready)status.textContent=`うごかせるよ · ${Math.round(lastPong-pingAt)} ms`;}
   if(data.type==='revoked'){stopped=true;resume='';try{sessionStorage.removeItem(storageKey);}catch{}release();ws.close();status.textContent='主催者がさんかをしゅうりょうしました';}
  };
- ws.onclose=()=>{video.clear();ready=false;approved=false;release();root.dataset.enabled='false';if(!stopped){status.textContent='さいせつぞく中…（30秒をすぎたら主催者のきょかが必要です）';retry=window.setTimeout(connect,2000);}};
+ ws.onclose=()=>{video.clear();ready=false;approved=false;release();update();root.dataset.enabled='false';if(!stopped){status.textContent='さいせつぞく中…（30秒をすぎたら主催者のきょかが必要です）';retry=window.setTimeout(connect,2000);}};
  ws.onerror=()=>ws.close();
 }
 root.querySelectorAll<HTMLElement>('[data-key]').forEach(button=>{
@@ -50,4 +50,4 @@ window.addEventListener('blur',release);window.addEventListener('resize',release
 document.addEventListener('visibilitychange',()=>{if(document.hidden)release();update();requestVideo();});document.addEventListener('contextmenu',e=>e.preventDefault());
 setInterval(()=>{if(ready)send();video.refresh();},33);
 setInterval(()=>{if(socket?.readyState===WebSocket.OPEN){if(performance.now()-lastPong>5000){socket.close();return;}pingAt=performance.now();socket.send('{"type":"ping"}');}},1000);
-root.dataset.enabled='false';if(/^[A-Za-z0-9_-]{43}$/.test(token))connect();else status.textContent='主催者のQRコードからひらいてね';
+update();root.dataset.enabled='false';if(/^[A-Za-z0-9_-]{43}$/.test(token))connect();else status.textContent='主催者のQRコードからひらいてね';

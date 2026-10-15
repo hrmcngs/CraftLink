@@ -79,5 +79,19 @@ static class VideoSocket extends Socket {
     final List<byte[]> frames=new ArrayList<>();
     public boolean sendVideo(byte[] packet){frames.add(packet);return true;}
 }
+@Test void explicitHostApprovalStartsInputAndEmergencyPauseStillBlocksIt(){
+    var room=new ClassroomRoom();var socket=new Socket();var id=room.join(room.token(),"",socket);
+    assertTrue(room.paused());room.input(id,socket,Set.of("forward"),0);assertTrue(room.takeInputs().isEmpty());
+    assertEquals(1,room.approveConnectedAndStart());assertFalse(room.paused());
+    room.input(id,socket,Set.of("forward"),0);assertEquals(Set.of("forward"),room.takeInputs().get(id).input().held());
+    room.pause(true);room.input(id,socket,Set.of("forward"),0);assertTrue(room.takeInputs().get(id).input().held().isEmpty());
+    assertEquals(1,room.approveConnectedAndStart());assertTrue(room.takeInputs().get(id).input().held().isEmpty());
+}
+@Test void emptyOrClosedRoomCannotBeStartedByCombinedApproval(){
+    var room=new ClassroomRoom();assertEquals(0,room.approveConnectedAndStart());assertTrue(room.paused());
+    var socket=new Socket();var id=room.join(room.token(),"",socket);room.disconnect(id,socket);
+    assertEquals(0,room.approveConnectedAndStart());assertTrue(room.paused());
+    room.close();assertEquals(0,room.approveConnectedAndStart());
+}
 
 }

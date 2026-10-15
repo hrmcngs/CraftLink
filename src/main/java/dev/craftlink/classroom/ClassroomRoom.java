@@ -65,6 +65,16 @@ public final class ClassroomRoom {
         Peer peer = peers.get(id); if (peer == null || peer.socket == null || expired()) return;
         peer.approved = true; peer.input.clear(); sendState(peer);
     }
+    /** Explicit host action: approve connected participants and start the room together. */
+    public synchronized int approveConnectedAndStart() {
+        if (expired()) return 0;
+        int count = 0;
+        for (Peer peer : peers.values()) if (peer.socket != null) {
+            peer.approved = true; peer.input.clear(); count++;
+        }
+        if (count > 0) pause(false);
+        return count;
+    }
     public synchronized void remove(UUID id) {
         Peer peer = peers.remove(id);
         if (peer != null) { peer.input.clear(); if (peer.socket != null) { peer.socket.send("{\"type\":\"revoked\"}"); peer.socket.close(); } }

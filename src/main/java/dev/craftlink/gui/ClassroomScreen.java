@@ -16,12 +16,12 @@ public final class ClassroomScreen extends Screen {
     private int page;
     private String roster = "", qrUrl = "";
     private BitMatrix qr;
-    private Button start, pause;
+    private Button start, pause, allowStart;
     public ClassroomScreen(Screen parent) { super(Component.literal("CraftLink みんなで参加 / 最大8台")); this.parent = parent; }
     @Override protected void init() {
         int x = width/2;
         addRenderableWidget(Button.builder(Component.literal("別のWi-Fi"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, true))).bounds(4, 4, 100, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("全員を許可"), b -> { var room=Client.CLASSROOM.room(); if(room!=null) for(var peer:room.views()) if(peer.connected()) room.approve(peer.id()); }).bounds(width-104,4,100,20).build());
+        allowStart = addRenderableWidget(Button.builder(Component.literal("許可して開始"), b -> { var room=Client.CLASSROOM.room(); if(room!=null && room.approveConnectedAndStart()>0) minecraft.setScreen(null); }).bounds(width-104,4,100,20).build());
         start = addRenderableWidget(Button.builder(Component.literal("受付を開始"), b -> {
             if (minecraft.getSingleplayerServer() != null && minecraft.player != null && !usbLaunch()) {
                 var settings = LinkConfig.launchSettings();
@@ -53,6 +53,7 @@ public final class ClassroomScreen extends Screen {
         if(!roster.equals(next)) rebuildWidgets();
         start.active = !Client.CLASSROOM.running() && minecraft.getSingleplayerServer()!=null && minecraft.player!=null && !usbLaunch();
         pause.active = Client.CLASSROOM.running();
+        allowStart.active = room != null && room.views().stream().anyMatch(ClassroomRoom.View::connected);
     }
     @Override public void render(GuiGraphics g,int mx,int my,float partial) {
         renderBackground(g);
