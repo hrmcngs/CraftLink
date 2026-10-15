@@ -41,7 +41,7 @@ public final class ClassroomScreen extends Screen {
         List<ClassroomRoom.View> peers = room == null ? List.of() : room.views();
         for (int i=page*4;i<Math.min(peers.size(),(page+1)*4);i++) {
             var peer=peers.get(i);int y=61+(i%4)*22;
-            var allow = addRenderableWidget(Button.builder(Component.literal(peer.number()+"号 "+(!peer.connected()?"再接続待ち":peer.approved()?"参加中":"接続中")),b->{var current=Client.CLASSROOM.room();if(current!=null)current.approve(peer.id());})
+            var allow = addRenderableWidget(Button.builder(Component.literal(font.plainSubstrByWidth(peer.number()+"号 "+peer.name()+" / "+(!peer.connected()?"再接続待ち":peer.approved()?"参加中":"接続中"),Math.max(50,width-235))),b->{var current=Client.CLASSROOM.room();if(current!=null)current.approve(peer.id());})
                 .bounds(165,y,Math.max(60,width-225),20).build());
             allow.active = peer.connected() && !peer.approved();
             addRenderableWidget(Button.builder(Component.literal("切断"),b->{var current=Client.CLASSROOM.room();if(current!=null)current.remove(peer.id());})

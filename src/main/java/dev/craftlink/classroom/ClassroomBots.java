@@ -51,6 +51,7 @@ public final class ClassroomBots {
             }
             if (moveBack || outsideArea(bot.getX(), bot.getY(), bot.getZ(), anchor.getX()+.5, anchor.getZ()+.5, level.getMinBuildHeight())) place(bot,entry.getValue().number());
             bot.selectSlot(entry.getValue().selectedSlot());
+            bot.profile(entry.getValue().profile());
             boolean creativeAllowed=room.mode()==ClassroomRoom.Mode.CREATIVE;
             bot.setInvulnerable(creativeAllowed);
             var request=entry.getValue().creative();

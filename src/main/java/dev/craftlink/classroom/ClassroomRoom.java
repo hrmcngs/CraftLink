@@ -19,9 +19,9 @@ public final class ClassroomRoom {
         for(Peer peer:peers.values()){peer.input.clear();peer.creative=null;peer.aim=null;peer.drop=null;peer.flying=false;peer.swapSlot=-1;peer.inventoryRequested=true;sendState(peer);}
     }
     public interface Socket { void send(String json); void close(); default boolean sendVideo(byte[] packet) { return false; } }
-    public record View(UUID id, int number, boolean connected, boolean approved) {}
+    public record View(UUID id, int number, boolean connected, boolean approved,String name,String skin) {}
     public record VideoTarget(UUID id, Socket socket, dev.craftlink.video.BotVideoQuality quality) {}
-    public record BotInput(int number, RemoteState.Snapshot input, boolean inventoryRequested, int selectedSlot, int swapSlot, CreativeRequest creative, Aim aim,DropRequest drop,boolean flying,boolean autoJump) {}
+    public record BotInput(int number, RemoteState.Snapshot input, boolean inventoryRequested, int selectedSlot, int swapSlot, CreativeRequest creative, Aim aim,DropRequest drop,boolean flying,boolean autoJump,ParticipantProfile profile) {}
     public record DropRequest(int slot,boolean all) {}
     public record ViewSample(double eyeX,double eyeY,double eyeZ,double yaw,double pitch,double aspect) {}
     public record Touch(int frame,double x,double y) {
@@ -39,6 +39,8 @@ public final class ClassroomRoom {
     private final LongSupplier clock;
     private boolean paused, closed;
     private volatile String videoStatus = "";
+    private String skinCatalog;
+    public synchronized void skins(JsonObject catalog){skinCatalog=catalog.toString();for(Peer peer:peers.values())if(peer.socket!=null)peer.socket.send(skinCatalog);}
     public void videoStatus(String message) { videoStatus = message; }
     public String videoStatus() { return videoStatus; }
     private static final class Peer {
@@ -46,6 +48,7 @@ public final class ClassroomRoom {
         final int number;
         final Session resume = new Session();
         final RemoteState input = new RemoteState();
+        ParticipantProfile profile=ParticipantProfile.DEFAULT;
         Socket socket;
         boolean approved, video, inventoryRequested;
         int selectedSlot;
@@ -66,7 +69,11 @@ public final class ClassroomRoom {
     public synchronized boolean expired() { return closed || invitation.expired(); }
     public synchronized boolean paused() { return paused; }
     public synchronized UUID join(String token, String resume, Socket socket) {
+        return join(token,resume,socket,null,null);
+    }
+    public synchronized UUID join(String token,String resume,Socket socket,String name,String skin) {
         if (expired() || !invitation.accepts(token)) throw new IllegalArgumentException("Invalid invitation");
+        var incoming=name==null&&skin==null?null:new ParticipantProfile(name,skin);
         prune();
         Peer peer = null;
         if (resume != null && !resume.isEmpty()) {
@@ -81,10 +88,18 @@ public final class ClassroomRoom {
             peer = new Peer(number, socket); peers.put(peer.id, peer);
         }
         peer.inventoryRequested = true; peer.approved = true; peer.video = false; peer.awaitingFrames.clear();
+        if(incoming!=null)peer.profile=incoming;
         peer.input.clear();peer.aim=null;peer.frameViews.clear();
         var welcome = new JsonObject(); welcome.addProperty("type", "welcome"); welcome.addProperty("number", peer.number);
-        welcome.addProperty("resume", peer.resume.token()); socket.send(welcome.toString()); sendState(peer);
+        welcome.addProperty("name",peer.profile.displayName(peer.number));welcome.addProperty("skin",peer.profile.skin());
+        welcome.addProperty("resume", peer.resume.token()); socket.send(welcome.toString()); sendState(peer);if(skinCatalog!=null)socket.send(skinCatalog);
         return peer.id;
+    }
+    public synchronized void profile(UUID id,Socket socket,String name,String skin){
+        var incoming=new ParticipantProfile(name,skin);Peer peer=peers.get(id);
+        if(peer==null||peer.socket!=socket||!peer.approved||expired())return;
+        peer.profile=incoming;var message=new JsonObject();message.addProperty("type","profile");message.addProperty("number",peer.number);
+        message.addProperty("name",incoming.displayName(peer.number));message.addProperty("skin",incoming.skin());socket.send(message.toString());
     }
     public synchronized void disconnect(UUID id, Socket socket) {
         Peer peer = peers.get(id);
@@ -184,7 +199,7 @@ public final class ClassroomRoom {
         Peer peer=peers.get(id);if(!expired() && peer!=null && peer.socket!=null)peer.socket.send(inventory.toString());
     }
     public synchronized List<View> views() {
-        prune(); return peers.values().stream().map(p -> new View(p.id, p.number, p.socket != null, p.approved)).toList();
+        prune(); return peers.values().stream().map(p -> new View(p.id, p.number, p.socket != null, p.approved,p.profile.displayName(p.number),p.profile.skin())).toList();
     }
     public synchronized Map<UUID, BotInput> takeInputs() {
         if (expired()) { close(); return Map.of(); }
@@ -193,7 +208,7 @@ public final class ClassroomRoom {
         for (Peer peer : peers.values()) if (peer.approved) {
             if (paused || peer.socket == null) peer.input.clear();
             var snapshot=peer.input.take();
-            inputs.put(peer.id, new BotInput(peer.number, snapshot, peer.inventoryRequested, peer.selectedSlot, paused || peer.socket==null ? -1 : peer.swapSlot, paused || peer.socket==null ? null : peer.creative,paused||peer.socket==null?null:peer.aim,paused||peer.socket==null?null:peer.drop,mode==Mode.CREATIVE&&peer.flying,peer.autoJump));
+            inputs.put(peer.id, new BotInput(peer.number, snapshot, peer.inventoryRequested, peer.selectedSlot, paused || peer.socket==null ? -1 : peer.swapSlot, paused || peer.socket==null ? null : peer.creative,paused||peer.socket==null?null:peer.aim,paused||peer.socket==null?null:peer.drop,mode==Mode.CREATIVE&&peer.flying,peer.autoJump,peer.profile));
             if(!snapshot.held().contains("attack")&&!snapshot.held().contains("use"))peer.aim=null;
             peer.inventoryRequested=false; peer.swapSlot=-1;peer.creative=null;peer.drop=null;
         }

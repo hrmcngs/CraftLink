@@ -93,9 +93,10 @@ public final class ClassroomServer {
             if (peer == null) {
                 if (!type.equals("hello")) { ctx.close(); return; }
                 socket = new PeerSocket(ctx.channel());
-                peer = room.join(data.get("token").getAsString(), data.has("resume") ? data.get("resume").getAsString() : "", socket); return;
+                peer = room.join(data.get("token").getAsString(), data.has("resume") ? data.get("resume").getAsString() : "", socket,data.has("name")?data.get("name").getAsString():null,data.has("skin")?data.get("skin").getAsString():null); return;
             }
             switch (type) {
+                case "profile" -> room.profile(peer,socket,data.get("name").getAsString(),data.get("skin").getAsString());
                 case "ping" -> {
                     var pong = new JsonObject(); pong.addProperty("type", "pong"); pong.addProperty("videoStatus", room.videoStatus()); socket.send(pong.toString());
                 }

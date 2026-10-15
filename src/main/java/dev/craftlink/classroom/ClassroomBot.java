@@ -24,6 +24,13 @@ public final class ClassroomBot extends PathfinderMob {
     private static final String[] NAMES = {"あか","あお","みどり","きいろ","むらさき","みずいろ","オレンジ","しろ"};
     private static final EntityDataAccessor<Integer> NUMBER = SynchedEntityData.defineId(ClassroomBot.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> FLYING=SynchedEntityData.defineId(ClassroomBot.class,EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Integer> SKIN=SynchedEntityData.defineId(ClassroomBot.class,EntityDataSerializers.INT);
+    public int skinIndex(){return entityData.get(SKIN);}
+    public void profile(ParticipantProfile profile){
+        String text=participantNumber()+"号 "+profile.displayName(participantNumber());
+        if(getCustomName()==null||!text.equals(getCustomName().getString()))setCustomName(Component.literal(text).withStyle(COLORS[participantNumber()-1]));
+        int skin=profile.skinIndex(participantNumber());if(skinIndex()!=skin)entityData.set(SKIN,skin);
+    }
     private Set<String> held = Set.of();
     private boolean jumpPulse;
     private boolean autoJump;
@@ -74,10 +81,11 @@ public final class ClassroomBot extends PathfinderMob {
         this(ClassroomEntities.BOT.get(), level);
         if (number < 1 || number > NAMES.length) throw new IllegalArgumentException("Participant number");
         entityData.set(NUMBER, number);
+        profile(ParticipantProfile.DEFAULT);
         setInvulnerable(true); setCanPickUpLoot(true);
         setCustomName(Component.literal(number + "号 " + NAMES[number-1]).withStyle(COLORS[number-1])); setCustomNameVisible(true);
     }
-    @Override protected void defineSynchedData() { super.defineSynchedData(); entityData.define(NUMBER, 1);entityData.define(FLYING,false); }
+    @Override protected void defineSynchedData() { super.defineSynchedData(); entityData.define(NUMBER, 1);entityData.define(FLYING,false);entityData.define(SKIN,0); }
     @Override public float getStandingEyeHeight(Pose pose,net.minecraft.world.entity.EntityDimensions dimensions){return pose==Pose.SWIMMING?.4f:pose==Pose.CROUCHING?1.27f:1.62f;}
     @Override public net.minecraft.world.entity.EntityDimensions getDimensions(Pose pose){return pose==Pose.SWIMMING?net.minecraft.world.entity.EntityDimensions.scalable(.6f,.6f):pose==Pose.CROUCHING?net.minecraft.world.entity.EntityDimensions.scalable(.6f,1.5f):super.getDimensions(pose);}
     public int participantNumber() { return entityData.get(NUMBER); }

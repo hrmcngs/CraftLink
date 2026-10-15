@@ -168,4 +168,17 @@ static class VideoSocket extends Socket {
  var room=new ClassroomRoom();var a=new Socket();var b=new Socket();var id=room.join(room.token(),"",a);var other=room.join(room.token(),"",b);
  room.preferences(id,b,true);assertFalse(room.takeInputs().get(id).autoJump());room.preferences(id,a,true);var inputs=room.takeInputs();assertTrue(inputs.get(id).autoJump());assertFalse(inputs.get(other).autoJump());
 }
+
+@Test void participantProfilesAreIndependentAndSurvivePrivateReconnect(){
+ var room=new ClassroomRoom();var a=new Socket();var b=new Socket();var id=room.join(room.token(),"",a,"はると","zuri");var other=room.join(room.token(),"",b,"さくら","alex");
+ assertEquals("はると",room.takeInputs().get(id).profile().name());assertEquals("zuri",room.takeInputs().get(id).profile().skin());assertEquals("さくら",room.takeInputs().get(other).profile().name());
+ room.profile(id,b,"別人","steve");assertEquals("はると",room.takeInputs().get(id).profile().name());
+ room.pause(true);room.profile(id,a,"ひなた","kai");assertEquals("ひなた",room.views().stream().filter(v->v.id().equals(id)).findFirst().orElseThrow().name());assertTrue(room.paused());
+ room.disconnect(id,a);var resumed=new Socket();assertEquals(id,room.join(room.token(),a.resume(),resumed));assertEquals("kai",room.takeInputs().get(id).profile().skin());assertEquals("ひなた",room.takeInputs().get(id).profile().name());
+ room.profile(id,a,"古い端末","steve");assertEquals("ひなた",room.takeInputs().get(id).profile().name());
+}
+@Test void invalidProfileDoesNotConsumeParticipantSlotOrReplaceAnExistingProfile(){
+ var room=new ClassroomRoom();var socket=new Socket();assertThrows(IllegalArgumentException.class,()->room.join(room.token(),"",socket,"<bad>","alex"));assertTrue(room.views().isEmpty());
+ var id=room.join(room.token(),"",socket,"Alex","alex");assertThrows(IllegalArgumentException.class,()->room.profile(id,socket,"名前","https://outside/skin"));assertEquals("Alex",room.takeInputs().get(id).profile().name());
+}
 }
