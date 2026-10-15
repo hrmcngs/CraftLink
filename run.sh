@@ -7,6 +7,7 @@
 # sh run.sh usb --offline        # Android USB接続で起動
 # 別のWi-Fi / モバイル通信からBOT参加: sh school.sh
 # 通常起動後は F8 から接続を開始してQRコードを表示します。
+# Macの「Failed to locate a primary monitor」対策は起動時に自動適用します。
 set -eu
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 exec bash "$project_dir/scripts/run.sh" "$@"

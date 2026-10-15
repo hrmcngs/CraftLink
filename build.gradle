@@ -107,4 +107,29 @@ tasks.register('prepareDevClient', Sync) {
     from { zipTree(tasks.devShadowJar.archiveFile.get().asFile) }
     into layout.buildDirectory.dir('dev-client')
 }
-tasks.matching { it.name == 'runClient' }.configureEach { dependsOn 'prepareDevClient' }
+// Forge's early splash can fail to enumerate the primary display on macOS.
+// Apply before Forge loads, for shell, VS Code and school launcher alike.
+tasks.register('prepareMacDisplay') {
+    onlyIf { System.getProperty('os.name').toLowerCase(java.util.Locale.ROOT).contains('mac') }
+    doLast {
+        def configFile = project.file(providers.gradleProperty('craftlinkRunDirectory').getOrElse('run') + '/config/fml.toml')
+        def original = configFile.exists() ? configFile.getText('UTF-8') : ''
+        // Restrict the setting to the TOML root; leave any tables untouched.
+        def table = (original =~ /(?m)^\s*\[/)
+        def boundary = table.find() ? table.start() : original.length()
+        def root = original.substring(0, boundary)
+        def key = ~/(?m)^[ \t]*earlyWindowControl[ \t]*=[^\r\n]*/
+        def updated = (root =~ key).find()
+            ? root.replaceAll(key, 'earlyWindowControl = false')
+            : root + (root && !root.endsWith('\n') ? '\n' : '') + 'earlyWindowControl = false\n'
+        updated += original.substring(boundary)
+        if (updated != original) {
+            configFile.parentFile.mkdirs()
+            def backup = new File(configFile.parentFile, 'fml.toml.craftlink-backup')
+            if (configFile.exists() && !backup.exists()) backup.setText(original, 'UTF-8')
+            configFile.setText(updated, 'UTF-8')
+            logger.lifecycle('CraftLink: macOSのForge起動用スプラッシュを無効化しました（通常のゲーム描画は有効）。')
+        }
+    }
+}
+tasks.matching { it.name == 'runClient' }.configureEach { dependsOn 'prepareDevClient', 'prepareMacDisplay' }

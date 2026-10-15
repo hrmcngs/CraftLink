@@ -512,6 +512,14 @@ F8画面下の「接続先」ボタンで切り替えるとQRとURLも切り替�
 - 現時点の対応は **1.20.1 Forgeのみ**。Fabric・他Minecraft版の互換性は主張しません。通信・状態管理・Webは分離しており、
   追加ローダーでは初期化・GUI・InputBridgeを差し替える構成です。まず必須版の実機検証を優先します。
 
+### Macで「Failed to locate a primary monitor」と表示される場合
+
+このダイアログはForgeの起動用スプラッシュ画面の初期化失敗です。CraftLinkの開発用起動では、Macに限り起動前に `run/config/fml.toml` の `earlyWindowControl = false` を自動設定します。`sh run.sh`・`sh school.sh`・VS Codeからの起動に共通で適用し、別の起動フォルダーを指定した場合もそのフォルダーだけを変更します。既存ファイルは初回変更時に `fml.toml.craftlink-backup` へ保存します。通常のMinecraft画面・BOT映像は無効化しません。
+
+ダイアログは **No** で閉じ、終了した起動タスクを `sh school.sh` または `sh run.sh --offline` で起動し直してください。設定だけ適用する場合は `bash ./gradlew prepareMacDisplay --offline -PwebOffline=true -Dnet.minecraftforge.gradle.check.certs=false` でも実行できます。通常のMinecraftランチャーにJARを入れて使う場合は、そのインスタンスの `config/fml.toml` を手動で変更してください。
+
+スプラッシュを無効にしてもディスプレイ取得に失敗する場合、Macをロック解除して画面を点灯させ、モニターの接続・ミラーリング設定を確認して再試行してください。この回避策でOS側のディスプレイ検出まで修復できるわけではありません。[Forgeの設定によるスプラッシュ切替処理](https://github.com/MinecraftForge/MinecraftForge/blob/1.20.x/fmlloader/src/main/java/net/minecraftforge/fml/loading/ImmediateWindowHandler.java)
+
 ## 手動動作確認
 
 自動テストに加えて、リリース前に以下を確認してください。
@@ -539,6 +547,8 @@ F8画面下の「接続先」ボタンで切り替えるとQRとURLも切り替�
 - [Netty](https://github.com/netty/netty): Apache-2.0。同梱ライブラリのライセンスはJAR内にも保持します。
 
 ## この環境での検証結果
+
+- Macの起動用スプラッシュ無効化タスクを実行し、既存設定のバックアップを確認。隔離した起動フォルダーでも同じ設定が自動適用され、実Minecraftのタイトル画面へ到達して正常終了することを確認しました。
 
 - JDK 17 / Node.js 22の `./gradlew build` 成功。TypeScript検査・Web同梱・再難読化済みJAR生成。
 - JUnit: トークン、入力上限・消費・タイムアウト、実HTTP/WebSocket、承認前入力拒否、
