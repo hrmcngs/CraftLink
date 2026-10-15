@@ -1,4 +1,7 @@
 #!/bin/sh
+# sh menu.sh  # 対話式でビルド・起動を選択（このファイルのあるフォルダーで実行）
+# 1: ビルド / 2: LAN起動 / 3: Android USB起動 / 10: 中継付きまとめて起動
+# 直接実行: sh build.sh / sh run.sh / sh run-usb.sh / sh school.sh
 # Interactive entry point; the existing scripts own builds and USB cleanup.
 set -u
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
