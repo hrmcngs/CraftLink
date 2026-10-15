@@ -61,17 +61,18 @@ class ClassroomRoomTest {
     room.approve(a);room.approve(b);room.video(a,one,true);room.video(b,two,true);
     var targets=room.videoTargets();assertEquals(2,targets.size());
     var targetA=targets.stream().filter(t->t.id().equals(a)).findFirst().orElseThrow();
-    room.publishVideo(targetA,1,new byte[]{1});assertEquals(1,one.frames.size());assertTrue(two.frames.isEmpty());
+    room.publishVideo(targetA,1,new byte[]{1});assertEquals(2,room.videoTargets().size());
+    room.publishVideo(targetA,2,new byte[]{2});assertEquals(2,one.frames.size());assertTrue(two.frames.isEmpty());
     assertEquals(1,room.videoTargets().size());
     room.frameAck(a,two,1);assertEquals(1,room.videoTargets().size());
     room.frameAck(a,one,1);assertEquals(2,room.videoTargets().size());
-    room.video(a,one,false);room.publishVideo(targetA,2,new byte[]{2});assertEquals(1,one.frames.size());
+    room.video(a,one,false);room.publishVideo(targetA,3,new byte[]{3});assertEquals(2,one.frames.size());
     room.close();assertTrue(room.videoTargets().isEmpty());
 }
 @Test void oldEncodedFramesCannotCrossReconnectAndAckTimeoutRecovers(){
     long[] clock={1};var room=new ClassroomRoom(()->clock[0]);var old=new VideoSocket();
     var id=room.join(room.token(),"",old);room.approve(id);room.video(id,old,true);
-    var target=room.videoTargets().get(0);room.publishVideo(target,1,new byte[]{1});assertTrue(room.videoTargets().isEmpty());
+    var target=room.videoTargets().get(0);room.publishVideo(target,1,new byte[]{1});room.publishVideo(target,2,new byte[]{2});assertTrue(room.videoTargets().isEmpty());
     clock[0]+=2_000_000_001L;assertEquals(1,room.videoTargets().size());
     room.disconnect(id,old);var next=new VideoSocket();room.join(room.token(),old.resume(),next);room.video(id,next,true);
     room.publishVideo(target,2,new byte[]{2});assertTrue(next.frames.isEmpty());
@@ -100,4 +101,15 @@ static class VideoSocket extends Socket {
     room.close();assertEquals(0,room.approveConnectedAndStart());
 }
 
+@Test void qualitySwitchRejectsOldEncodedFramesAndWindowNeverExceedsTwo() {
+    var room=new ClassroomRoom();var socket=new VideoSocket();var id=room.join(room.token(),"",socket);
+    room.video(id,socket,true);var old=room.videoTargets().get(0);
+    room.publishVideo(old,1,new byte[]{1});room.publishVideo(old,2,new byte[]{2});room.publishVideo(old,3,new byte[]{3});
+    assertEquals(2,socket.frames.size());assertTrue(room.videoTargets().isEmpty());
+    room.frameAck(id,socket,999);assertTrue(room.videoTargets().isEmpty());
+    room.video(id,socket,true,dev.craftlink.video.BotVideoQuality.SMOOTH);
+    room.publishVideo(old,4,new byte[]{4});assertEquals(2,socket.frames.size());
+    var current=room.videoTargets().get(0);assertEquals(dev.craftlink.video.BotVideoQuality.SMOOTH,current.quality());
+    room.publishVideo(current,5,new byte[]{5});assertEquals(3,socket.frames.size());
+}
 }

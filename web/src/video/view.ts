@@ -23,6 +23,8 @@ export class VideoView {
       const image=new Image();
       await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error('JPEG decode failed'));image.src=url;});
       if (generation!==this.generation || !this.enabled) return;
+      // Parallel browser decodes must never replace a newer frame with an older one.
+      if (this.frame && header.id<this.frame.id && !(header.id===1 && this.frame.id===2147483647)) return header.id;
       if (image.naturalWidth!==header.width || image.naturalHeight!==header.height) throw new Error('Video dimensions mismatch');
       if(this.canvas.width!==header.width || this.canvas.height!==header.height) {this.canvas.width=header.width;this.canvas.height=header.height;}
       this.canvas.getContext('2d')!.drawImage(image,0,0);

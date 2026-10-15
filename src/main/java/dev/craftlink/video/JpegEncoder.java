@@ -17,6 +17,10 @@ public final class JpegEncoder {
     }
     /** Confined to the single video encoder worker; reuse frame and output buffers. */
     public byte[] encodeFrame(int width, int height, int[] abgr) throws IOException {
+        return encodeFrame(width,height,abgr,.7f);
+    }
+    public byte[] encodeFrame(int width,int height,int[] abgr,float quality) throws IOException {
+        if (!Float.isFinite(quality) || quality < .1f || quality > 1) throw new IllegalArgumentException("Invalid JPEG quality");
         if (width < 1 || height < 1 || width > 1920 || height > 1080 || abgr.length != width * height) throw new IllegalArgumentException("Invalid frame size");
         if (image == null || image.getWidth() != width || image.getHeight() != height)
             image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
@@ -30,7 +34,7 @@ public final class JpegEncoder {
         try (var output = new MemoryCacheImageOutputStream(bytes)) {
             writer.setOutput(output);
             var parameters = writer.getDefaultWriteParam();
-            parameters.setCompressionMode(ImageWriteParam.MODE_EXPLICIT); parameters.setCompressionQuality(.7f);
+            parameters.setCompressionMode(ImageWriteParam.MODE_EXPLICIT); parameters.setCompressionQuality(quality);
             writer.write(null, new javax.imageio.IIOImage(image, null, null), parameters); output.flush();
             return bytes.toByteArray();
         } finally { writer.dispose(); }

@@ -15,7 +15,7 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.*;
 
-/** One 480x270 BOT view at a time, at most 12 captures/second across all peers. */
+/** One BOT view at a time, at most 20 captures/second across all peers. */
 public final class BotVideoStreamer {
     private final ClassroomServer server;
     private final ClassroomBots bots;
@@ -34,12 +34,14 @@ public final class BotVideoStreamer {
         ClassroomRoom room=server.room();
         if(room==null||mc.level==null||mc.player==null||encoding.get()||encoder.isShutdown()||System.nanoTime()<nextCapture)return;
         var peers=room.videoTargets();if(peers.isEmpty())return;
-        nextCapture=System.nanoTime()+83_333_333L;
+        long captureStart=System.nanoTime();
+        nextCapture=captureStart+50_000_000L;
         if(Minecraft.useShaderTransparency()){error="BOT映像: PCのビデオ設定でグラフィックスを処理優先または描画優先に変更してください";room.videoStatus(error);return;}
         var peer=peers.get(Math.floorMod(cursor++,peers.size()));var uuid=bots.entityIds().get(peer.id());
         Entity bot=null;for(Entity entity:mc.level.entitiesForRendering())if(entity.getUUID().equals(uuid)){bot=entity;break;}
         if(bot==null){room.videoStatus("BOTを読み込み中です。PCでBOTの近くへ移動してください");return;}
         if(!encoding.compareAndSet(false,true))return;
+        var quality=peer.quality();
         var originalTarget=mc.getMainRenderTarget();var originalCamera=mc.cameraEntity;
         var projection=new Matrix4f(RenderSystem.getProjectionMatrix());var sorting=RenderSystem.getVertexSorting();
         var inverse=new Matrix3f(RenderSystem.getInverseViewRotationMatrix());
@@ -53,13 +55,16 @@ boolean pushed=false;
 
         try{
             rendering=true;
-            if(target==null)target=new TextureTarget(480,270,true,Minecraft.ON_OSX);
+            if(target==null || target.width!=quality.width || target.height!=quality.height){
+                if(target!=null)target.destroyBuffers();
+                target=new TextureTarget(quality.width,quality.height,true,Minecraft.ON_OSX);
+            }
             ((BotRenderTargetAccessor)mc).craftlink$target(target);mc.cameraEntity=bot;
             target.bindWrite(true);
             RenderSystem.enableDepthTest();RenderSystem.depthMask(true);RenderSystem.enableCull();RenderSystem.disableBlend();RenderSystem.setShaderColor(1,1,1,1);
             BotCamera camera=new BotCamera();camera.configure(mc,bot,partial);
             PoseStack pose=new PoseStack();pose.mulPose(Axis.XP.rotationDegrees(camera.getXRot()));pose.mulPose(Axis.YP.rotationDegrees(camera.getYRot()+180));
-            Matrix4f lens=new Matrix4f().perspective((float)Math.toRadians(70),480f/270f,.05f,Math.max(64,mc.options.getEffectiveRenderDistance()*16));
+            Matrix4f lens=new Matrix4f().perspective((float)Math.toRadians(70),(float)quality.width/quality.height,.05f,Math.max(64,mc.options.getEffectiveRenderDistance()*16));
             RenderSystem.setProjectionMatrix(lens,VertexSorting.DISTANCE_TO_ORIGIN);
             RenderSystem.setInverseViewRotationMatrix(new Matrix3f(pose.last().normal()).invert());
             mc.getProfiler().push("craftlink_bot_view");pushed=true;
@@ -67,7 +72,7 @@ boolean pushed=false;
             mc.levelRenderer.renderLevel(pose,partial,System.nanoTime(),false,camera,mc.gameRenderer,mc.gameRenderer.lightTexture(),lens);
             int[] pixels;try(var image=Screenshot.takeScreenshot(target)){pixels=image.getPixelsRGBA();}
             int frame=sequence=sequence==Integer.MAX_VALUE?1:sequence+1;
-            encoder.execute(()->{try{room.publishVideo(peer,frame,VideoFrame.packet(frame,480,270,0,jpeg.encodeFrame(480,270,pixels)));error="";room.videoStatus("");}catch(Exception failure){error="BOT映像の圧縮に失敗しました";room.videoStatus(error);}finally{encoding.set(false);}});
+            encoder.execute(()->{try{room.publishVideo(peer,frame,VideoFrame.packet(frame,quality.width,quality.height,0,jpeg.encodeFrame(quality.width,quality.height,pixels,quality.jpegQuality)));error="";room.videoStatus("");}catch(Exception failure){error="BOT映像の圧縮に失敗しました";room.videoStatus(error);}finally{encoding.set(false);}});
         }catch(Exception failure){error="BOT映像取得失敗: "+failure.getClass().getSimpleName();room.videoStatus(error);encoding.set(false);nextCapture=System.nanoTime()+5_000_000_000L;}
         finally{
             if(pushed)mc.getProfiler().pop();
@@ -81,6 +86,7 @@ if(blend)RenderSystem.enableBlend();else RenderSystem.disableBlend();
 if(cull)RenderSystem.enableCull();else RenderSystem.disableCull();
 RenderSystem.depthMask(depthMask);RenderSystem.setShaderColor(color[0],color[1],color[2],color[3]);
 rendering=false;
+nextCapture=Math.max(nextCapture,captureStart+2*(System.nanoTime()-captureStart));
 
         }
     }

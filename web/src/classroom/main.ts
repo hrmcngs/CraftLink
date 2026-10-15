@@ -2,9 +2,14 @@ import { websocketUrl } from '../network/url';
 import './style.css';
 import {VideoView} from '../video/view';
 const root=document.querySelector<HTMLElement>('#classroom')!;
-root.innerHTML=`<canvas id="bot-view" aria-label="自分のBOTの視界"></canvas><div id="video-state" role="status"></div><header><strong id="identity">CraftLink</strong><output id="status" aria-live="polite">せつぞく中…</output><button id="video-toggle">映像: ON</button><button id="leave">おわる</button></header><p class="help">あなたのBOTの視界を見ながら操作しよう</p><main><section class="dpad"><button data-key="forward">まえ ▲</button><button data-key="left">◀ ひだり</button><button data-key="back">うしろ ▼</button><button data-key="right">みぎ ▶</button></section><div id="look" aria-label="スワイプで向きをかえる">ここをスワイプ<br>むきをかえる ↔</div><section class="actions"><button data-key="jump">ジャンプ</button><button data-key="sprint">はやく</button><button data-key="sneak">ゆっくり</button><button data-key="use">あいさつ ✨</button></section></main><footer>QRを読み込むと自動で参加できます</footer>`;
+root.innerHTML=`<canvas id="bot-view" aria-label="自分のBOTの視界"></canvas><div id="video-state" role="status"></div><header><strong id="identity">CraftLink</strong><output id="status" aria-live="polite">せつぞく中…</output><button id="video-quality">画質: 標準</button><button id="video-toggle">映像: ON</button><button id="leave">おわる</button></header><p class="help">あなたのBOTの視界を見ながら操作しよう</p><main><section class="dpad"><button data-key="forward">まえ ▲</button><button data-key="left">◀ ひだり</button><button data-key="back">うしろ ▼</button><button data-key="right">みぎ ▶</button></section><div id="look" aria-label="スワイプで向きをかえる">ここをスワイプ<br>むきをかえる ↔</div><section class="actions"><button data-key="jump">ジャンプ</button><button data-key="sprint">はやく</button><button data-key="sneak">ゆっくり</button><button data-key="use">あいさつ ✨</button></section></main><footer>QRを読み込むと自動で参加できます</footer>`;
 const video=new VideoView(document.querySelector<HTMLCanvasElement>('#bot-view')!,root);
 let videoEnabled=true, videoError="";
+const qualities=["balanced","smooth","sharp"] as const;
+let qualityIndex=0;try{const saved=localStorage.getItem("craftlink.botVideoQuality");const index=qualities.findIndex(q=>q===saved);if(index>=0)qualityIndex=index;}catch{}
+const qualityButton=document.querySelector<HTMLButtonElement>("#video-quality")!;
+function qualityLabel(){qualityButton.textContent="画質: "+["標準","軽快","鮮明"][qualityIndex];}
+qualityLabel();qualityButton.onclick=()=>{qualityIndex=(qualityIndex+1)%qualities.length;try{localStorage.setItem("craftlink.botVideoQuality",qualities[qualityIndex]);}catch{}qualityLabel();requestVideo();};
 const status=document.querySelector<HTMLOutputElement>('#status')!;
 const token=location.hash.slice(1), storageKey='craftlink.classroom.'+token;
 let resume='';try{resume=sessionStorage.getItem(storageKey)??'';}catch{}
@@ -43,7 +48,7 @@ const area=document.querySelector<HTMLElement>('#look')!;
 area.onpointerdown=e=>{if(!ready||look)return;e.preventDefault();area.setPointerCapture(e.pointerId);look={id:e.pointerId,x:e.clientX,y:e.clientY};};
 area.onpointermove=e=>{if(look?.id===e.pointerId){dx+=(e.clientX-look.x)*.35;dy+=(e.clientY-look.y)*.35;look.x=e.clientX;look.y=e.clientY;}};
 const endLook=(e:PointerEvent)=>{if(look?.id===e.pointerId){send();look=undefined;}};area.onpointerup=endLook;area.onpointercancel=endLook;area.onlostpointercapture=endLook;
-function requestVideo(){const enabled=videoEnabled&&approved&&!document.hidden&&!stopped;video.setEnabled(enabled);if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'video',enabled}));}
+function requestVideo(){const enabled=videoEnabled&&approved&&!document.hidden&&!stopped;video.setEnabled(enabled);if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'video',enabled,quality:qualities[qualityIndex]}));}
 document.querySelector('#video-toggle')!.addEventListener('click',()=>{videoEnabled=!videoEnabled;document.querySelector('#video-toggle')!.textContent=`映像: ${videoEnabled?'ON':'OFF'}`;requestVideo();});
 document.querySelector('#leave')!.addEventListener('click',()=>{release();stopped=true;clearTimeout(retry);if(socket?.readyState===WebSocket.OPEN)socket.send('{"type":"disconnect"}');socket?.close();resume='';try{sessionStorage.removeItem(storageKey);}catch{}status.textContent='おつかれさま！';});
 window.addEventListener('blur',release);window.addEventListener('resize',release);window.addEventListener('pagehide',()=>{release();stopped=true;clearTimeout(retry);socket?.close();});

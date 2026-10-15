@@ -100,7 +100,7 @@ public final class ClassroomServer {
                     var pong = new JsonObject(); pong.addProperty("type", "pong"); pong.addProperty("videoStatus", room.videoStatus()); socket.send(pong.toString());
                 }
                 case "disconnect" -> { room.remove(peer); ctx.close(); }
-                case "video" -> room.video(peer, socket, data.get("enabled").getAsBoolean());
+                case "video" -> room.video(peer, socket, data.get("enabled").getAsBoolean(), data.has("quality") ? dev.craftlink.video.BotVideoQuality.parse(data.get("quality").getAsString()) : dev.craftlink.video.BotVideoQuality.BALANCED);
                 case "frameAck" -> room.frameAck(peer, socket, data.get("frame").getAsInt());
                 case "input" -> {
                     JsonArray buttons = data.getAsJsonArray("held"); if (buttons.size() > ClassroomRoom.BUTTONS.size()) throw new IllegalArgumentException();

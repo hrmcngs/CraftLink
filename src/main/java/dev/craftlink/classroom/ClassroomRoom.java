@@ -12,7 +12,7 @@ public final class ClassroomRoom {
     public static final Set<String> BUTTONS = Set.of("forward", "back", "left", "right", "jump", "sneak", "sprint", "use");
     public interface Socket { void send(String json); void close(); default boolean sendVideo(byte[] packet) { return false; } }
     public record View(UUID id, int number, boolean connected, boolean approved) {}
-    public record VideoTarget(UUID id, Socket socket) {}
+    public record VideoTarget(UUID id, Socket socket, dev.craftlink.video.BotVideoQuality quality) {}
     public record BotInput(int number, RemoteState.Snapshot input) {}
     private static final long RECONNECT_NS = 30_000_000_000L;
     private final Session invitation = new Session();
@@ -29,8 +29,8 @@ public final class ClassroomRoom {
         final RemoteState input = new RemoteState();
         Socket socket;
         boolean approved, video;
-        int awaitingFrame;
-        long frameAt;
+        final Map<Integer, Long> awaitingFrames = new LinkedHashMap<>();
+        dev.craftlink.video.BotVideoQuality quality = dev.craftlink.video.BotVideoQuality.BALANCED;
         long disconnectedAt;
         Peer(int number, Socket socket) { this.number = number; this.socket = socket; }
     }
@@ -54,7 +54,7 @@ public final class ClassroomRoom {
             for (; number <= LIMIT; number++) { final int slot = number; if (peers.values().stream().noneMatch(p -> p.number == slot)) break; }
             peer = new Peer(number, socket); peers.put(peer.id, peer);
         }
-        peer.approved = true; peer.video = false; peer.awaitingFrame = 0;
+        peer.approved = true; peer.video = false; peer.awaitingFrames.clear();
         peer.input.clear();
         var welcome = new JsonObject(); welcome.addProperty("type", "welcome"); welcome.addProperty("number", peer.number);
         welcome.addProperty("resume", peer.resume.token()); socket.send(welcome.toString()); sendState(peer);
@@ -62,7 +62,7 @@ public final class ClassroomRoom {
     }
     public synchronized void disconnect(UUID id, Socket socket) {
         Peer peer = peers.get(id);
-        if (peer != null && peer.socket == socket) { peer.socket = null; peer.video = false; peer.awaitingFrame = 0; peer.disconnectedAt = clock.getAsLong(); peer.input.clear(); }
+        if (peer != null && peer.socket == socket) { peer.socket = null; peer.video = false; peer.awaitingFrames.clear(); peer.disconnectedAt = clock.getAsLong(); peer.input.clear(); }
     }
     public synchronized void approve(UUID id) {
         Peer peer = peers.get(id); if (peer == null || peer.socket == null || expired()) return;
@@ -95,24 +95,26 @@ public final class ClassroomRoom {
         Peer peer = peers.get(id);
         if (peer != null && peer.socket == socket && peer.approved && !paused && !expired()) peer.input.update(held, yaw, pitch, -1);
     }
-    public synchronized void video(UUID id, Socket socket, boolean enabled) {
+    public synchronized void video(UUID id, Socket socket, boolean enabled) { video(id,socket,enabled,dev.craftlink.video.BotVideoQuality.BALANCED); }
+    public synchronized void video(UUID id, Socket socket, boolean enabled, dev.craftlink.video.BotVideoQuality quality) {
         Peer peer = peers.get(id);
-        if (peer != null && peer.socket == socket && peer.approved) { peer.video = enabled; peer.awaitingFrame = 0; }
+        if (peer != null && peer.socket == socket && peer.approved) { if (peer.video != enabled || peer.quality != quality) peer.awaitingFrames.clear(); peer.video = enabled; peer.quality = quality; }
     }
     public synchronized void frameAck(UUID id, Socket socket, int frame) {
         Peer peer = peers.get(id);
-        if (peer != null && peer.socket == socket && peer.awaitingFrame == frame) peer.awaitingFrame = 0;
+        if (peer != null && peer.socket == socket && peer.awaitingFrames.containsKey(frame)) peer.awaitingFrames.remove(frame);
     }
     public synchronized List<VideoTarget> videoTargets() {
         if (expired()) return List.of();
         long now = clock.getAsLong();
-        return peers.values().stream().filter(p -> p.approved && p.video && p.socket != null && (p.awaitingFrame == 0 || now - p.frameAt > 2_000_000_000L))
-            .map(p -> new VideoTarget(p.id, p.socket)).toList();
+        for (Peer peer : peers.values()) peer.awaitingFrames.entrySet().removeIf(e -> now-e.getValue()>2_000_000_000L);
+        return peers.values().stream().filter(p -> p.approved && p.video && p.socket != null && p.awaitingFrames.size()<2)
+            .map(p -> new VideoTarget(p.id, p.socket, p.quality)).toList();
     }
     public synchronized void publishVideo(VideoTarget target, int frame, byte[] packet) {
         Peer peer = peers.get(target.id());
-        if (!expired() && peer != null && peer.socket == target.socket() && peer.approved && peer.video && peer.socket.sendVideo(packet)) {
-            peer.awaitingFrame = frame; peer.frameAt = clock.getAsLong();
+        if (!expired() && peer != null && peer.socket == target.socket() && peer.approved && peer.video && peer.quality == target.quality() && peer.awaitingFrames.size()<2 && peer.socket.sendVideo(packet)) {
+            peer.awaitingFrames.put(frame,clock.getAsLong());
         }
     }
     public synchronized List<View> views() {
