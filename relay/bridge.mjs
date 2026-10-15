@@ -2,10 +2,15 @@ import {pathToFileURL} from 'node:url';
 import WebSocket from 'ws';
 import {MAX_PAYLOAD, send, assetPath, socketPath, validateSecret} from './protocol.mjs';
 
-export function connectBridge({url,secret,port,onReady=()=>{},onClose=()=>{}}) {
+export function connectBridge({url,secret,port,onReady=()=>{},onClose=()=>{},onRejected=()=>{}}) {
   validateSecret(secret);
   const endpoint = new URL(url); const peers = new Map(), requests = new Map(); let origin;
-  const ws = new WebSocket(endpoint,{headers:{Authorization:'Bearer '+secret},maxPayload:MAX_PAYLOAD,perMessageDeflate:false});
+  const ws = new WebSocket(endpoint,{headers:{Authorization:'Bearer '+secret},handshakeTimeout:15000,maxPayload:MAX_PAYLOAD,perMessageDeflate:false});
+  ws.on('unexpected-response',(_request,response)=>{
+    response.resume();
+    onRejected(response.statusCode);
+    ws.terminate();
+  });
   ws.on('message',async bytes=>{
     try {
       const packet = JSON.parse(bytes.toString());

@@ -28,6 +28,14 @@ async function rejected(url,headers){const ws=new WebSocket(url,{headers});const
 test('missing and wrong bridge authentication are rejected without an existing owner',async()=>{
  const f=await fixture(false);try{await rejected(f.ws+'/_bridge',{});await rejected(f.ws+'/_bridge',{Authorization:'Bearer invalid'});}finally{await f.close();}
 });
+test('bridge reports HTTP rejection and closes without exposing credentials',async()=>{
+ const f=await fixture(false);let bridge;
+ try{
+  let status,ready=false;
+  await new Promise(resolve=>{bridge=connectBridge({url:f.ws+'/_bridge',secret:'b'.repeat(43),port:8766,onRejected:value=>{status=value;},onReady:()=>{ready=true;},onClose:resolve});});
+  assert.equal(status,403);assert.equal(ready,false);assert.equal(bridge.readyState,WebSocket.CLOSED);
+ }finally{bridge?.terminate();await f.close();}
+});
 test('wrong browser Origin and a second Mac bridge are rejected',async()=>{
  const f=await fixture();try{await rejected(f.ws+'/ws',{Origin:'https://other.example'});await rejected(f.ws+'/_bridge',{Authorization:'Bearer '+secret});}finally{await f.close();}
 });
