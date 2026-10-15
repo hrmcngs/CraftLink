@@ -18,7 +18,8 @@ public final class LinkScreen extends Screen {
     @Override protected void init() {
         int x = width / 2;
         addRenderableWidget(Button.builder(Component.literal("みんなで参加"), b -> minecraft.setScreen(new ClassroomScreen(this))).bounds(4, 4, 100, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("接続を開始"), b -> { var settings = LinkConfig.launchSettings(); Client.SERVER.start(settings.port(), settings.bindAddress(), settings.advertisedHost()); }).bounds(x - 155, height - 76, 74, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("別のWi-Fi"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, false))).bounds(width - 104, 4, 100, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("接続を開始"), b -> { var settings = LinkConfig.launchSettings(); Client.SERVER.start(settings.port(), settings.bindAddress(), settings.advertisedHost(), LinkConfig.externalUrl(false)); }).bounds(x - 155, height - 76, 74, 20).build());
         addRenderableWidget(Button.builder(Component.literal("停止"), b -> Client.SERVER.stop()).bounds(x - 76, height - 76, 74, 20).build());
         addRenderableWidget(Button.builder(Component.literal("端末を切断"), b -> Client.SERVER.disconnect()).bounds(x + 82, height - 76, 73, 20).build());
         renewButton = addRenderableWidget(Button.builder(Component.literal("QR再発行"), b -> Client.SERVER.renewSession())
@@ -31,10 +32,10 @@ public final class LinkScreen extends Screen {
     }
     @Override public void render(GuiGraphics g, int mx, int my, float partial) {
         renderBackground(g);
-        g.drawCenteredString(font, title, width / 2, 9, 0xffffff);
+        g.drawCenteredString(font, font.plainSubstrByWidth(title.getString(), Math.max(80, width - 220)), width / 2, 9, 0xffffff);
         g.drawCenteredString(font, Client.SERVER.status() + " / 端末: " + Client.SERVER.devices() + " / ポート: " + LinkConfig.launchSettings().port(), width / 2, 25, 0xaaffaa);
-        addressButton.setMessage(Component.literal("接続先: " + (Client.SERVER.running() ? Client.SERVER.selectedHost() : "自動")));
-        addressButton.active = Client.SERVER.running();
+        addressButton.setMessage(Component.literal("接続先: " + (Client.SERVER.external() ? "HTTPS中継" : Client.SERVER.running() ? Client.SERVER.selectedHost() : "自動")));
+        addressButton.active = Client.SERVER.running() && !Client.SERVER.external();
         renewButton.active = Client.SERVER.running();
         String url = Client.SERVER.url();
         if (!url.equals(qrUrl)) { qrUrl = url; qr = null; if (!url.isEmpty()) try { qr = ConnectionQr.encode(url); } catch (Exception ignored) {} }

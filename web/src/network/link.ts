@@ -1,3 +1,4 @@
+import { websocketUrl } from './url';
 import { InputCadence } from './input-cadence';
 export class Link {
   private inputCadence = new InputCadence();
@@ -13,7 +14,7 @@ export class Link {
     if (this.stopped) return;
     this.inputCadence = new InputCadence();
     this.status('接続中…');
-    const ws = this.socket = new WebSocket(`ws://${location.host}/ws`);
+    const ws = this.socket = new WebSocket(websocketUrl(location,'/ws'));
     ws.onopen = () => { this.lastPong = performance.now(); ws.send(JSON.stringify({type: 'hello', token: this.token})); };
     ws.onmessage = async e => {
       if (typeof e.data !== 'string') {

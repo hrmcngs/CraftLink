@@ -1,3 +1,4 @@
+import { websocketUrl } from '../network/url';
 import './style.css';
 const root=document.querySelector<HTMLElement>('#classroom')!;
 root.innerHTML=`<header><strong id="identity">CraftLink</strong><output id="status" aria-live="polite">せつぞく中…</output><button id="leave">おわる</button></header><p class="help">先生の画面を見ながら、自分の色のNPCをうごかそう！</p><main><section class="dpad"><button data-key="forward">まえ ▲</button><button data-key="left">◀ ひだり</button><button data-key="back">うしろ ▼</button><button data-key="right">みぎ ▶</button></section><div id="look" aria-label="スワイプで向きをかえる">ここをスワイプ<br>むきをかえる ↔</div><section class="actions"><button data-key="jump">ジャンプ</button><button data-key="sprint">はやく</button><button data-key="sneak">ゆっくり</button><button data-key="use">あいさつ ✨</button></section></main><footer>先生が「開始」をおすと、うごかせるよ</footer>`;
@@ -14,7 +15,7 @@ function update(){ready=!stopped&&approved&&!paused&&!document.hidden;root.datas
 function connect(){
  if(stopped)return;
  approved=false;ready=false;status.textContent='せつぞく中…';
- const ws=socket=new WebSocket(`ws://${location.host}/classroom/ws`);
+ const ws=socket=new WebSocket(websocketUrl(location,'/classroom/ws'));
  ws.onopen=()=>{lastPong=performance.now();lastSent='';sentAt=-Infinity;ws.send(JSON.stringify({type:'hello',token,resume}));};
  ws.onmessage=e=>{const data=JSON.parse(e.data);
   if(data.type==='welcome'){if(typeof data.resume!=='string'||!Number.isInteger(data.number)||data.number<1||data.number>8){ws.close();return;}resume=data.resume;try{sessionStorage.setItem(storageKey,resume);}catch{}root.dataset.number=String(data.number);document.querySelector('#identity')!.textContent=`あなたは ${data.number}号`;}

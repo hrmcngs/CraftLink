@@ -6,6 +6,7 @@ public final class LinkConfig {
     public static final ForgeConfigSpec.IntValue PORT;
     public static final ForgeConfigSpec.IntValue CLASSROOM_PORT;
     public static final ForgeConfigSpec.ConfigValue<String> BIND_ADDRESS, ADVERTISED_HOST;
+    public static final ForgeConfigSpec.ConfigValue<String> EXTERNAL_URL, CLASSROOM_EXTERNAL_URL;
     public static final ForgeConfigSpec.EnumValue<TouchLayout> TOUCH_LAYOUT;
     public static final ForgeConfigSpec.DoubleValue TOUCH_SENSITIVITY;
     public static final ForgeConfigSpec.IntValue TOUCH_BUTTON_SIZE;
@@ -19,6 +20,10 @@ public final class LinkConfig {
             .define("bindAddress", "0.0.0.0", v -> v instanceof String s && s.matches("[0-9]{1,3}(\\.[0-9]{1,3}){3}"));
         ADVERTISED_HOST = b.comment("Optional reachable IPv4 or DNS hostname shown first in the QR URL (e.g. private VPN address). Empty = automatic.")
             .define("advertisedHost", "", v -> v instanceof String s && (s.isEmpty() || NetworkAddresses.validHost(s)));
+        EXTERNAL_URL = b.comment("Optional HTTPS tunnel origin for the normal controller. Empty = LAN. Forces loopback binding.")
+            .define("externalUrl", "", dev.craftlink.network.ExternalEndpoint::valid);
+        CLASSROOM_EXTERNAL_URL = b.comment("Optional HTTPS tunnel origin for the classroom room. Empty = LAN. Forces loopback binding.")
+            .define("classroomExternalUrl", "", dev.craftlink.network.ExternalEndpoint::valid);
         TOUCH_LAYOUT = b.defineEnum("touchLayout", TouchLayout.TAP);
         TOUCH_SENSITIVITY = b.defineInRange("touchSensitivity", 0.15, 0.03, 0.5);
         TOUCH_BUTTON_SIZE = b.defineInRange("touchButtonSize", 100, 80, 140);
@@ -33,6 +38,9 @@ public final class LinkConfig {
     }
     public static dev.craftlink.network.ControllerPreferences controllerPreferences() {
         return new dev.craftlink.network.ControllerPreferences(TOUCH_LAYOUT.get().id(), TOUCH_SENSITIVITY.get(), TOUCH_BUTTON_SIZE.get());
+    }
+    public static String externalUrl(boolean classroom) {
+        return System.getProperty("craftlink.transport", "lan").equals("usb") ? "" : (classroom ? CLASSROOM_EXTERNAL_URL : EXTERNAL_URL).get();
     }
     private LinkConfig() {}
 }

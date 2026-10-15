@@ -2,6 +2,7 @@ package dev.craftlink.classroom;
 
 import com.google.gson.*;
 import dev.craftlink.network.NetworkAddresses;
+import dev.craftlink.network.ExternalEndpoint;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
@@ -24,34 +25,40 @@ public final class ClassroomServer {
     private volatile ClassroomRoom room;
     private volatile String status = "停止中", url = "";
     private List<String> hosts = List.of(); private int hostIndex, port;
+    private String externalUrl = "";
     public ClassroomRoom room() { return room; }
     public boolean running() { return room != null; }
     public String status() { return status; }
     public String url() { return url; }
-    public void start(int requestedPort, String bind, String advertised) { lifecycle.execute(() -> startInternal(requestedPort, bind, advertised)); }
-    private synchronized void startInternal(int requestedPort, String bind, String advertised) {
+    public void start(int requestedPort, String bind, String advertised) { start(requestedPort, bind, advertised, ""); }
+    public void start(int requestedPort, String bind, String advertised, String external) {
+        String normalized = ExternalEndpoint.normalize(external);
+        lifecycle.execute(() -> startInternal(requestedPort, normalized.isEmpty() ? bind : "127.0.0.1", advertised, normalized));
+    }
+    private synchronized void startInternal(int requestedPort, String bind, String advertised, String external) {
         if (room != null) return;
         status = "起動中";
         ClassroomRoom next = new ClassroomRoom();
         try {
+            externalUrl = external;
             hosts = bind.equals("127.0.0.1") && advertised.isEmpty() ? List.of("127.0.0.1") : NetworkAddresses.discover(advertised);
             boss = new NioEventLoopGroup(1); workers = new NioEventLoopGroup(2);
             listener = new ServerBootstrap().group(boss, workers).channel(NioServerSocketChannel.class)
                 .childOption(ChannelOption.TCP_NODELAY, true).childHandler(new ChannelInitializer<SocketChannel>() {
-                    @Override protected void initChannel(SocketChannel channel) { channel.pipeline().addLast(new IdleStateHandler(5,0,0),new HttpServerCodec(),new HttpObjectAggregator(8192),new Handler(next)); }
+                    @Override protected void initChannel(SocketChannel channel) { channel.pipeline().addLast(new IdleStateHandler(5,0,0),new HttpServerCodec(),new HttpObjectAggregator(8192),new Handler(next, external)); }
                 }).bind(bind, requestedPort).sync().channel();
             port = ((InetSocketAddress)listener.localAddress()).getPort(); hostIndex = 0; room = next; updateUrl(); status = "参加受付中";
         } catch (Exception failure) { stopInternal(); status = "起動失敗: " + failure.getClass().getSimpleName(); }
     }
     public synchronized void nextAddress() { if (room != null && !hosts.isEmpty()) { hostIndex = (hostIndex + 1) % hosts.size(); updateUrl(); } }
-    private void updateUrl() { url = "http://" + hosts.get(hostIndex) + ":" + port + "/classroom.html#" + room.token(); }
+    private void updateUrl() { url = (externalUrl.isEmpty() ? "http://" + hosts.get(hostIndex) + ":" + port : externalUrl) + "/classroom.html#" + room.token(); }
     public void stop() { lifecycle.execute(this::stopInternal); }
     private synchronized void stopInternal() {
         ClassroomRoom old = room; room = null; if (old != null) old.close();
         if (listener != null) { listener.close(); listener = null; }
         if (boss != null) { boss.shutdownGracefully(0,2,TimeUnit.SECONDS); boss = null; }
         if (workers != null) { workers.shutdownGracefully(0,2,TimeUnit.SECONDS); workers = null; }
-        hosts = List.of(); url = ""; status = "停止中";
+        hosts = List.of(); url = externalUrl = ""; status = "停止中";
     }
     public void shutdown() { if (closed.compareAndSet(false,true)) { stop(); lifecycle.shutdown(); } }
     private static final class PeerSocket implements ClassroomRoom.Socket {
@@ -65,11 +72,12 @@ public final class ClassroomServer {
     }
     private static final class Handler extends SimpleChannelInboundHandler<Object> {
         private final ClassroomRoom room;
+        private final String external;
         private UUID peer;
         private PeerSocket socket;
         private boolean upgraded;
         private long window = System.nanoTime(); private int messages;
-        Handler(ClassroomRoom room) { this.room = room; }
+        Handler(ClassroomRoom room, String external) { this.room = room; this.external = external; }
         @Override protected void channelRead0(ChannelHandlerContext ctx, Object message) throws Exception {
             if (message instanceof FullHttpRequest request) { http(ctx,request); return; }
             if (message instanceof CloseWebSocketFrame) { ctx.close(); return; }
@@ -99,8 +107,8 @@ public final class ClassroomServer {
             String path = new QueryStringDecoder(request.uri()).path();
             if (path.equals("/classroom/ws")) {
                 String host = request.headers().get(HttpHeaderNames.HOST), origin = request.headers().get(HttpHeaderNames.ORIGIN);
-                if (host == null || !Objects.equals(origin,"http://" + host) || room.expired()) { ctx.close(); return; }
-                var handshaker = new WebSocketServerHandshakerFactory("ws://"+host+path,null,false,2048).newHandshaker(request);
+                if (!ExternalEndpoint.allowed(ctx.channel().remoteAddress(),host,origin,external) || room.expired()) { ctx.close(); return; }
+                var handshaker = new WebSocketServerHandshakerFactory((external.isEmpty() ? "ws://"+host : external.replaceFirst("^https:","wss:"))+path,null,false,2048).newHandshaker(request);
                 if (handshaker == null) { ctx.close(); return; }
                 handshaker.handshake(ctx.channel(),request); upgraded = true; return;
             }
@@ -110,7 +118,7 @@ public final class ClassroomServer {
             var response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,bytes == null ? HttpResponseStatus.NOT_FOUND : HttpResponseStatus.OK,Unpooled.wrappedBuffer(bytes == null ? new byte[0] : bytes));
             response.headers().set(HttpHeaderNames.CONTENT_TYPE,path.endsWith(".js") ? "text/javascript" : path.endsWith(".css") ? "text/css" : "text/html; charset=utf-8")
                 .set(HttpHeaderNames.CONTENT_LENGTH,response.content().readableBytes()).set("Cache-Control","no-store").set("Referrer-Policy","no-referrer").set("X-Content-Type-Options","nosniff")
-                .set("Content-Security-Policy","default-src 'self'; connect-src 'self' ws:; style-src 'self'; frame-ancestors 'none'");
+                .set("Content-Security-Policy","default-src 'self'; connect-src 'self' ws: wss:; style-src 'self'; frame-ancestors 'none'");
             ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
         @Override public void channelInactive(ChannelHandlerContext ctx) { if (peer != null) room.disconnect(peer,socket); }

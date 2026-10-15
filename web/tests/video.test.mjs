@@ -49,3 +49,11 @@ test('addon catalog accepts only bounded unique action IDs and plain labels',asy
  assert.deepEqual(addonActions({actions:Array.from({length:17},(_,i)=>({...action,id:`addon:example:a${i}`}))}),[]);
  assert.deepEqual(addonActions(null),[]);
 });
+
+test('HTTPS pages connect with WSS for both normal and classroom controllers',async()=>{
+ const {websocketUrl}=await import('../src/network/url.ts');
+ assert.equal(websocketUrl({protocol:'https:',host:'demo.trycloudflare.com'},'/ws'),'wss://demo.trycloudflare.com/ws');
+ assert.equal(websocketUrl({protocol:'https:',host:'demo.trycloudflare.com'},'/classroom/ws'),'wss://demo.trycloudflare.com/classroom/ws');
+ assert.equal(websocketUrl({protocol:'http:',host:'192.168.1.2:8765'},'/ws'),'ws://192.168.1.2:8765/ws');
+ assert.throws(()=>websocketUrl({protocol:'file:',host:''},'/ws'));
+});

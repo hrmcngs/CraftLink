@@ -14,7 +14,7 @@ trap 'exit 143' TERM
 while :; do
   printf '\nCraftLink — Minecraft 1.20.1 Forge\n'
   printf '依存取得: %s / 起動ポート: %s\n' "$mode" "${port:-標準}"
-  printf '  1) MODをビルド\n  2) Minecraftを起動（LAN / Wi-Fi）\n  3) Minecraftを起動（Android USB / Wi-Fi不要）\n  4) 起動用データを準備（起動しない・スマホ不要）\n  5) オンライン / オフライン切り替え\n  6) 起動ポートを変更\n  7) 接続方法を表示\n  0) 終了\n選択 > '
+  printf '  1) MODをビルド\n  2) Minecraftを起動（LAN / Wi-Fi）\n  3) Minecraftを起動（Android USB / Wi-Fi不要）\n  4) 起動用データを準備（起動しない・スマホ不要）\n  5) オンライン / オフライン切り替え\n  6) 起動ポートを変更\n  7) 接続方法を表示\n  8) 別のWi-Fi用HTTPS中継を起動\n  0) 終了\n選択 > '
   IFS= read -r choice || { printf '\n'; exit 0; }
   case "$choice" in
     0|q|quit) exit 0 ;;
@@ -39,6 +39,14 @@ while :; do
     7)
       printf '\n起動後、F8 →「接続を開始」→ スマホでQRを読む → PCで接続を許可。\nLAN: PCとスマホが通信できる同じネットワークを使用します。\nUSB: AndroidのUSBデバッグを有効にし、PCを許可してケーブル接続します。adbが必要です。\niPhoneはこのAndroid USBモードには対応していません。\n依存取得のオンライン/オフライン設定は、スマホの接続方式とは別です。\n参加モード: LANで起動し、シングルプレイ → F8 →「みんなで参加」。F9で全員停止できます。\n詳細: %s/README.md\n' "$project_dir"
       continue ;;
+    8)
+      printf 'この中継を動かしたままMinecraftを使うため、別のターミナルで開いてください。\n1) 通常コントローラー  2) みんなで参加 > '
+      IFS= read -r tunnel_choice || { printf '\n'; exit 0; }
+      case "$tunnel_choice" in
+        1) set -- sh "$project_dir/tunnel.sh" controller; if [ -n "$port" ]; then set -- "$@" --port "$port"; fi ;;
+        2) set -- sh "$project_dir/tunnel.sh" classroom ;;
+        *) printf '1または2を選んでください。\n'; continue ;;
+      esac ;;
     1) set -- sh "$project_dir/build.sh" "$mode" ;;
     2|3|4)
       set -- sh "$project_dir/run.sh"

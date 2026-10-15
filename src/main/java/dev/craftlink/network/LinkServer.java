@@ -29,6 +29,7 @@ public final class LinkServer {
     private volatile String status = "停止中", address = "", selectedHost = "";
     private List<String> hosts = List.of();
     private int hostIndex, activePort;
+    private volatile String externalUrl = "";
     private ControllerPreferences preferences = new ControllerPreferences("mobile", 0.15, 100);
     private boolean videoRequested, videoAllowed = true;
     private int awaitingFrame;
@@ -64,6 +65,7 @@ public final class LinkServer {
     public String status() { return status; }
     public String url() { return address; }
     public boolean running() { return running; }
+    public boolean external() { return !externalUrl.isEmpty(); }
     public String selectedHost() { return selectedHost; }
     public synchronized void nextAddress() {
         if (!running || hosts.isEmpty()) return;
@@ -72,18 +74,23 @@ public final class LinkServer {
     }
     private void updateAddress() {
         selectedHost = hosts.get(hostIndex);
-        address = "http://" + selectedHost + ":" + activePort + "/#" + session.token();
+        address = (externalUrl.isEmpty() ? "http://" + selectedHost + ":" + activePort : externalUrl) + "/#" + session.token();
     }
     public synchronized boolean pending() { return device != null && !approved; }
     public synchronized int devices() { return device == null ? 0 : 1; }
     public void start(int port) { start(port, "0.0.0.0", ""); }
     public void start(int port, String bindAddress, String advertisedHost) {
-        lifecycle.execute(() -> startInternal(port, bindAddress, advertisedHost));
+        start(port, bindAddress, advertisedHost, "");
     }
-    private synchronized void startInternal(int port, String bindAddress, String advertisedHost) {
+    public void start(int port, String bindAddress, String advertisedHost, String external) {
+        String normalized = ExternalEndpoint.normalize(external);
+        lifecycle.execute(() -> startInternal(port, normalized.isEmpty() ? bindAddress : "127.0.0.1", advertisedHost, normalized));
+    }
+    private synchronized void startInternal(int port, String bindAddress, String advertisedHost, String external) {
         if (running) return;
         status = "起動中";
         try {
+            externalUrl = external;
             hosts = bindAddress.equals("127.0.0.1") && (advertisedHost.isEmpty() || advertisedHost.equals("127.0.0.1"))
                 ? List.of("127.0.0.1") : NetworkAddresses.discover(advertisedHost);
             session = new Session(); boss = new NioEventLoopGroup(1); workers = new NioEventLoopGroup(2);
@@ -110,7 +117,7 @@ public final class LinkServer {
         if (listener != null) { listener.close(); listener = null; }
         if (boss != null) { boss.shutdownGracefully(0, 2, TimeUnit.SECONDS); boss = null; }
         if (workers != null) { workers.shutdownGracefully(0, 2, TimeUnit.SECONDS); workers = null; }
-        session = null; hosts = List.of(); address = selectedHost = ""; status = "停止中";
+        session = null; hosts = List.of(); address = selectedHost = externalUrl = ""; status = "停止中";
     }
     public void shutdown() { if (closed.compareAndSet(false, true)) { stop(); lifecycle.shutdown(); } }
     public synchronized void approve() { if (device != null) { approved = true; status = "接続済み"; send(device, "{\"type\":\"approved\"}"); send(device, preferences.message()); send(device, addonMessage); } }
@@ -164,8 +171,8 @@ public final class LinkServer {
             String path = new QueryStringDecoder(req.uri()).path();
             if (path.equals("/ws")) {
                 String host = req.headers().get(HttpHeaderNames.HOST), origin = req.headers().get(HttpHeaderNames.ORIGIN);
-                if (host == null || !Objects.equals(origin, "http://" + host)) { ctx.close(); return; }
-                WebSocketServerHandshaker handshaker = new WebSocketServerHandshakerFactory("ws://" + host + "/ws", null, false, 4096).newHandshaker(req);
+                if (!ExternalEndpoint.allowed(ctx.channel().remoteAddress(), host, origin, externalUrl)) { ctx.close(); return; }
+                WebSocketServerHandshaker handshaker = new WebSocketServerHandshakerFactory((externalUrl.isEmpty() ? "ws://" + host : externalUrl.replaceFirst("^https:", "wss:")) + "/ws", null, false, 4096).newHandshaker(req);
                 if (handshaker == null) { ctx.close(); return; }
                 handshaker.handshake(ctx.channel(), req); upgraded = true; return;
             }
@@ -174,7 +181,7 @@ public final class LinkServer {
             byte[] bytes; try (var stream = LinkServer.class.getResourceAsStream(resource)) { bytes = stream == null ? null : stream.readAllBytes(); }
             var response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, bytes == null ? HttpResponseStatus.NOT_FOUND : HttpResponseStatus.OK, Unpooled.wrappedBuffer(bytes == null ? new byte[0] : bytes));
             String mime = path.endsWith(".js") ? "text/javascript" : path.endsWith(".css") ? "text/css" : "text/html; charset=utf-8";
-            response.headers().set(HttpHeaderNames.CONTENT_TYPE, mime).set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes()).set("Cache-Control", "no-store").set("Referrer-Policy", "no-referrer").set("X-Content-Type-Options", "nosniff").set("Content-Security-Policy", "default-src 'self'; connect-src 'self' ws:; style-src 'self'; img-src 'self' blob:; frame-ancestors 'none'");
+            response.headers().set(HttpHeaderNames.CONTENT_TYPE, mime).set(HttpHeaderNames.CONTENT_LENGTH, response.content().readableBytes()).set("Cache-Control", "no-store").set("Referrer-Policy", "no-referrer").set("X-Content-Type-Options", "nosniff").set("Content-Security-Policy", "default-src 'self'; connect-src 'self' ws: wss:; style-src 'self'; img-src 'self' blob:; frame-ancestors 'none'");
             ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
         @Override public void channelInactive(ChannelHandlerContext ctx) { synchronized (LinkServer.this) { if (device == ctx.channel()) disconnect(); } }
