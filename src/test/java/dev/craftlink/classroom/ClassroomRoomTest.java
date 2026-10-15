@@ -9,15 +9,21 @@ class ClassroomRoomTest {
         public void send(String json){messages.add(json);} public void close(){closed=true;}
         String resume(){return JsonParser.parseString(messages.get(0)).getAsJsonObject().get("resume").getAsString();}
     }
-    @Test void approvalAndTeacherPauseGateIndependentInputs(){
+    @Test void qrJoinImmediatelyEnablesIndependentInputsAndManualPauseStillBlocks(){
         var room=new ClassroomRoom();var one=new Socket();var two=new Socket();
         UUID a=room.join(room.token(),"",one),b=room.join(room.token(),"",two);
-        room.input(a,one,Set.of("forward"),20);assertTrue(room.takeInputs().isEmpty());
+        assertFalse(room.paused());assertTrue(room.views().stream().allMatch(ClassroomRoom.View::approved));
+        room.pause(true);
         room.approve(a);room.approve(b);room.input(a,one,Set.of("forward"),20);assertTrue(room.takeInputs().get(a).input().held().isEmpty());
         room.pause(false);room.input(a,one,Set.of("forward"),20);room.input(b,two,Set.of("left"),-10);
         var inputs=room.takeInputs();assertEquals(Set.of("forward"),inputs.get(a).input().held());assertEquals(Set.of("left"),inputs.get(b).input().held());assertEquals(20,inputs.get(a).input().yaw());
         room.pause(true);assertTrue(room.takeInputs().values().stream().allMatch(input->input.input().held().isEmpty()));
         room.pause(false);assertTrue(room.takeInputs().get(a).input().held().isEmpty());
+    }
+    @Test void joiningWhileManuallyPausedDoesNotResumeAnyone(){
+        var room=new ClassroomRoom();room.pause(true);var socket=new Socket();var id=room.join(room.token(),"",socket);
+        assertTrue(room.paused());assertTrue(room.views().get(0).approved());assertTrue(room.takeInputs().containsKey(id));
+        room.input(id,socket,Set.of("forward"),0);assertTrue(room.takeInputs().get(id).input().held().isEmpty());
     }
     @Test void eightPendingParticipantsFillTheRoomAndRemovalFreesOneSlot(){
         var room=new ClassroomRoom();for(int i=0;i<8;i++)room.join(room.token(),"",new Socket());
@@ -32,10 +38,10 @@ class ClassroomRoomTest {
         room.input(id,next,Set.of("jump"),0);assertEquals(Set.of("jump"),room.takeInputs().get(id).input().held());
         assertThrows(IllegalArgumentException.class,()->room.join(room.token(),next.resume(),new Socket()));
     }
-    @Test void expiredReconnectBecomesANewUnapprovedParticipant(){
+    @Test void expiredReconnectBecomesANewAutomaticallyApprovedParticipant(){
         long[] clock={1};var room=new ClassroomRoom(()->clock[0]);var socket=new Socket();UUID id=room.join(room.token(),"",socket);room.approve(id);room.disconnect(id,socket);
         clock[0]+=30_000_000_000L;assertTrue(room.takeInputs().isEmpty());
-        UUID next=room.join(room.token(),socket.resume(),new Socket());assertNotEquals(id,next);assertFalse(room.views().get(0).approved());
+        UUID next=room.join(room.token(),socket.resume(),new Socket());assertNotEquals(id,next);assertTrue(room.views().get(0).approved());
     }
     @Test void invalidTokenActionsAndNonfiniteAnglesAreRejected(){
         var room=new ClassroomRoom();var socket=new Socket();assertThrows(IllegalArgumentException.class,()->room.join("wrong","",socket));
@@ -48,10 +54,10 @@ class ClassroomRoomTest {
     @Test void missingInputReleasesEvenIfConnectionRemainsOpen() throws Exception {
         var room=new ClassroomRoom();var socket=new Socket();UUID id=room.join(room.token(),"",socket);room.approve(id);room.pause(false);room.input(id,socket,Set.of("forward"),0);
         Thread.sleep(800);assertTrue(room.takeInputs().get(id).input().held().isEmpty());assertTrue(room.views().get(0).connected());
-    }@Test void botVideoRequiresApprovalAndKeepsEachPeersFramesSeparate(){
+    }@Test void botVideoIsAvailableOnJoinAndKeepsEachPeersFramesSeparate(){
     var room=new ClassroomRoom();var one=new VideoSocket();var two=new VideoSocket();
     var a=room.join(room.token(),"",one);var b=room.join(room.token(),"",two);
-    room.video(a,one,true);assertTrue(room.videoTargets().isEmpty());
+    room.video(a,one,true);assertEquals(1,room.videoTargets().size());
     room.approve(a);room.approve(b);room.video(a,one,true);room.video(b,two,true);
     var targets=room.videoTargets();assertEquals(2,targets.size());
     var targetA=targets.stream().filter(t->t.id().equals(a)).findFirst().orElseThrow();
@@ -81,14 +87,14 @@ static class VideoSocket extends Socket {
 }
 @Test void explicitHostApprovalStartsInputAndEmergencyPauseStillBlocksIt(){
     var room=new ClassroomRoom();var socket=new Socket();var id=room.join(room.token(),"",socket);
-    assertTrue(room.paused());room.input(id,socket,Set.of("forward"),0);assertTrue(room.takeInputs().isEmpty());
+    room.pause(true);room.input(id,socket,Set.of("forward"),0);assertTrue(room.takeInputs().get(id).input().held().isEmpty());
     assertEquals(1,room.approveConnectedAndStart());assertFalse(room.paused());
     room.input(id,socket,Set.of("forward"),0);assertEquals(Set.of("forward"),room.takeInputs().get(id).input().held());
     room.pause(true);room.input(id,socket,Set.of("forward"),0);assertTrue(room.takeInputs().get(id).input().held().isEmpty());
     assertEquals(1,room.approveConnectedAndStart());assertTrue(room.takeInputs().get(id).input().held().isEmpty());
 }
 @Test void emptyOrClosedRoomCannotBeStartedByCombinedApproval(){
-    var room=new ClassroomRoom();assertEquals(0,room.approveConnectedAndStart());assertTrue(room.paused());
+    var room=new ClassroomRoom();room.pause(true);assertEquals(0,room.approveConnectedAndStart());assertTrue(room.paused());
     var socket=new Socket();var id=room.join(room.token(),"",socket);room.disconnect(id,socket);
     assertEquals(0,room.approveConnectedAndStart());assertTrue(room.paused());
     room.close();assertEquals(0,room.approveConnectedAndStart());

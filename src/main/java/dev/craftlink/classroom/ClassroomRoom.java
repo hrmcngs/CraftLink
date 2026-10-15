@@ -18,7 +18,7 @@ public final class ClassroomRoom {
     private final Session invitation = new Session();
     private final Map<UUID, Peer> peers = new LinkedHashMap<>();
     private final LongSupplier clock;
-    private boolean paused = true, closed;
+    private boolean paused, closed;
     private static final class Peer {
         final UUID id = UUID.randomUUID();
         final int number;
@@ -51,7 +51,7 @@ public final class ClassroomRoom {
             for (; number <= LIMIT; number++) { final int slot = number; if (peers.values().stream().noneMatch(p -> p.number == slot)) break; }
             peer = new Peer(number, socket); peers.put(peer.id, peer);
         }
-        peer.video = false; peer.awaitingFrame = 0;
+        peer.approved = true; peer.video = false; peer.awaitingFrame = 0;
         peer.input.clear();
         var welcome = new JsonObject(); welcome.addProperty("type", "welcome"); welcome.addProperty("number", peer.number);
         welcome.addProperty("resume", peer.resume.token()); socket.send(welcome.toString()); sendState(peer);

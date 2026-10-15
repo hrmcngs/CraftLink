@@ -17,7 +17,7 @@ class ClassroomServerTest {
             assertEquals(200,response.statusCode());assertTrue(response.body().contains("classroom"));
             Phone a=connect(origin),b=connect(origin);
             a.socket.sendText("{\"type\":\"hello\",\"token\":\""+uri.getFragment()+"\"}",true).join();
-            String first=a.messages.poll(3,TimeUnit.SECONDS);assertTrue(first.contains("welcome"));assertTrue(a.messages.poll(3,TimeUnit.SECONDS).contains("\"approved\":false"));
+            String first=a.messages.poll(3,TimeUnit.SECONDS);assertTrue(first.contains("welcome"));assertTrue(a.messages.poll(3,TimeUnit.SECONDS).contains("\"approved\":true"));
             b.socket.sendText("{\"type\":\"hello\",\"token\":\""+uri.getFragment()+"\"}",true).join();assertTrue(b.messages.poll(3,TimeUnit.SECONDS).contains("welcome"));b.messages.poll(3,TimeUnit.SECONDS);
             var room=server.room();await(()->room.views().size()==2);
             for(var peer:room.views())room.approve(peer.id());room.pause(false);

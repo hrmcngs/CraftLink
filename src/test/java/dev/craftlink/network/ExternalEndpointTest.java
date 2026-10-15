@@ -36,14 +36,14 @@ class ExternalEndpointTest {
             ws.sendClose(1000,"done").join();
         } finally {server.shutdown();}
     }
-    @Test void classroomHttpsQrAndProxiedHandshakeKeepPerDeviceApproval() throws Exception {
+    @Test void classroomHttpsQrAndProxiedHandshakeAutomaticallyJoin() throws Exception {
         var server=new ClassroomServer();int port=freePort();
         try {
             server.start(port,"0.0.0.0","","https://classroom.example");await(server::running);
             assertTrue(server.url().startsWith("https://classroom.example/classroom.html#"));
             var ws=connect(port,"/classroom/ws","https://classroom.example");
             ws.sendText("{\"type\":\"hello\",\"token\":\""+server.url().split("#")[1]+"\"}",true).join();await(()->server.room().views().size()==1);
-            assertFalse(server.room().views().get(0).approved());assertTrue(server.room().paused());
+            assertTrue(server.room().views().get(0).approved());assertFalse(server.room().paused());
             assertThrows(ExecutionException.class,()->connect(port,"/classroom/ws","http://127.0.0.1:"+port));
             ws.sendClose(1000,"done").join();
         } finally {server.shutdown();}
