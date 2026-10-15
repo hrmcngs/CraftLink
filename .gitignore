@@ -10,3 +10,6 @@ web/dist/
 logs/
 crash-reports/
 bin/
+
+relay/node_modules/
+relay/.env

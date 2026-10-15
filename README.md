@@ -66,6 +66,34 @@ iOSにはAndroidのADB転送がありません。ケーブルを挿すだけでS
 Appleの手順はUSBネットワーク作成までのものです。iPhone側からPCへのHTTP接続の到達性はOS・ドライバー・ファイアウォール等に依存し、
 **この経路の実機検証は未実施**です。USB共有が使えない端末・契約ではLAN接続を使用してください。
 
+## GitHubのコードから公開するHTTPS・443番中継（無料枠）
+
+Cloudflare Tunnelの7844番ポートが利用できない回線向けに、Mac・スマホの両方が外部中継へHTTPS / WSS（443番）で接続する方式を用意しています。学校の回線で必ず利用できる保証はなく、中継先・WebSocket・443番の通信が許可されている必要があります。
+
+GitHub Pagesは静的ホスティングで、中継サーバーは実行できません。[GitHub公式説明](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)。中継はRenderの無料Web ServiceとしてGitHubのコードから公開できます。[RenderのWebSocket対応](https://render.com/docs/websocket)、[無料枠と制限](https://render.com/docs/free)。無料枠には稼働時間・通信量の制限と休止があり、無制限・常時稼働は保証しません。支払方法を登録しているアカウントでは通信量超過が課金対象になります。支払方法が未登録なら、上限超過時は無料サービスが停止します。無料運用ではアカウントの課金設定も確認してください。映像配信は特に通信量を消費します。
+
+初回の公開（まだ公開URLは取得していません）:
+
+1. [Renderダッシュボード](https://dashboard.render.com/)にログインし、New → BlueprintからGitHubの `hrmcngs/CraftLink` を選びます。非公開リポジトリはRenderへのアクセス許可が必要です。リポジトリを公開に変更する必要はありません。
+2. 同梱の `render.yaml` を読み込ませ、**Free**プランであることを確認して公開します。有料プランへの変更は不要です。
+3. 発行された `https://実際のサービス名.onrender.com` を控えます。これは表示例で、公開前に使用できるURLではありません。
+4. RenderのEnvironmentに自動生成された `CRAFTLINK_RELAY_SECRET` を確認します。このキーはMacの中継接続専用です。GitHub・QR・スマホ・チャットには載せないでください。
+
+授業での接続:
+
+1. `sh run.sh` でMinecraftを起動します。別ターミナルで `sh menu.sh` → **9** を選び、公開URLと通常操作/BOT参加を選びます。
+2. 認証キーの非表示プロンプトにRenderのキーを貼り付けます。初回はNode.js 22以上と依存取得用のネット接続が必要です。
+3. 「中継接続済み」と表示されたら、Minecraftの対象画面の「別のWi-Fi」に同じHTTPS URLを保存し、接続を開始してQRを読みます。PC側で承認します。
+4. Macの中継ターミナルは開いたままにします。Ctrl+Cで中継を終了します。切断するとスマホのWebSocketも閉じ、MODが押下を解除します。
+
+直接起動は `sh relay.sh controller https://実際のサービス名.onrender.com` または `sh relay.sh classroom https://実際のサービス名.onrender.com`。ポート変更時は `CRAFTLINK_LOCAL_PORT=9000 sh relay.sh classroom https://実際のサービス名.onrender.com` のように指定します。メニューの通常LANポート設定とは別です。
+
+1つの中継サービスは1台のMac・1つの接続モードを扱います。BOTモードはその中継を通して最大8台を受け付けます。同じサービスで通常操作とBOT参加を同時使用する場合は別サービスが必要です。Macへの任意URL転送は許可せず、固定localhostポートの画面・操作経路のみを中継します。既存のセッショントークン・PC承認・Origin検査も維持します。
+
+中継サーバーはHTTP・WSの内容を扱うため、運営者を信頼できる専用サービスを使います。中継には永続保存・リクエスト本文のログ出力を実装していません。映像はBase64中継による追加通信量が発生します。Renderの休止・再起動では一時切断し、再接続後に通常操作はPCで再承認が必要です。
+
+ローカルの中継テストは `npm ci --prefix relay` → `npm test --prefix relay`。実JavaサーバーとChromiumを接続したローカルHTTPS中継でも、通常操作/BOT参加の承認・入力・解除を確認しました。Renderへの実公開、学校Wi-FiとSafari実機では未検証です。
+
 ## 離れたWi-Fi・モバイル通信から接続（HTTPS中継）
 
 通常操作・NPC参加モードの両方に対応します。Cloudflareを経由するため、Mac・スマホ双方のインターネット接続が必要です。ルーターのポート転送は不要です。

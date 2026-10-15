@@ -21,6 +21,7 @@ jobs:
       - run: sbcl --script scripts/tests/test-run.lisp
       - run: sbcl --script scripts/tests/test-tunnel.lisp
       - run: npm --prefix web ci && npm --prefix web test
+      - run: npm --prefix relay ci && npm --prefix relay test
       - run: sh build.sh
       - uses: actions/upload-artifact@v4
         with:
