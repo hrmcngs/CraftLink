@@ -12,5 +12,9 @@
   "craftlink.layout.classic": "方向ボタン",
   "craftlink.layout.tap": "ジョイスティック＋直接タップ",
   "craftlink.layout.classic_tap": "方向ボタン＋直接タップ",
-  "craftlink.controls.video": "Minecraft映像の転送を許可"
+  "craftlink.controls.video": "Minecraft映像の転送を許可",
+  "craftlink.addons.title": "MODの追加操作…",
+  "craftlink.addons.help": "スマホに表示する操作を選択（最大16個）",
+  "craftlink.addons.clear": "すべて解除",
+  "craftlink.addons.empty": "追加できるMODの操作がありません"
 }

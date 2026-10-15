@@ -36,15 +36,16 @@ public final class CraftLink {
             MinecraftForge.EVENT_BUS.register(dev.craftlink.gui.ControlsIntegration.class);
             Runtime.getRuntime().addShutdownHook(new Thread(SERVER::shutdown, "CraftLink shutdown"));
         }
-        @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { VIDEO.close(); SERVER.shutdown(); }
+        @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { dev.craftlink.addon.AddonActions.releaseAll(); VIDEO.close(); SERVER.shutdown(); }
         @SubscribeEvent public static void render(TickEvent.RenderTickEvent e) { if (e.phase == TickEvent.Phase.END) VIDEO.capture(Minecraft.getInstance()); }
         private static void register(RegisterKeyMappingsEvent e) { e.register(OPEN); }
-        @SubscribeEvent public static void tick(TickEvent.ClientTickEvent e) {
+        @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST) public static void tick(TickEvent.ClientTickEvent e) {
             if (e.phase != TickEvent.Phase.START) return;
             Minecraft mc = Minecraft.getInstance();
             SERVER.setControllerPreferences(LinkConfig.controllerPreferences());
             SERVER.setVideoAllowed(LinkConfig.VIDEO_ENABLED.get());
             while (OPEN.consumeClick()) mc.setScreen(new LinkScreen(mc.screen));
+            SERVER.setAddonActions(dev.craftlink.addon.AddonActions.enabled(mc));
             INPUT.tick(mc);
         }
     }

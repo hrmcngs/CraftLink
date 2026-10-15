@@ -39,3 +39,13 @@ test('idle input is refreshed before timeout without losing edges or look deltas
  assert.equal(cadence.allow('slot',255,true),true);
  assert.equal(cadence.allow('slot',256,true),true);
 });
+
+test('addon catalog accepts only bounded unique action IDs and plain labels',async()=>{
+ const {addonActions}=await import('../src/controller/addons.ts');
+ const action={id:'addon:example:ability',label:'Ability <test>'};
+ assert.deepEqual(addonActions({actions:[action]}),[action]);
+ assert.deepEqual(addonActions({actions:[action,action]}),[]);
+ assert.deepEqual(addonActions({actions:[{...action,id:'key.attack'}]}),[]);
+ assert.deepEqual(addonActions({actions:Array.from({length:17},(_,i)=>({...action,id:`addon:example:a${i}`}))}),[]);
+ assert.deepEqual(addonActions(null),[]);
+});

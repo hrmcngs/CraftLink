@@ -16,17 +16,7 @@ export class TouchController {
   dx=0;dy=0;slot=-1;
   sensitivity=.15;
   constructor(private root:HTMLElement,private changed:()=>void=()=>{},private video?:VideoView,private sendTouch:(event:TouchCommand)=>void=()=>{}) {
-    root.querySelectorAll<HTMLElement>('[data-key]').forEach(button=>{
-      button.addEventListener('pointerdown',e=>{
-        if(!this.enabled)return;
-        e.preventDefault();button.setPointerCapture(e.pointerId);
-        const key=button.dataset.key!;
-        if(this.toggleAction(key)&&![...this.presses.values()].includes(key)){if(this.latches.has(key))this.latches.delete(key);else this.latches.add(key);}
-        this.presses.set(e.pointerId,key);this.feedback();this.changed();
-      });
-      const up=(e:PointerEvent)=>{if(!this.presses.delete(e.pointerId))return;this.feedback();this.changed();};
-      button.addEventListener('pointerup',up);button.addEventListener('pointercancel',up);button.addEventListener('lostpointercapture',up);
-    });
+    root.querySelectorAll<HTMLElement>('[data-key]').forEach(button=>this.bindKeyButton(button));
     root.querySelectorAll<HTMLElement>('[data-slot]').forEach(button=>{
       button.addEventListener('pointerdown',e=>{
         if(!this.enabled)return;
@@ -79,6 +69,17 @@ export class TouchController {
     joystick.addEventListener('pointermove',e=>{if(this.stick!==e.pointerId)return;const previous=this.stickHeld.join(',');move(e);if(this.stickHeld.join(',')!==previous)this.changed();});
     const stop=(e:PointerEvent)=>{if(this.stick!==e.pointerId)return;this.stick=undefined;this.stickHeld=[];root.querySelector<HTMLElement>('#stick-knob')!.style.transform='';this.changed();};
     joystick.addEventListener('pointerup',stop);joystick.addEventListener('pointercancel',stop);joystick.addEventListener('lostpointercapture',stop);
+  }
+  bindKeyButton(button:HTMLElement){
+      button.addEventListener('pointerdown',e=>{
+        if(!this.enabled)return;
+        e.preventDefault();button.setPointerCapture(e.pointerId);
+        const key=button.dataset.key!;
+        if(this.toggleAction(key)&&![...this.presses.values()].includes(key)){if(this.latches.has(key))this.latches.delete(key);else this.latches.add(key);}
+        this.presses.set(e.pointerId,key);this.feedback();this.changed();
+      });
+      const up=(e:PointerEvent)=>{if(!this.presses.delete(e.pointerId))return;this.feedback();this.changed();};
+      button.addEventListener('pointerup',up);button.addEventListener('pointercancel',up);button.addEventListener('lostpointercapture',up);
   }
   private toggleAction(key:string){return this.root.dataset.layout!=='classic'&&(key==='sneak'||key==='sprint');}
   private feedback(){

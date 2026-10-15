@@ -27,6 +27,7 @@ class LinkServerTest {
         int port; try (var socket = new java.net.ServerSocket(0)) { port = socket.getLocalPort(); }
         LinkServer server = new LinkServer();
         try {
+            server.setAddonActions(java.util.List.of(new dev.craftlink.addon.AddonActions.Action("addon:example:ability", "Ability")));
             server.start(port); await(() -> server.running());
             String origin = "http://127.0.0.1:" + port;
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
@@ -48,6 +49,9 @@ class LinkServerTest {
             assertFalse(server.canStream());
             server.approve(); assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("approved"));
             assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("\"layout\":\"mobile\""));
+            assertTrue(messages.poll(3, TimeUnit.SECONDS).contains("addon:example:ability"));
+            ws.sendText("{\"type\":\"input\",\"held\":[\"addon:example:ability\"],\"dx\":0,\"dy\":0,\"slot\":-1}", true).join();
+            await(() -> server.input.take().held().contains("addon:example:ability"));
             ws.sendText("{\"type\":\"video\",\"enabled\":true}", true).join();
             await(server::canStream);
             long epoch = server.videoEpoch();
@@ -82,6 +86,23 @@ class LinkServerTest {
             var response = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(url.split("#")[0])).build(), HttpResponse.BodyHandlers.ofString());
             assertEquals(200, response.statusCode());
             assertTrue(response.body().contains("CraftLink"));
+        } finally { server.shutdown(); }
+    }
+    @Test void unknownAddonInputClosesConnectionAndReleasesHeldInput() throws Exception {
+        var server = new LinkServer();
+        try {
+            server.start(0, "127.0.0.1", ""); await(server::running);
+            String origin = server.url().split("/#")[0], token = server.url().split("#")[1];
+            var socket = HttpClient.newHttpClient().newWebSocketBuilder().header("Origin", origin)
+                .buildAsync(URI.create(origin.replace("http://", "ws://") + "/ws"), new WebSocket.Listener() {
+                    public void onOpen(WebSocket ws) { ws.request(Long.MAX_VALUE); }
+                }).get(3, TimeUnit.SECONDS);
+            socket.sendText("{\"type\":\"hello\",\"token\":\"" + token + "\"}", true).join();
+            await(server::pending); server.approve();
+            socket.sendText("{\"type\":\"input\",\"held\":[\"attack\"],\"dx\":0,\"dy\":0,\"slot\":-1}", true).join();
+            await(() -> server.input.take().held().contains("attack"));
+            socket.sendText("{\"type\":\"input\",\"held\":[\"addon:unknown:ability\"],\"dx\":0,\"dy\":0,\"slot\":-1}", true).join();
+            await(() -> server.devices() == 0); assertTrue(server.input.take().held().isEmpty()); socket.abort();
         } finally { server.shutdown(); }
     }
     @Test void customHostIsAdvertisedWithoutChangingBoundInterface() throws Exception {

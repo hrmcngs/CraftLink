@@ -33,6 +33,20 @@ public final class LinkServer {
     private boolean videoRequested, videoAllowed = true;
     private int awaitingFrame;
     private long videoEpoch;
+    private List<dev.craftlink.addon.AddonActions.Action> addonActions = List.of();
+    private Set<String> addonIds = Set.of();
+    private String addonMessage = "{\"type\":\"addons\",\"actions\":[]}";
+    public synchronized void setAddonActions(List<dev.craftlink.addon.AddonActions.Action> actions) {
+        if (addonActions.equals(actions)) return;
+        if (actions.size() > 16 || actions.stream().anyMatch(a -> !dev.craftlink.addon.AddonActions.validId(a.id()))) throw new IllegalArgumentException("Invalid addon catalog");
+        addonActions = List.copyOf(actions);
+        addonIds = actions.stream().map(dev.craftlink.addon.AddonActions.Action::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
+        var message = new JsonObject(); message.addProperty("type", "addons");
+        var list = new JsonArray();
+        for (var action : actions) { var entry = new JsonObject(); entry.addProperty("id", action.id()); entry.addProperty("label", action.label()); list.add(entry); }
+        message.add("actions", list); addonMessage = message.toString();
+        if (approved && device != null) send(device, addonMessage);
+    }
     public synchronized void setVideoAllowed(boolean allowed) { videoAllowed = allowed; }
     public synchronized boolean videoActive() { return approved && device != null && videoRequested && videoAllowed; }
     public synchronized boolean canStream() { return videoActive() && awaitingFrame == 0 && device.isWritable(); }
@@ -99,7 +113,7 @@ public final class LinkServer {
         session = null; hosts = List.of(); address = selectedHost = ""; status = "停止中";
     }
     public void shutdown() { if (closed.compareAndSet(false, true)) { stop(); lifecycle.shutdown(); } }
-    public synchronized void approve() { if (device != null) { approved = true; status = "接続済み"; send(device, "{\"type\":\"approved\"}"); send(device, preferences.message()); } }
+    public synchronized void approve() { if (device != null) { approved = true; status = "接続済み"; send(device, "{\"type\":\"approved\"}"); send(device, preferences.message()); send(device, addonMessage); } }
     public synchronized void disconnect() { Channel old = device; device = null; approved = false; videoRequested = false; awaitingFrame = 0; videoEpoch++; input.clear(); if (old != null) { if (old.isActive()) old.writeAndFlush(new TextWebSocketFrame("{\"type\":\"revoked\"}")).addListener(ChannelFutureListener.CLOSE); else old.close(); } if (running) status = "接続待ち"; }
     private static void send(Channel ch, String json) { ch.writeAndFlush(new TextWebSocketFrame(json)); }
     private final class Handler extends SimpleChannelInboundHandler<Object> {
@@ -137,8 +151,8 @@ public final class LinkServer {
                 if (!approved || !type.equals("input")) return;
                 Set<String> keys = new HashSet<>();
                 JsonArray buttons = data.getAsJsonArray("held");
-                if (buttons.size() > RemoteState.ALLOWED.size()) throw new IllegalArgumentException();
-                for (JsonElement b : buttons) { String name = b.getAsString(); if (!RemoteState.ALLOWED.contains(name)) throw new IllegalArgumentException(); keys.add(name); }
+                if (buttons.size() > RemoteState.ALLOWED.size() + addonIds.size()) throw new IllegalArgumentException();
+                for (JsonElement b : buttons) { String name = b.getAsString(); if (!RemoteState.ALLOWED.contains(name) && !addonIds.contains(name)) throw new IllegalArgumentException(); keys.add(name); }
                 double dx = data.get("dx").getAsDouble(), dy = data.get("dy").getAsDouble();
                 int slot = data.get("slot").getAsInt();
                 if (!Double.isFinite(dx) || !Double.isFinite(dy) || Math.abs(dx) > 180 || Math.abs(dy) > 180 || slot < -1 || slot > 8) throw new IllegalArgumentException();

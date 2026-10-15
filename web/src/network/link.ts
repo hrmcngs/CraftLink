@@ -8,7 +8,7 @@ export class Link {
   private lastPong = 0;
   ready = false;
   private videoEnabled = true;
-  constructor(private token: string, private status: (text: string) => void, private reset: () => void, private preferences: (value: unknown) => void = () => {}, private frame: (blob: Blob) => Promise<number | undefined> = async () => undefined) {}
+  constructor(private token: string, private status: (text: string) => void, private reset: () => void, private preferences: (value: unknown) => void = () => {}, private frame: (blob: Blob) => Promise<number | undefined> = async () => undefined, private addons: (value: unknown) => void = () => {}) {}
   connect() {
     if (this.stopped) return;
     this.inputCadence = new InputCadence();
@@ -24,6 +24,7 @@ export class Link {
         return;
       }
       const data = JSON.parse(e.data);
+      if (data.type === 'addons') { this.addons(data); return; }
       if (data.type === 'preferences') { this.preferences(data); return; }
       if (data.type === 'revoked') { this.disconnect(); this.status('PCで接続が解除されました'); return; }
       if (data.type === 'pending') this.status('PCでF8を押し、接続を許可してください');
@@ -32,6 +33,7 @@ export class Link {
     };
     ws.onclose = () => {
       this.ready = false; this.reset();
+      this.addons({actions:[]});
       if (!this.stopped) { this.status('切断 · 再接続中（期限切れの場合はPCで再開始）'); this.retry = window.setTimeout(() => this.connect(), 2000); }
     };
     ws.onerror = () => ws.close();

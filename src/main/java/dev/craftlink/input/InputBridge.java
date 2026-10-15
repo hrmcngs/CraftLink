@@ -32,6 +32,8 @@ public final class InputBridge {
     }
     public void tick(Minecraft mc) {
         var snapshot = state.take();
+        dev.craftlink.addon.AddonActions.tick(mc, snapshot, mc.player != null && mc.level != null && mc.gameMode != null
+            && mc.screen == null && mc.getOverlay() == null && !mc.isPaused());
         videoTouch.tick(mc, snapshot.touches());
         if (mc.screen != null && snapshot.presses().contains("escape")) { mc.screen.onClose(); buttons.clear(); return; }
         immediateAttack = false;

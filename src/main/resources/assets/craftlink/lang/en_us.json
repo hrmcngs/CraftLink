@@ -12,5 +12,9 @@
   "craftlink.layout.classic": "Directional buttons",
   "craftlink.layout.tap": "Joystick & tap to interact",
   "craftlink.layout.classic_tap": "D-pad & tap to interact",
-  "craftlink.controls.video": "Allow Minecraft video streaming"
+  "craftlink.controls.video": "Allow Minecraft video streaming",
+  "craftlink.addons.title": "Additional Mod Controls…",
+  "craftlink.addons.help": "Choose controls for your phone (up to 16)",
+  "craftlink.addons.clear": "Clear all",
+  "craftlink.addons.empty": "No additional mod controls available"
 }

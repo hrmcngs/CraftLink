@@ -33,7 +33,9 @@ public final class TouchSettingsScreen extends Screen {
                 LinkConfig.VIDEO_ENABLED.set(enabled); Client.SERVER.setVideoAllowed(enabled);
             }));
         addRenderableWidget(Button.builder(Component.translatable("craftlink.controls.connect"), b -> minecraft.setScreen(new LinkScreen(this)))
-            .bounds(width / 2 - 100, top + 76, 200, 20).build());
+            .bounds(left, top + 76, 150, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("craftlink.addons.title"), b -> minecraft.setScreen(new AddonSettingsScreen(this)))
+            .bounds(left + 160, top + 76, 150, 20).build());
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> onClose()).bounds(width / 2 - 100, height - 27, 200, 20).build());
     }
     private void publish() { Client.SERVER.setControllerPreferences(LinkConfig.controllerPreferences()); }

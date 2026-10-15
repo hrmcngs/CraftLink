@@ -125,6 +125,42 @@ JPEGはどちらも127,572バイトです。これは単独の変換処理の測
 
 操作方式は[Minecraft公式の操作説明](https://www.minecraft.net/ja-jp/article/minecraft-controls)と[Bedrock 1.19.50のタッチ操作更新](https://www.minecraft.net/en-us/article/1-19-50-update-available-bedrock)を参考にしています。
 
+## 他のMODの操作を追加する
+
+PCの **設定 → 操作設定 → 携帯コントローラー設定 → MODの追加操作…** を開き、スマホに追加したい操作をONにします。
+導入済みMODのキー割り当てと、CraftLinkの登録APIで提供された操作が候補になります。最大16個、初期状態ではすべてOFFです。
+接続中のスマホに「MOD操作」が表示され、開くと選択したボタンをタップ・長押しできます。
+この選択画面の設定変更はPCで行います（映像経由のタップは受け付けません）。設定は `config/craftlink-client.toml` の `addonActions` に保存されます。
+
+キー連携は既存のキー状態・クリック数を変更せず、選択したMODキーの `isDown()` / `consumeClick()` の読み取りに独立した入力を合成します。
+通常のPC操作を保持し、Forgeのキー競合コンテキストを尊重します。MODがGLFWの生入力・独自のキー処理・別のGUI入力を読む場合は対応できません。
+キー修飾子の物理押下は再現しません。ボタンは対象キー割り当ての操作自体を呼び出します。
+すべてのMODへの互換性や、各MODのネットワーク処理の正しさを保証するものではありません。
+連携方式の参考: [Forge公式のキー割り当て説明](https://docs.minecraftforge.net/en/1.20.x/misc/keymappings/)。
+
+### MOD開発者向け登録API
+
+CraftLinkをクライアント側の依存として使用し、クライアント初期化時に一度だけ登録します。
+
+```java
+import dev.craftlink.addon.AddonActions;
+
+AddonActions.register("example:ability", "特殊能力", down -> {
+    // Minecraftのメインスレッドで呼ばれる。短押しでもtrue→falseを通知。
+    if (down) {
+        // 自分のMODのクライアント操作APIを呼ぶ。
+    } else {
+        // 長押し操作の終了・解除。
+    }
+});
+```
+
+登録だけではスマホから実行できません。PCで選択すると `addon:example:ability` が許可されます。
+GUI表示・切断・750msの入力タイムアウト・選択解除・Minecraft終了で解除を通知します。
+コールバックは短時間で処理し、自分のMODのゲームルール・通常のサーバー通信を使用してください。
+例外を投げた登録操作はログに記録して、その起動中は無効にします。
+Webからクラス名・関数名・任意キーコード・コマンドを指定する仕組みはありません。
+
 ## ビルド
 
 必要: **JDK 17、Node.js 22.18以上、npm**。Gradle Wrapper同梱。初回のみ依存ライブラリのダウンロードが必要です。
@@ -340,7 +376,8 @@ F8画面下の「接続先」ボタンで切り替えるとQRとURLも切り替�
 - macOS / Apple M2上の `runClient` でForge・CraftLink読み込みとリソース初期化を確認。独自入力用の3つのMixinがMinecraft / LocalPlayerに適用されることもログで確認。
 - 携帯UIのジョイスティック方向・設定値検査と、PC設定のWebSocket配信をテスト。
 - Chromiumのブラウザ検証（通信はモック）で移動＋視点の同時タッチ、指キャンセル時解除、設定表示時の攻撃解除、操作方式切替、140%サイズでの横画面・縦画面・小画面配置、CSPエラーなしを確認。Safari/Android実機の検証ではありません。
-- JUnit 25件、Web 9件、Common Lisp 6件が成功。
+- JUnit 29件、Web 10件、Common Lisp 6件が成功。
+- MOD追加操作: 許可されたIDの通信・未許可IDの拒否と入力解除・短押し保持・長押しの解除をテスト。Chromiumで動的ボタンの追加/削除・押下送信・削除時解除を確認。実Minecraft上でもキー押下読み取り・クリック1回消費・PCキー保持・API短押しの解除を確認（検証用キー。第三者MODの実機検証ではありません）。
 - 軽量化後のChromium確認で、映像デコード・直接タップ・マルチタッチ・入力解除と、バックグラウンド移行時の映像停止/復帰時再開を確認。
 - 今回の環境ではForgeGradleの外部サイト証明書確認が失敗したため、最終ビルドは取得済み依存に限定した `bash ./gradlew build --offline -PwebOffline=true -Dnet.minecraftforge.gradle.check.certs=false` で実施。`--offline` で依存取得を禁止し、ForgeGradleの事前接続チェックだけ省略しています。
 - 映像パケット・JPEGの色変換・画面座標の逆投影・短い入力の保持・タッチイベント検査のJavaテストと、タップ/長押し/ドラッグのWebテストを追加。

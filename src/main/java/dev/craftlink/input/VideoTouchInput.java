@@ -27,6 +27,8 @@ public final class VideoTouchInput {
             if (event.phase().equals("cancel") || event.phase().equals("up")) { releaseGui(mc); mining = null; startMining = false; continue; }
             var sample = video.sample(event.frame());
             if (sample == null) continue;
+            // Changing the remote action allowlist requires local PC interaction.
+            if (mc.screen instanceof dev.craftlink.gui.AddonSettingsScreen) continue;
             if (sample.context() == 1 && mc.screen == sample.screen()
                 && sample.guiWidth() == mc.getWindow().getGuiScaledWidth() && sample.guiHeight() == mc.getWindow().getGuiScaledHeight()) {
                 double x = event.x() * sample.guiWidth(), y = event.y() * sample.guiHeight();

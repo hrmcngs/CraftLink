@@ -9,6 +9,7 @@ public final class LinkConfig {
     public static final ForgeConfigSpec.DoubleValue TOUCH_SENSITIVITY;
     public static final ForgeConfigSpec.IntValue TOUCH_BUTTON_SIZE;
     public static final ForgeConfigSpec.BooleanValue VIDEO_ENABLED;
+    public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> ADDON_ACTIONS;
     static {
         var b = new ForgeConfigSpec.Builder();
         PORT = b.comment("HTTP/WebSocket port. Stop and restart the connection after changing settings.").defineInRange("port", 8765, 1024, 65535);
@@ -20,6 +21,8 @@ public final class LinkConfig {
         TOUCH_SENSITIVITY = b.defineInRange("touchSensitivity", 0.15, 0.03, 0.5);
         TOUCH_BUTTON_SIZE = b.defineInRange("touchButtonSize", 100, 80, 140);
         VIDEO_ENABLED = b.comment("Allow approved phones to request Minecraft-only video frames.").define("videoEnabled", true);
+        ADDON_ACTIONS = b.comment("Explicitly enabled addon action IDs. Select in Mobile Controller Settings; maximum 16.")
+            .defineListAllowEmpty("addonActions", java.util.List.of(), dev.craftlink.addon.AddonActions::validId);
         SPEC = b.build();
     }
     public static ConnectionSettings launchSettings() {
