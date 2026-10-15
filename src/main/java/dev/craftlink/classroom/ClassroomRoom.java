@@ -13,7 +13,7 @@ public final class ClassroomRoom {
     public interface Socket { void send(String json); void close(); default boolean sendVideo(byte[] packet) { return false; } }
     public record View(UUID id, int number, boolean connected, boolean approved) {}
     public record VideoTarget(UUID id, Socket socket, dev.craftlink.video.BotVideoQuality quality) {}
-    public record BotInput(int number, RemoteState.Snapshot input) {}
+    public record BotInput(int number, RemoteState.Snapshot input, boolean inventoryRequested, int selectedSlot, int swapSlot) {}
     private static final long RECONNECT_NS = 30_000_000_000L;
     private final Session invitation = new Session();
     private final Map<UUID, Peer> peers = new LinkedHashMap<>();
@@ -28,7 +28,9 @@ public final class ClassroomRoom {
         final Session resume = new Session();
         final RemoteState input = new RemoteState();
         Socket socket;
-        boolean approved, video;
+        boolean approved, video, inventoryRequested;
+        int selectedSlot;
+        int swapSlot=-1;
         final Map<Integer, Long> awaitingFrames = new LinkedHashMap<>();
         dev.craftlink.video.BotVideoQuality quality = dev.craftlink.video.BotVideoQuality.BALANCED;
         long disconnectedAt;
@@ -54,7 +56,7 @@ public final class ClassroomRoom {
             for (; number <= LIMIT; number++) { final int slot = number; if (peers.values().stream().noneMatch(p -> p.number == slot)) break; }
             peer = new Peer(number, socket); peers.put(peer.id, peer);
         }
-        peer.approved = true; peer.video = false; peer.awaitingFrames.clear();
+        peer.inventoryRequested = true; peer.approved = true; peer.video = false; peer.awaitingFrames.clear();
         peer.input.clear();
         var welcome = new JsonObject(); welcome.addProperty("type", "welcome"); welcome.addProperty("number", peer.number);
         welcome.addProperty("resume", peer.resume.token()); socket.send(welcome.toString()); sendState(peer);
@@ -62,7 +64,7 @@ public final class ClassroomRoom {
     }
     public synchronized void disconnect(UUID id, Socket socket) {
         Peer peer = peers.get(id);
-        if (peer != null && peer.socket == socket) { peer.socket = null; peer.video = false; peer.awaitingFrames.clear(); peer.disconnectedAt = clock.getAsLong(); peer.input.clear(); }
+        if (peer != null && peer.socket == socket) { peer.socket = null; peer.video = false; peer.awaitingFrames.clear(); peer.disconnectedAt = clock.getAsLong(); peer.swapSlot=-1; peer.input.clear(); }
     }
     public synchronized void approve(UUID id) {
         Peer peer = peers.get(id); if (peer == null || peer.socket == null || expired()) return;
@@ -84,7 +86,7 @@ public final class ClassroomRoom {
     }
     public synchronized void pause(boolean value) {
         paused = value;
-        for (Peer peer : peers.values()) { peer.input.clear(); sendState(peer); }
+        for (Peer peer : peers.values()) { peer.swapSlot=-1; peer.input.clear(); sendState(peer); }
     }
     public synchronized void input(UUID id, Socket socket, Set<String> held, double yaw) {
         input(id, socket, held, yaw, 0);
@@ -117,6 +119,16 @@ public final class ClassroomRoom {
             peer.awaitingFrames.put(frame,clock.getAsLong());
         }
     }
+    public synchronized void inventory(UUID id, Socket socket, int slot) {
+        if (slot < -1 || slot > 35) throw new IllegalArgumentException("Invalid inventory slot");
+        Peer peer=peers.get(id);
+        if (peer==null || peer.socket!=socket || !peer.approved || expired()) return;
+        peer.inventoryRequested=true;
+        if(!paused){if(slot>=0 && slot<=8)peer.selectedSlot=slot;else if(slot>=9)peer.swapSlot=slot;}
+    }
+    public synchronized void publishInventory(UUID id, JsonObject inventory) {
+        Peer peer=peers.get(id);if(!expired() && peer!=null && peer.socket!=null)peer.socket.send(inventory.toString());
+    }
     public synchronized List<View> views() {
         prune(); return peers.values().stream().map(p -> new View(p.id, p.number, p.socket != null, p.approved)).toList();
     }
@@ -126,7 +138,8 @@ public final class ClassroomRoom {
         Map<UUID, BotInput> inputs = new LinkedHashMap<>();
         for (Peer peer : peers.values()) if (peer.approved) {
             if (paused || peer.socket == null) peer.input.clear();
-            inputs.put(peer.id, new BotInput(peer.number, peer.input.take()));
+            inputs.put(peer.id, new BotInput(peer.number, peer.input.take(), peer.inventoryRequested, peer.selectedSlot, paused || peer.socket==null ? -1 : peer.swapSlot));
+            peer.inventoryRequested=false; peer.swapSlot=-1;
         }
         return Map.copyOf(inputs);
     }

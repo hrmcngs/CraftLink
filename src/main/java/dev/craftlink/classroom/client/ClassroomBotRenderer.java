@@ -22,6 +22,7 @@ public final class ClassroomBotRenderer extends MobRenderer<ClassroomBot, Player
         .map(name -> new ResourceLocation("minecraft", "textures/entity/player/wide/" + name + ".png")).toArray(ResourceLocation[]::new);
     public ClassroomBotRenderer(EntityRendererProvider.Context context) {
         super(context, new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER), false), .5f);
+        addLayer(new net.minecraft.client.renderer.entity.layers.ItemInHandLayer<>(this,context.getItemInHandRenderer()));
     }
     @SubscribeEvent public static void register(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ClassroomEntities.BOT.get(), ClassroomBotRenderer::new);

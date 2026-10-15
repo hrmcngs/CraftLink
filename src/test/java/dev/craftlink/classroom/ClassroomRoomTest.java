@@ -112,4 +112,13 @@ static class VideoSocket extends Socket {
     var current=room.videoTargets().get(0);assertEquals(dev.craftlink.video.BotVideoQuality.SMOOTH,current.quality());
     room.publishVideo(current,5,new byte[]{5});assertEquals(3,socket.frames.size());
 }
+@Test void inventoryCommandsAreIsolatedAndPauseDropsQueuedSwaps(){
+    var room=new ClassroomRoom();var one=new Socket();var two=new Socket();var a=room.join(room.token(),"",one);var b=room.join(room.token(),"",two);
+    room.takeInputs();room.inventory(a,two,5);assertEquals(0,room.takeInputs().get(a).selectedSlot());
+    room.inventory(a,one,5);var states=room.takeInputs();assertEquals(5,states.get(a).selectedSlot());assertEquals(0,states.get(b).selectedSlot());assertTrue(states.get(a).inventoryRequested());
+    room.inventory(a,one,12);assertEquals(12,room.takeInputs().get(a).swapSlot());assertEquals(-1,room.takeInputs().get(a).swapSlot());
+    room.inventory(a,one,13);room.pause(true);room.pause(false);assertEquals(-1,room.takeInputs().get(a).swapSlot());
+    room.pause(true);room.inventory(a,one,7);room.inventory(a,one,14);states=room.takeInputs();assertEquals(5,states.get(a).selectedSlot());assertEquals(-1,states.get(a).swapSlot());
+    assertThrows(IllegalArgumentException.class,()->room.inventory(a,one,36));assertThrows(IllegalArgumentException.class,()->room.inventory(a,one,-2));
+}
 }

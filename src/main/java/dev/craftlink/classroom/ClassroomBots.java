@@ -21,6 +21,7 @@ public final class ClassroomBots {
     public void recall() { recall = true; }
     private volatile Map<UUID, UUID> entityIds = Map.of();
     public Map<UUID, UUID> entityIds() { return entityIds; }
+    private final Map<UUID, Long> inventoryVersions = new HashMap<>();
     private final Map<UUID, ClassroomBot> bots = new HashMap<>();
     public void start(MinecraftServer server, ClassroomRoom room, ResourceKey<Level> dimension, BlockPos anchor, float yaw) {
         server.execute(() -> {
@@ -36,11 +37,11 @@ public final class ClassroomBots {
         if (room == null || level == null || room.expired()) { clear(); return; }
         boolean moveBack = recall; recall = false;
         var inputs = room.takeInputs();
-        for (UUID id : List.copyOf(bots.keySet())) if (!inputs.containsKey(id)) { bots.remove(id).discard(); }
+        for (UUID id : List.copyOf(bots.keySet())) if (!inputs.containsKey(id)) { removeBot(bots.remove(id)); inventoryVersions.remove(id); }
         for (var entry : inputs.entrySet()) {
             ClassroomBot bot = bots.get(entry.getKey());
             if (bot == null || !bot.isAlive()) {
-                if (bot != null) bot.discard();
+                if (bot != null) removeBot(bot);
                 bot = new ClassroomBot(level, entry.getValue().number());
                 place(bot, entry.getValue().number());
                 if (!level.addFreshEntity(bot)) continue;
@@ -48,6 +49,11 @@ public final class ClassroomBots {
             }
             if (moveBack || outsideArea(bot.getX(), bot.getY(), bot.getZ(), anchor.getX()+.5, anchor.getZ()+.5, level.getMinBuildHeight())) place(bot,entry.getValue().number());
             bot.accept(entry.getValue().input());
+            bot.selectSlot(entry.getValue().selectedSlot());
+            if(entry.getValue().swapSlot()>=9)bot.swapToHand(entry.getValue().swapSlot());
+            if(entry.getValue().inventoryRequested() || !Objects.equals(inventoryVersions.get(entry.getKey()),bot.inventoryVersion())) {
+                room.publishInventory(entry.getKey(),bot.inventoryMessage());inventoryVersions.put(entry.getKey(),bot.inventoryVersion());
+            }
         }
         Map<UUID, UUID> ids = new HashMap<>();
         bots.forEach((peer, bot) -> ids.put(peer, bot.getUUID()));
@@ -89,6 +95,7 @@ public final class ClassroomBots {
         return dx*dx+dz*dz>32*32 || y<minimumY-4;
     }
 
-    private void clear() { for (var bot : bots.values()) bot.discard(); bots.clear(); entityIds = Map.of(); room = null; level = null; owner = null; }
+    private void removeBot(ClassroomBot bot){bot.returnInventory();bot.discard();}
+    private void clear() { for (var bot : bots.values()) removeBot(bot); bots.clear(); inventoryVersions.clear(); entityIds = Map.of(); room = null; level = null; owner = null; }
     @SubscribeEvent public void stopping(ServerStoppingEvent event) { if (event.getServer() == owner) clear(); }
 }

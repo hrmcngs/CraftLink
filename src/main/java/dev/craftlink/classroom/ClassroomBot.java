@@ -26,6 +26,24 @@ public final class ClassroomBot extends PathfinderMob {
     private static final EntityDataAccessor<Integer> NUMBER = SynchedEntityData.defineId(ClassroomBot.class, EntityDataSerializers.INT);
     private Set<String> held = Set.of();
     private boolean jumpPulse;
+    private final net.minecraft.world.SimpleContainer inventory = new net.minecraft.world.SimpleContainer(36);
+    private int selectedSlot;
+    private long inventoryVersion;
+    public void returnInventory(){for(int i=0;i<36;i++){var item=inventory.removeItemNoUpdate(i);if(!item.isEmpty())spawnAtLocation(item);}setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND,net.minecraft.world.item.ItemStack.EMPTY);}
+    public long inventoryVersion(){return inventoryVersion;}
+    public void selectSlot(int slot){if(slot<0||slot>8)throw new IllegalArgumentException("Invalid slot");if(selectedSlot!=slot){selectedSlot=slot;inventoryVersion++;}setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND,inventory.getItem(slot).copy());}
+    public void swapToHand(int slot){if(slot<9||slot>35)throw new IllegalArgumentException("Invalid backpack slot");var previous=inventory.getItem(selectedSlot);inventory.setItem(selectedSlot,inventory.getItem(slot));inventory.setItem(slot,previous);inventoryVersion++;selectSlot(selectedSlot);}
+    public com.google.gson.JsonObject inventoryMessage(){
+        var result=new com.google.gson.JsonObject();result.addProperty("type","inventory");result.addProperty("selected",selectedSlot);
+        var slots=new com.google.gson.JsonArray();
+        for(int i=0;i<inventory.getContainerSize();i++){var item=inventory.getItem(i);var slot=new com.google.gson.JsonObject();slot.addProperty("slot",i);slot.addProperty("id",net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item.getItem()).toString());slot.addProperty("name",item.isEmpty()?"":item.getHoverName().getString());slot.addProperty("count",item.getCount());slots.add(slot);}
+        result.add("slots",slots);return result;
+    }
+    @Override protected void pickUpItem(net.minecraft.world.entity.item.ItemEntity entity){
+        if(!isAlive()||entity.hasPickUpDelay())return;
+        var original=entity.getItem();int count=original.getCount();var remainder=inventory.addItem(original.copy());int taken=count-remainder.getCount();
+        if(taken<=0)return;take(entity,taken);if(remainder.isEmpty())entity.discard();else entity.setItem(remainder);inventoryVersion++;selectSlot(selectedSlot);
+    }
     public ClassroomBot(EntityType<? extends ClassroomBot> type, Level level) {
         super(type, level);
         moveControl = new MoveControl(this) {
@@ -45,7 +63,7 @@ public final class ClassroomBot extends PathfinderMob {
         this(ClassroomEntities.BOT.get(), level);
         if (number < 1 || number > NAMES.length) throw new IllegalArgumentException("Participant number");
         entityData.set(NUMBER, number);
-        setInvulnerable(true); setCanPickUpLoot(false);
+        setInvulnerable(true); setCanPickUpLoot(true);
         setCustomName(Component.literal(number + "号 " + NAMES[number-1]).withStyle(COLORS[number-1])); setCustomNameVisible(true);
     }
     @Override protected void defineSynchedData() { super.defineSynchedData(); entityData.define(NUMBER, 1); }
