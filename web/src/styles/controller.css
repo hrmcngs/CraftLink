@@ -4,3 +4,6 @@
 #game-back{display:none}#app[data-context=gui] #game-back{display:block}
 [hidden]{display:none!important}#addons-panel{position:absolute;top:76px;right:8px;z-index:6;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:min(320px,calc(100% - 16px));max-height:calc(100dvh - 180px);overflow:auto;padding:8px;background:#222e;border:2px solid #111;touch-action:pan-y}#addons-panel button{min-height:40px;overflow-wrap:anywhere;font-size:12px;touch-action:none}#app[data-context=gui] #addons-panel,#app[data-context=gui] #addons-open{display:none}
 #addons-paging{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px}#addons-paging button{min-height:30px;font-size:11px}#addons-paging button:disabled{opacity:.45}
+
+/* Bedrock-style inventory entry at the right edge of the hotbar. */
+#inventory nav{gap:2px}#inventory nav [data-slot]{flex:0 1 42px;min-width:0;width:clamp(24px,8vw,42px)}#inventory-open{flex:0 0 38px;width:38px;font-size:25px;background:#888b;box-shadow:inset 2px 2px #bbb,inset -2px -2px #444}
