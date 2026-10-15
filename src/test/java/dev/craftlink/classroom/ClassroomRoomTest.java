@@ -151,4 +151,21 @@ static class VideoSocket extends Socket {
  room.input(id,socket,Set.of("attack"),0,0,new ClassroomRoom.Touch(1,.5,.5));room.pause(true);var input=room.takeInputs().get(id);assertNull(input.aim());assertTrue(input.input().held().isEmpty());
  room.pause(false);room.input(id,socket,Set.of("attack"),0,0,new ClassroomRoom.Touch(1,.5,.5));room.disconnect(id,socket);input=room.takeInputs().get(id);assertNull(input.aim());assertTrue(input.input().held().isEmpty());
 }
+
+@Test void dropRequestsAreBoundedIsolatedAndCancelledByPauseDisconnectAndMode(){
+ var room=new ClassroomRoom();var a=new Socket();var b=new Socket();var id=room.join(room.token(),"",a);room.join(room.token(),"",b);
+ room.drop(id,b,0,true);assertNull(room.takeInputs().get(id).drop());room.inventory(id,a,5);room.drop(id,a,-1,false);var input=room.takeInputs().get(id);assertEquals(5,input.drop().slot());assertFalse(input.drop().all());assertNull(room.takeInputs().get(id).drop());
+ room.drop(id,a,35,true);assertTrue(room.takeInputs().get(id).drop().all());room.drop(id,a,0,true);room.pause(true);room.pause(false);assertNull(room.takeInputs().get(id).drop());
+ room.drop(id,a,0,true);room.mode(ClassroomRoom.Mode.CREATIVE);assertNull(room.takeInputs().get(id).drop());room.drop(id,a,0,true);room.disconnect(id,a);assertNull(room.takeInputs().get(id).drop());
+ assertThrows(IllegalArgumentException.class,()->room.drop(id,a,36,false));assertThrows(IllegalArgumentException.class,()->room.drop(id,a,-2,false));
+}
+@Test void onlyCreativeParticipantsCanFlyAndModeChangesLandEveryone(){
+ var room=new ClassroomRoom();var a=new Socket();var b=new Socket();var id=room.join(room.token(),"",a);room.join(room.token(),"",b);
+ room.flight(id,a);assertFalse(room.takeInputs().get(id).flying());room.mode(ClassroomRoom.Mode.CREATIVE);room.flight(id,b);assertFalse(room.takeInputs().get(id).flying());room.flight(id,a);assertTrue(room.takeInputs().get(id).flying());
+ room.pause(true);room.flight(id,a);assertTrue(room.takeInputs().get(id).flying());room.pause(false);room.flight(id,a);assertFalse(room.takeInputs().get(id).flying());room.flight(id,a);room.mode(ClassroomRoom.Mode.SURVIVAL);assertFalse(room.takeInputs().get(id).flying());
+}
+@Test void autoJumpPreferenceIsIsolatedFromOtherPhones(){
+ var room=new ClassroomRoom();var a=new Socket();var b=new Socket();var id=room.join(room.token(),"",a);var other=room.join(room.token(),"",b);
+ room.preferences(id,b,true);assertFalse(room.takeInputs().get(id).autoJump());room.preferences(id,a,true);var inputs=room.takeInputs();assertTrue(inputs.get(id).autoJump());assertFalse(inputs.get(other).autoJump());
+}
 }

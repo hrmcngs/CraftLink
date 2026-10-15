@@ -60,8 +60,10 @@ public final class ClassroomBots {
                     else dev.craftlink.video.ItemIcons.send(room,entry.getKey(),room.catalog().page(request.tab(),request.page()));
                 }else {var denied=new com.google.gson.JsonObject();denied.addProperty("type","creativeDenied");room.publishInventory(entry.getKey(),denied);}
             }
+            bot.flying(entry.getValue().flying());bot.autoJump(entry.getValue().autoJump());
             bot.accept(entry.getValue().input());
             if(entry.getValue().swapSlot()>=9)bot.swapToHand(entry.getValue().swapSlot());
+            if(entry.getValue().drop()!=null)bot.dropItem(entry.getValue().drop().slot(),entry.getValue().drop().all());
             actions.get(entry.getKey()).tick(bot,entry.getValue().input(),room.mode(),entry.getValue().aim());
             if(entry.getValue().inventoryRequested() || !Objects.equals(inventoryVersions.get(entry.getKey()),bot.inventoryVersion())) {
                 var inventory=bot.inventoryMessage();inventory.addProperty("creative",creativeAllowed);inventory.addProperty("mode",room.mode().name().toLowerCase(java.util.Locale.ROOT));dev.craftlink.video.ItemIcons.send(room,entry.getKey(),inventory);inventoryVersions.put(entry.getKey(),bot.inventoryVersion());

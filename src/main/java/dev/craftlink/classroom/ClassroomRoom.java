@@ -16,12 +16,13 @@ public final class ClassroomRoom {
     /** Called by the native host screen only; never exposed as a phone command. */
     public synchronized void mode(Mode value){
         mode=Objects.requireNonNull(value);
-        for(Peer peer:peers.values()){peer.input.clear();peer.creative=null;peer.aim=null;peer.swapSlot=-1;peer.inventoryRequested=true;sendState(peer);}
+        for(Peer peer:peers.values()){peer.input.clear();peer.creative=null;peer.aim=null;peer.drop=null;peer.flying=false;peer.swapSlot=-1;peer.inventoryRequested=true;sendState(peer);}
     }
     public interface Socket { void send(String json); void close(); default boolean sendVideo(byte[] packet) { return false; } }
     public record View(UUID id, int number, boolean connected, boolean approved) {}
     public record VideoTarget(UUID id, Socket socket, dev.craftlink.video.BotVideoQuality quality) {}
-    public record BotInput(int number, RemoteState.Snapshot input, boolean inventoryRequested, int selectedSlot, int swapSlot, CreativeRequest creative, Aim aim) {}
+    public record BotInput(int number, RemoteState.Snapshot input, boolean inventoryRequested, int selectedSlot, int swapSlot, CreativeRequest creative, Aim aim,DropRequest drop,boolean flying,boolean autoJump) {}
+    public record DropRequest(int slot,boolean all) {}
     public record ViewSample(double eyeX,double eyeY,double eyeZ,double yaw,double pitch,double aspect) {}
     public record Touch(int frame,double x,double y) {
         public Touch {if(frame<1||!Double.isFinite(x)||!Double.isFinite(y)||x<0||x>1||y<0||y>1)throw new IllegalArgumentException("Invalid touch");}
@@ -51,6 +52,8 @@ public final class ClassroomRoom {
         int swapSlot=-1;
         CreativeRequest creative;
         Aim aim;
+        DropRequest drop;
+        boolean flying,autoJump;
         final LinkedHashMap<Integer,TimedView> frameViews=new LinkedHashMap<>();
         final Map<Integer, Long> awaitingFrames = new LinkedHashMap<>();
         dev.craftlink.video.BotVideoQuality quality = dev.craftlink.video.BotVideoQuality.BALANCED;
@@ -85,7 +88,7 @@ public final class ClassroomRoom {
     }
     public synchronized void disconnect(UUID id, Socket socket) {
         Peer peer = peers.get(id);
-        if (peer != null && peer.socket == socket) { peer.socket = null; peer.video = false; peer.awaitingFrames.clear();peer.frameViews.clear();peer.aim=null; peer.disconnectedAt = clock.getAsLong(); peer.swapSlot=-1;peer.creative=null; peer.input.clear(); }
+        if (peer != null && peer.socket == socket) { peer.socket = null; peer.video = false; peer.awaitingFrames.clear();peer.frameViews.clear();peer.aim=null;peer.drop=null; peer.disconnectedAt = clock.getAsLong(); peer.swapSlot=-1;peer.creative=null; peer.input.clear(); }
     }
     public synchronized void approve(UUID id) {
         Peer peer = peers.get(id); if (peer == null || peer.socket == null || expired()) return;
@@ -107,7 +110,19 @@ public final class ClassroomRoom {
     }
     public synchronized void pause(boolean value) {
         paused = value;
-        for (Peer peer : peers.values()) { peer.swapSlot=-1;peer.creative=null;peer.aim=null; peer.input.clear(); sendState(peer); }
+        for (Peer peer : peers.values()) { peer.swapSlot=-1;peer.creative=null;peer.aim=null;peer.drop=null; peer.input.clear(); sendState(peer); }
+    }
+    public synchronized void drop(UUID id,Socket socket,int slot,boolean all){
+        if(slot< -1||slot>35)throw new IllegalArgumentException("Invalid drop slot");
+        Peer peer=peers.get(id);
+        if(peer!=null&&peer.socket==socket&&peer.approved&&!paused&&!expired())peer.drop=new DropRequest(slot<0?peer.selectedSlot:slot,all);
+    }
+    public synchronized void flight(UUID id,Socket socket){
+        Peer peer=peers.get(id);
+        if(peer!=null&&peer.socket==socket&&peer.approved&&!paused&&!expired()&&mode==Mode.CREATIVE){peer.flying=!peer.flying;peer.input.clear();peer.aim=null;sendState(peer);}
+    }
+    public synchronized void preferences(UUID id,Socket socket,boolean autoJump){
+        Peer peer=peers.get(id);if(peer!=null&&peer.socket==socket&&peer.approved&&!expired())peer.autoJump=autoJump;
     }
     public synchronized void input(UUID id, Socket socket, Set<String> held, double yaw) {
         input(id, socket, held, yaw, 0);
@@ -178,9 +193,9 @@ public final class ClassroomRoom {
         for (Peer peer : peers.values()) if (peer.approved) {
             if (paused || peer.socket == null) peer.input.clear();
             var snapshot=peer.input.take();
-            inputs.put(peer.id, new BotInput(peer.number, snapshot, peer.inventoryRequested, peer.selectedSlot, paused || peer.socket==null ? -1 : peer.swapSlot, paused || peer.socket==null ? null : peer.creative,paused||peer.socket==null?null:peer.aim));
+            inputs.put(peer.id, new BotInput(peer.number, snapshot, peer.inventoryRequested, peer.selectedSlot, paused || peer.socket==null ? -1 : peer.swapSlot, paused || peer.socket==null ? null : peer.creative,paused||peer.socket==null?null:peer.aim,paused||peer.socket==null?null:peer.drop,mode==Mode.CREATIVE&&peer.flying,peer.autoJump));
             if(!snapshot.held().contains("attack")&&!snapshot.held().contains("use"))peer.aim=null;
-            peer.inventoryRequested=false; peer.swapSlot=-1;peer.creative=null;
+            peer.inventoryRequested=false; peer.swapSlot=-1;peer.creative=null;peer.drop=null;
         }
         return Map.copyOf(inputs);
     }
@@ -193,6 +208,7 @@ public final class ClassroomRoom {
         if (peer.socket == null) return;
         var message = new JsonObject(); message.addProperty("type", "state"); message.addProperty("approved", peer.approved); message.addProperty("paused", paused);
         message.addProperty("mode",mode.name().toLowerCase(java.util.Locale.ROOT));
+        message.addProperty("flying",mode==Mode.CREATIVE&&peer.flying);
         peer.socket.send(message.toString());
     }
 }

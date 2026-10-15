@@ -18,24 +18,35 @@ import net.minecraftforge.common.util.FakePlayer;
 /** One non-spawned action player per BOT. Vanilla/Forge checks, loot and tools run on the server. */
 public final class BotBlockActions {
     private final ServerLevel level;
-    private final FakePlayer player;
+    private final ActionPlayer player;
     private final ServerPlayerGameMode gameMode;
     private BlockPos breaking;
     private Direction face=Direction.UP;
     private float progress;
     private int cooldown, sequence;
+    private static final class ActionPlayer extends FakePlayer {
+        int attackTicks=20;
+        ActionPlayer(ServerLevel level,GameProfile profile){super(level,profile);}
+        @Override public float getAttackStrengthScale(float partial){return net.minecraft.util.Mth.clamp((attackTicks+partial)/(20f/(float)getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_SPEED)),0,1);}
+        @Override public void resetAttackStrengthTicker(){attackTicks=0;super.resetAttackStrengthTicker();}
+    }
     public BotBlockActions(ServerLevel level,java.util.UUID id,int number){
         this.level=level;
-        player=new FakePlayer(level,new GameProfile(id,"CraftLink_"+number));
+        player=new ActionPlayer(level,new GameProfile(id,"CraftLink_"+number));
         gameMode=player.gameMode;
     }
     public void tick(ClassroomBot bot,RemoteState.Snapshot input,ClassroomRoom.Mode mode,ClassroomRoom.Aim aim){
         GameType requested=mode==ClassroomRoom.Mode.CREATIVE?GameType.CREATIVE:GameType.SURVIVAL;
+        player.attackTicks=Math.min(100,player.attackTicks+1);player.getCooldowns().tick();
         if(gameMode.getGameModeForPlayer()!=requested){cancel();((dev.craftlink.mixin.BlockActionAccessor)gameMode).craftlink$mode(requested,gameMode.getGameModeForPlayer());}
         if(breaking==null && !input.held().contains("attack") && !input.held().contains("use") && !input.presses().contains("attack") && !input.presses().contains("use")){if(cooldown>0)cooldown--;return;}
         player.setPos(bot.getX(),bot.getY(),bot.getZ());player.setYRot(bot.getYRot());player.setXRot(bot.getXRot());
         player.setShiftKeyDown(bot.isShiftKeyDown());player.setPose(bot.getPose());player.setOnGround(bot.onGround());
-        bot.copyInventoryTo(player);player.getCooldowns().tick();
+        var oldHand=player.getMainHandItem().copy();bot.copyInventoryTo(player);
+        if(!net.minecraft.world.item.ItemStack.matches(oldHand,player.getMainHandItem())){
+            player.getAttributes().removeAttributeModifiers(oldHand.getAttributeModifiers(net.minecraft.world.entity.EquipmentSlot.MAINHAND));
+            player.getAttributes().addTransientAttributeModifiers(player.getMainHandItem().getAttributeModifiers(net.minecraft.world.entity.EquipmentSlot.MAINHAND));
+        }
         Vec3 origin=bot.getEyePosition();
         Vec3 direction=bot.getLookAngle();
         if(aim!=null){
@@ -44,9 +55,14 @@ public final class BotBlockActions {
         }
         BlockHitResult hit=level.clip(new ClipContext(origin,origin.add(direction.scale(player.getBlockReach())),ClipContext.Block.OUTLINE,ClipContext.Fluid.NONE,player));
         boolean valid=hit.getType()==HitResult.Type.BLOCK && level.hasChunkAt(hit.getBlockPos()) && level.getWorldBorder().isWithinBounds(hit.getBlockPos()) && level.mayInteract(player,hit.getBlockPos());
+        double reach=player.getEntityReach();var end=origin.add(direction.scale(reach));
+        var entityHit=net.minecraft.world.entity.projectile.ProjectileUtil.getEntityHitResult(player,origin,end,bot.getBoundingBox().expandTowards(direction.scale(reach)).inflate(1),
+            entity->entity!=bot && !(entity instanceof ClassroomBot) && !(entity instanceof net.minecraft.world.entity.player.Player) && entity.isAlive() && entity.isPickable() && !entity.isSpectator(),
+            hit.getType()==HitResult.Type.BLOCK?Math.min(reach*reach,origin.distanceToSqr(hit.getLocation())):reach*reach);
         if(cooldown>0)cooldown--;
         if(input.held().contains("attack") || input.presses().contains("attack")){
-            if(valid && cooldown==0)mine(bot,hit);else cancel();
+            if(entityHit!=null){cancel();if(cooldown==0&&player.getAttackStrengthScale(0)>=.99f){player.attack(entityHit.getEntity());bot.swing(InteractionHand.MAIN_HAND);}}
+            else if(valid && cooldown==0)mine(bot,hit);else cancel();
         }else cancel();
         if(valid && cooldown==0 && (input.held().contains("use") || input.presses().contains("use"))){
             cancel();

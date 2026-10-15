@@ -3,7 +3,6 @@ package dev.craftlink.classroom;
 import dev.craftlink.input.RemoteState;
 import java.util.Set;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
@@ -24,8 +23,13 @@ public final class ClassroomBot extends PathfinderMob {
     private static final ChatFormatting[] COLORS = {ChatFormatting.RED,ChatFormatting.BLUE,ChatFormatting.GREEN,ChatFormatting.YELLOW,ChatFormatting.LIGHT_PURPLE,ChatFormatting.AQUA,ChatFormatting.GOLD,ChatFormatting.WHITE};
     private static final String[] NAMES = {"あか","あお","みどり","きいろ","むらさき","みずいろ","オレンジ","しろ"};
     private static final EntityDataAccessor<Integer> NUMBER = SynchedEntityData.defineId(ClassroomBot.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> FLYING=SynchedEntityData.defineId(ClassroomBot.class,EntityDataSerializers.BOOLEAN);
     private Set<String> held = Set.of();
     private boolean jumpPulse;
+    private boolean autoJump;
+    public void autoJump(boolean value){autoJump=value;}
+    public boolean flying(){return entityData.get(FLYING);}
+    public void flying(boolean value){if(flying()!=value){entityData.set(FLYING,value);setNoGravity(value);setDeltaMovement(0,0,0);fallDistance=0;}}
     private final net.minecraft.world.SimpleContainer inventory = new net.minecraft.world.SimpleContainer(36);
     private int selectedSlot;
     private long inventoryVersion;
@@ -63,7 +67,7 @@ public final class ClassroomBot extends PathfinderMob {
             @Override public void tick() { setYHeadRot(getYRot()); }
         };
         jumpControl = new JumpControl(this) {
-            @Override public void tick() { setJumping(held.contains("jump") || jumpPulse); jumpPulse = false; }
+            @Override public void tick() { setJumping(!flying() && (held.contains("jump") || jumpPulse || shouldAutoJump())); jumpPulse = false; }
         };
     }
     public ClassroomBot(ServerLevel level, int number) {
@@ -73,9 +77,9 @@ public final class ClassroomBot extends PathfinderMob {
         setInvulnerable(true); setCanPickUpLoot(true);
         setCustomName(Component.literal(number + "号 " + NAMES[number-1]).withStyle(COLORS[number-1])); setCustomNameVisible(true);
     }
-    @Override protected void defineSynchedData() { super.defineSynchedData(); entityData.define(NUMBER, 1); }
-    @Override public float getStandingEyeHeight(Pose pose,net.minecraft.world.entity.EntityDimensions dimensions){return pose==Pose.CROUCHING?1.27f:1.62f;}
-    @Override public net.minecraft.world.entity.EntityDimensions getDimensions(Pose pose){return pose==Pose.CROUCHING?net.minecraft.world.entity.EntityDimensions.scalable(.6f,1.5f):super.getDimensions(pose);}
+    @Override protected void defineSynchedData() { super.defineSynchedData(); entityData.define(NUMBER, 1);entityData.define(FLYING,false); }
+    @Override public float getStandingEyeHeight(Pose pose,net.minecraft.world.entity.EntityDimensions dimensions){return pose==Pose.SWIMMING?.4f:pose==Pose.CROUCHING?1.27f:1.62f;}
+    @Override public net.minecraft.world.entity.EntityDimensions getDimensions(Pose pose){return pose==Pose.SWIMMING?net.minecraft.world.entity.EntityDimensions.scalable(.6f,.6f):pose==Pose.CROUCHING?net.minecraft.world.entity.EntityDimensions.scalable(.6f,1.5f):super.getDimensions(pose);}
     public int participantNumber() { return entityData.get(NUMBER); }
     @Override public void aiStep() { updateSwingTime(); super.aiStep(); }
     public void accept(RemoteState.Snapshot input) {
@@ -83,11 +87,40 @@ public final class ClassroomBot extends PathfinderMob {
         setYRot(getYRot() + (float)input.yaw()); setYHeadRot(getYRot());
         setXRot(net.minecraft.util.Mth.clamp(getXRot() + (float)input.pitch(), -90, 90));
         setShiftKeyDown(held.contains("sneak")); setSprinting(held.contains("sprint") && !isShiftKeyDown());
-        setPose(isShiftKeyDown() ? Pose.CROUCHING : Pose.STANDING);
+        setSwimming(!flying()&&(isUnderWater()||isSwimming()&&isInWater())&&isSprinting()&&held.contains("forward"));
+        setPose(isSwimming()?Pose.SWIMMING:isShiftKeyDown()&&!flying()?Pose.CROUCHING:Pose.STANDING);
         if (held.isEmpty()) setDeltaMovement(0, getDeltaMovement().y, 0);
         if (input.presses().contains("use") || input.presses().contains("attack")) {
             swing(InteractionHand.MAIN_HAND);
         }
+    }
+    private boolean shouldAutoJump(){
+        if(!autoJump||!onGround()||!horizontalCollision||isShiftKeyDown()||xxa==0&&zza==0)return false;
+        double radians=Math.toRadians(getYRot());var delta=new net.minecraft.world.phys.Vec3(Math.cos(radians)*xxa-Math.sin(radians)*zza,0,Math.sin(radians)*xxa+Math.cos(radians)*zza).normalize().scale(.7);
+        return level().noCollision(this,getBoundingBox().move(delta.x,1,delta.z));
+    }
+    @Override public void travel(net.minecraft.world.phys.Vec3 intent){
+        if(flying()){
+            if(isControlledByLocalInstance()){
+                moveRelative(held.contains("sprint")?.16f:.09f,new net.minecraft.world.phys.Vec3(intent.x,0,intent.z));
+                var velocity=getDeltaMovement();double vertical=(held.contains("jump")?.25:0)-(held.contains("sneak")?.25:0);
+                move(net.minecraft.world.entity.MoverType.SELF,new net.minecraft.world.phys.Vec3(velocity.x,vertical,velocity.z));
+                setDeltaMovement(velocity.x*.6,0,velocity.z*.6);
+            }
+            calculateEntityAnimation(false);return;
+        }
+        if(isSwimming()&&held.contains("forward"))setDeltaMovement(getDeltaMovement().add(0,getLookAngle().y*.04,0));
+        if(isInWater()&&held.contains("sneak"))setDeltaMovement(getDeltaMovement().add(0,-.04,0));
+        super.travel(intent);
+    }
+    public void dropItem(int slot,boolean all){
+        if(slot<0||slot>35)throw new IllegalArgumentException("Invalid drop slot");
+        var current=inventory.getItem(slot);if(current.isEmpty())return;
+        var stack=inventory.removeItem(slot,all?current.getCount():1);var eyes=getEyePosition();
+        var entity=new net.minecraft.world.entity.item.ItemEntity(level(),eyes.x,eyes.y-.3,eyes.z,stack);
+        entity.setDeltaMovement(getLookAngle().scale(.3).add(0,.15,0));entity.setDefaultPickUpDelay();entity.setThrower(getUUID());
+        if(!level().addFreshEntity(entity))inventory.addItem(stack);
+        inventoryVersion++;selectSlot(selectedSlot);
     }
     public void copyInventoryTo(Player player){
         for(int i=0;i<36;i++)player.getInventory().setItem(i,inventory.getItem(i).copy());
