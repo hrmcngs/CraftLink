@@ -1,0 +1,64 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}",
+    "env": { "PATH": "/opt/homebrew/bin:/usr/local/bin:${env:PATH}" }
+  },
+  "presentation": {
+    "reveal": "always",
+    "focus": true,
+    "panel": "dedicated",
+    "clear": false
+  },
+  "tasks": [
+    {
+      "label": "CraftLink: 学校で起動（BOT参加）",
+      "type": "process",
+      "command": "sh",
+      "args": ["${workspaceFolder}/school.sh"],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [],
+      "runOptions": { "instanceLimit": 1 }
+    },
+    {
+      "label": "CraftLink: 初回準備・起動（依存ダウンロードあり）",
+      "type": "process",
+      "command": "sh",
+      "args": ["${workspaceFolder}/school.sh", "--online"],
+      "problemMatcher": [],
+      "runOptions": { "instanceLimit": 1 }
+    },
+    {
+      "label": "CraftLink: 認証キーを再設定して起動",
+      "type": "process",
+      "command": "sh",
+      "args": ["${workspaceFolder}/school.sh", "--setup"],
+      "problemMatcher": [],
+      "runOptions": { "instanceLimit": 1 }
+    },
+    {
+      "label": "CraftLink: 学校で起動（自分のプレイヤー）",
+      "type": "process",
+      "command": "sh",
+      "args": ["${workspaceFolder}/school.sh", "controller"],
+      "problemMatcher": [],
+      "runOptions": { "instanceLimit": 1 }
+    },
+    {
+      "label": "CraftLink: MODをビルド",
+      "type": "process",
+      "command": "sh",
+      "args": ["${workspaceFolder}/build.sh"],
+      "problemMatcher": [],
+      "runOptions": { "instanceLimit": 1 }
+    },
+    {
+      "label": "CraftLink: 対話式メニュー",
+      "type": "process",
+      "command": "sh",
+      "args": ["${workspaceFolder}/menu.sh"],
+      "problemMatcher": [],
+      "runOptions": { "instanceLimit": 1 }
+    }
+  ]
+}
