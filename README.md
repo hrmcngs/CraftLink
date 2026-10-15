@@ -82,6 +82,12 @@ Appleの手順はUSBネットワーク作成までのものです。iPhone側か
 4. 表示された `https://……trycloudflare.com` をコピーします。MinecraftのF8画面の「別のWi-Fi」、NPC参加なら「みんなで参加」内の「別のWi-Fi」に貼り付けて保存します。接続が開始済みなら先に停止してください。
 5. Minecraftで接続を開始し、新しいQRをスマホで読みます。PCで接続を許可すると操作できます。スマホは別のWi-Fi・モバイル通信でも構いません。
 
+`failed to dial to edge with quic: timeout` はQUICの接続が成立していないログです。本スクリプトはUDP制限のある回線に対応するため、Mac→Cloudflare間を `--protocol http2`（TCP）で接続します。[公式トラブルシューティング](https://developers.cloudflare.com/tunnel/troubleshooting/)。スマホ→中継のHTTPS / WSSは維持されます。
+
+旧スクリプトでエラーが続く場合はCtrl+Cで止め、更新後に起動し直してください。手動なら `cloudflared tunnel --no-autoupdate --protocol http2 --url http://127.0.0.1:8765`（NPC参加は8766）です。URLが表示されただけでは接続完了ではなく、`Registered tunnel connection` が出ることを確認します。新しいURLをMinecraftに設定してQRを読み直してください。
+
+HTTP/2でもタイムアウトする場合は、Macの回線からCloudflareへのTCP 7844も遮断されている可能性があります。管理者に外向き通信を確認するか、利用が許可された別回線で試してください。ルーターの受信用ポート転送は不要です。[必要な通信ポート](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/tunnel-with-firewall/)。
+
 中継ターミナルは開いたままにします。Ctrl+Cで中継を停止できます。再起動するとURLが変わるので、接続を停止して新しいURLを保存してください。サーバー開始前に中継URLを開くと一時的に接続エラーになります。
 
 設定するのはHTTPSのルートURLのみです。`/classroom.html` やトークンはMODが付けます。通常用の `externalUrl` と参加用の `classroomExternalUrl` は別設定です。独自ポートなら `sh tunnel.sh classroom --port 9000` のようにMinecraft側のポートと合わせます。

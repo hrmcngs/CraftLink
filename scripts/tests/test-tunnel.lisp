@@ -27,11 +27,11 @@ exit \"${MOCK_TUNNEL_EXIT:-0}\"
           (funcall body) (incf *passed*) (format t "PASS ~a~%" name))
         (error (condition) (incf *failed*) (format *error-output* "FAIL ~a: ~a~%" name condition)))
       (when (probe-file *root*) (uiop:delete-directory-tree *root* :validate t :if-does-not-exist :ignore)))))
-(run-test "controller tunnel uses only localhost and disables self-update"
+(run-test "controller tunnel forces HTTP/2, uses only localhost and disables self-update"
   (lambda () (check (zerop (launch nil)) "Launch failed")
-    (check (equal (calls) (format nil "tunnel~%--no-autoupdate~%--url~%http://127.0.0.1:8765~%")) "Unexpected command")))
+    (check (equal (calls) (format nil "tunnel~%--no-autoupdate~%--protocol~%http2~%--url~%http://127.0.0.1:8765~%")) "Unexpected command")))
 (run-test "classroom tunnel uses its own port"
-  (lambda () (check (zerop (launch '("classroom"))) "Launch failed") (check (search "http://127.0.0.1:8766" (calls)) "Wrong classroom port")))
+  (lambda () (check (zerop (launch '("classroom"))) "Launch failed") (check (search "http://127.0.0.1:8766" (calls)) "Wrong classroom port") (check (search (format nil "--protocol~%http2~%") (calls)) "Classroom did not force HTTP/2")))
 (run-test "custom port strips leading zeroes"
   (lambda () (check (zerop (launch '("classroom" "--port" "09876"))) "Launch failed") (check (search "http://127.0.0.1:9876" (calls)) "Wrong custom port")))
 (run-test "invalid modes and ports never start a tunnel"

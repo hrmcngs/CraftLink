@@ -22,9 +22,10 @@ if ! command -v cloudflared >/dev/null 2>&1; then
   exit 1
 fi
 printf 'CraftLink HTTPS中継: %s / ローカルポート %s\n' "$kind" "$port"
+printf '中継方式: HTTP/2（TCP）。QUIC/UDPが制限された回線でも接続を試みます。\n'
 printf 'Cloudflareを経由します。Mac・スマホのインターネット接続が必要です。\n'
 printf '表示される https://...trycloudflare.com を、Minecraftの対象画面 →「別のWi-Fi」に貼り付けて保存してください。\n'
 printf '通常: F8 →「別のWi-Fi」。参加モード: F8 →「みんなで参加」→「別のWi-Fi」。\n'
 printf 'その後Minecraftで接続を開始し、新しいQRを読みます。終了はこのターミナルでCtrl+C。\n'
 # Foreground process: no detached listener or permanent service; Ctrl+C stops the tunnel.
-exec cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:$port"
+exec cloudflared tunnel --no-autoupdate --protocol http2 --url "http://127.0.0.1:$port"
