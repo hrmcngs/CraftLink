@@ -30,7 +30,9 @@ if [[ "$prepare" == true ]]; then args=(classes prepareRunClient --console=plain
 if [[ -n "$port" ]]; then args+=("-PcraftlinkPort=$port"); fi
 if [[ "$offline" == true ]]; then
   if [[ ! -d web/node_modules ]]; then printf 'Offline dependencies missing. First run: sh run.sh --prepare\n' >&2; exit 1; fi
-  args+=(--offline -PwebOffline=true)
+  # ForgeGradle otherwise probes its Maven certificate even with cached dependencies.
+  # Offline forbids downloads; skip only that remote preflight, retaining TLS validation.
+  args+=(--offline -PwebOffline=true -Dnet.minecraftforge.gradle.check.certs=false)
 fi
 created_forward=false
 serial=""

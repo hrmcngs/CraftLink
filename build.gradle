@@ -28,6 +28,8 @@ minecraft {
             workingDirectory project.file(providers.gradleProperty('craftlinkRunDirectory').getOrElse('run'))
             jvmArgs '-Xmx2G'
             property 'craftlink.transport', craftlinkTransport
+            if (providers.gradleProperty('craftlinkExternalUrl').isPresent()) property 'craftlink.externalUrl', providers.gradleProperty('craftlinkExternalUrl').get()
+            if (providers.gradleProperty('craftlinkSchoolMode').isPresent()) property 'craftlink.schoolMode', providers.gradleProperty('craftlinkSchoolMode').get()
             if (craftlinkPort != null) property 'craftlink.port', craftlinkPort
             mods { craftlink { source sourceSets.devClient } }
         }

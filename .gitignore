@@ -13,3 +13,5 @@ bin/
 
 relay/node_modules/
 relay/.env
+
+.craftlink/

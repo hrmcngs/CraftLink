@@ -40,7 +40,9 @@ public final class LinkConfig {
         return new dev.craftlink.network.ControllerPreferences(TOUCH_LAYOUT.get().id(), TOUCH_SENSITIVITY.get(), TOUCH_BUTTON_SIZE.get());
     }
     public static String externalUrl(boolean classroom) {
-        return System.getProperty("craftlink.transport", "lan").equals("usb") ? "" : (classroom ? CLASSROOM_EXTERNAL_URL : EXTERNAL_URL).get();
+        if (System.getProperty("craftlink.transport", "lan").equals("usb")) return "";
+        String launchUrl = System.getProperty("craftlink.externalUrl");
+        return launchUrl == null ? (classroom ? CLASSROOM_EXTERNAL_URL : EXTERNAL_URL).get() : dev.craftlink.network.ExternalEndpoint.normalize(launchUrl);
     }
     private LinkConfig() {}
 }

@@ -45,8 +45,11 @@ if [ \"$4\" = '--list' ]; then printf '%s\\n' \"${ADB_EXISTING:-}\"; fi
 (run-test "normal offline launch"
   (lambda ()
     (check (zerop (launch '("--offline"))) "Launch failed")
-    (dolist (arg '("runClient" "-PcraftlinkTransport=lan" "--offline" "-PwebOffline=true")) (check (contains "args" arg) arg))
+    (dolist (arg '("runClient" "-PcraftlinkTransport=lan" "--offline" "-PwebOffline=true" "-Dnet.minecraftforge.gradle.check.certs=false")) (check (contains "args" arg) arg))
     (check (not (probe-file (merge-pathnames "adb_calls" *root*))) "LAN used adb")))
+(run-test "online launch keeps the Forge certificate preflight enabled"
+  (lambda () (check (zerop (launch nil)) "Launch failed")
+    (check (not (contains "args" "check.certs=false")) "Online certificate preflight disabled")))
 (run-test "USB cleanup after launch failure"
   (lambda ()
     (check (= 7 (launch '("usb" "--port" "9876") "FAKE_RUN_EXIT=7")) "Lost exit status")

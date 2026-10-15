@@ -14,7 +14,7 @@ trap 'exit 143' TERM
 while :; do
   printf '\nCraftLink — Minecraft 1.20.1 Forge\n'
   printf '依存取得: %s / 起動ポート: %s\n' "$mode" "${port:-標準}"
-  printf '  1) MODをビルド\n  2) Minecraftを起動（LAN / Wi-Fi）\n  3) Minecraftを起動（Android USB / Wi-Fi不要）\n  4) 起動用データを準備（起動しない・スマホ不要）\n  5) オンライン / オフライン切り替え\n  6) 起動ポートを変更\n  7) 接続方法を表示\n  8) 別のWi-Fi用HTTPS中継を起動\n  9) 外部中継サーバーに接続（HTTPS・443番）\n  0) 終了\n選択 > '
+  printf '  1) MODをビルド\n  2) Minecraftを起動（LAN / Wi-Fi）\n  3) Minecraftを起動（Android USB / Wi-Fi不要）\n  4) 起動用データを準備（起動しない・スマホ不要）\n  5) オンライン / オフライン切り替え\n  6) 起動ポートを変更\n  7) 接続方法を表示\n  8) 別のWi-Fi用HTTPS中継を起動\n  9) 外部中継サーバーに接続（HTTPS・443番）\n  10) 学校用まとめて起動（初回のみ設定）\n  0) 終了\n選択 > '
   IFS= read -r choice || { printf '\n'; exit 0; }
   case "$choice" in
     0|q|quit) exit 0 ;;
@@ -47,6 +47,7 @@ while :; do
         2) set -- sh "$project_dir/tunnel.sh" classroom ;;
         *) printf '1または2を選んでください。\n'; continue ;;
       esac ;;
+    10) set -- sh "$project_dir/school.sh"; if [ "$mode" = online ]; then set -- "$@" --online; fi ;;
     9)
   printf '別ターミナルで実行してください。公開済み中継のHTTPS URL > '
   IFS= read -r relay_url || exit 0

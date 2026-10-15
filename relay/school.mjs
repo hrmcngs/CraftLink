@@ -1,0 +1,83 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {randomUUID} from 'node:crypto';
+import {spawn} from 'node:child_process';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {connectBridge} from './bridge.mjs';
+import {validateSecret} from './protocol.mjs';
+
+export const DEFAULT_URL='https://craftlink-relay.onrender.com';
+export function validateConfig(value) {
+  validateSecret(value?.secret);
+  const url=new URL(value?.url);
+  if(url.protocol!=='https:'||url.origin!==value.url||url.username||url.password)throw new Error('中継URLは https://ホスト名 の形式で指定してください。');
+  return {url:url.origin,secret:value.secret};
+}
+export function readConfig(root) {
+  const file=path.join(root,'.craftlink','school.json');
+  if(!fs.existsSync(file))return;
+  const stat=fs.lstatSync(file);
+  if(!stat.isFile()||stat.isSymbolicLink()||(stat.mode&0o077)!==0)throw new Error('保存した学校接続設定の権限を600にしてください。');
+  return validateConfig(JSON.parse(fs.readFileSync(file,'utf8')));
+}
+export function saveConfig(root,value) {
+  const config=validateConfig(value),directory=path.join(root,'.craftlink');
+  fs.mkdirSync(directory,{recursive:true,mode:0o700});
+  if(fs.lstatSync(directory).isSymbolicLink())throw new Error('設定ディレクトリはリンクにできません。');
+  fs.chmodSync(directory,0o700);
+  const temporary=path.join(directory,randomUUID()+'.tmp');
+  try{fs.writeFileSync(temporary,JSON.stringify(config),{flag:'wx',mode:0o600});fs.renameSync(temporary,path.join(directory,'school.json'));}
+  finally{if(fs.existsSync(temporary))fs.unlinkSync(temporary);}
+  return config;
+}
+export function localPort(root,mode) {
+  const key=mode==='classroom'?'classroomPort':'port',fallback=mode==='classroom'?8766:8765;
+  const file=path.join(root,'run/config/craftlink-client.toml');if(!fs.existsSync(file))return fallback;
+  const match=fs.readFileSync(file,'utf8').match(new RegExp('^'+key+'\\s*=\\s*(\\d+)\\s*(?:#.*)?$','m'));
+  const value=match?Number(match[1]):fallback;
+  if(!Number.isInteger(value)||value<1024||value>65535)throw new Error('Minecraftの接続ポート設定が不正です。');
+  return value;
+}
+export function launchSchool(options,dependencies={}) {
+  const {url,secret}=validateConfig(options);
+  if(!['controller','classroom'].includes(options.mode))throw new Error('接続モードが不正です。');
+  const connect=dependencies.connect??connectBridge,spawnGame=dependencies.spawnGame??spawn,log=dependencies.log??console.log;
+  const retryMs=dependencies.retryMs??3000;
+  let bridge,game,retry,finished=false,starting=false,resolveDone;
+  const done=new Promise(resolve=>resolveDone=resolve);
+  const terminate=dependencies.terminate??(child=>{try{process.kill(-child.pid,'SIGTERM');}catch{child.kill('SIGTERM');}});
+  const startup=setTimeout(()=>{log('中継へ接続できません。ネット接続・保存したキー・Renderの稼働状況を確認してください。再設定は sh school.sh --setup');stop(1);},dependencies.startupMs??120000);
+  function finish(code){if(finished)return;finished=true;clearTimeout(startup);clearTimeout(retry);bridge?.terminate();resolveDone(code);}
+  function stop(code=130){if(finished)return;if(game)terminate(game);finish(code);}
+  function reconnect(){
+    if(finished)return;
+    log('学校用HTTPS中継へ接続中…');
+    bridge=connect({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port:options.port,onReady:()=>{
+      if(finished||starting)return;starting=true;clearTimeout(startup);
+      log('中継接続済み。Minecraftでワールドを開くと、参加用QRを自動表示します。');
+      const args=[path.join(options.root,'run.sh'),'lan'];if(options.offline)args.push('--offline');
+      const childEnv={...process.env,ORG_GRADLE_PROJECT_craftlinkExternalUrl:url,ORG_GRADLE_PROJECT_craftlinkSchoolMode:options.mode};
+      delete childEnv.CRAFTLINK_RELAY_SECRET;
+      try{
+        game=spawnGame('sh',args,{cwd:options.root,stdio:'inherit',detached:true,env:childEnv});
+        game.once('error',()=>{log('Minecraftを起動できませんでした。');finish(1);});
+        game.once('exit',(code)=>finish(code??1));
+      }catch{finish(1);}
+    },onClose:()=>{if(!finished){log('中継が切れました。入力を解除し、再接続します。');retry=setTimeout(reconnect,retryMs);}}});
+  }
+  reconnect();return {done,stop};
+}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+ try{
+  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),args=process.argv.slice(2);
+  let mode='classroom',offline=true,setup=false;
+  for(const arg of args){if(arg==='controller'||arg==='classroom')mode=arg;else if(arg==='--offline')offline=true;else if(arg==='--online')offline=false;else if(arg==='--setup')setup=true;else throw new Error('Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup]');}
+  let config=setup?undefined:readConfig(root);
+  if(!config){config=saveConfig(root,{url:process.env.CRAFTLINK_SCHOOL_URL??DEFAULT_URL,secret:process.env.CRAFTLINK_RELAY_SECRET});console.log('初回設定をこのMacに保存しました。次回からキーの入力は不要です。');}
+  // Do not pass the relay credential into Minecraft/Gradle child processes.
+  delete process.env.CRAFTLINK_RELAY_SECRET;
+  const running=launchSchool({...config,root,mode,offline,port:localPort(root,mode)});
+  process.once('SIGINT',()=>running.stop(130));process.once('SIGTERM',()=>running.stop(143));
+  process.exitCode=await running.done;
+ }catch(error){console.error(error.message);process.exitCode=1;}
+}

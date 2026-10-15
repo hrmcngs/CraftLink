@@ -37,6 +37,7 @@ public final class CraftLink {
         private static dev.craftlink.classroom.ClassroomRoom activeRoom;
         private static net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> classroomDimension;
         private static Boolean previousPauseOnLostFocus;
+        private static boolean schoolStarted;
         private static void init() {
             FMLJavaModLoadingContext.get().getModEventBus().addListener(Client::register);
             MinecraftForge.EVENT_BUS.register(Client.class);
@@ -71,7 +72,27 @@ public final class CraftLink {
                     BOTS.start(mc.getSingleplayerServer(),room,mc.player.level().dimension(),mc.player.blockPosition(),mc.player.getYRot());
                 }
             }
+            String schoolMode = System.getProperty("craftlink.schoolMode", "");
+            if (schoolMode.equals("classroom") || schoolMode.equals("controller")) {
+                if (mc.player == null) {
+                    if (schoolStarted && schoolMode.equals("controller")) SERVER.stop();
+                    schoolStarted = false;
+                } else if (!schoolStarted) {
+                    schoolStarted = true;
+                    var settings = LinkConfig.launchSettings();
+                    if (schoolMode.equals("classroom")) {
+                        if (mc.getSingleplayerServer() != null) {
+                            CLASSROOM.start(LinkConfig.CLASSROOM_PORT.get(), settings.bindAddress(), settings.advertisedHost(), LinkConfig.externalUrl(true));
+                            mc.setScreen(new dev.craftlink.gui.ClassroomScreen(mc.screen));
+                        } else mc.setScreen(new LinkScreen(mc.screen));
+                    } else {
+                        SERVER.start(settings.port(), settings.bindAddress(), settings.advertisedHost(), LinkConfig.externalUrl(false));
+                        mc.setScreen(new LinkScreen(mc.screen));
+                    }
+                }
+            }
             SERVER.setControllerPreferences(LinkConfig.controllerPreferences());
+
             SERVER.setVideoAllowed(LinkConfig.VIDEO_ENABLED.get());
             while (OPEN.consumeClick()) mc.setScreen(new LinkScreen(mc.screen));
             SERVER.setAddonActions(dev.craftlink.addon.AddonActions.enabled(mc));
