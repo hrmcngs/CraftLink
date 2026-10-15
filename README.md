@@ -79,6 +79,8 @@ GitHub Pagesは静的ホスティングで、中継サーバーは実行でき�
 3. 発行された `https://実際のサービス名.onrender.com` を控えます。これは表示例で、公開前に使用できるURLではありません。
 4. RenderのEnvironmentに自動生成された `CRAFTLINK_RELAY_SECRET` を確認します。このキーはMacの中継接続専用です。GitHub・QR・スマホ・チャットには載せないでください。
 
+初回公開で `CRAFTLINK_RELAY_SECRET must contain 32..128 URL-safe characters` が出た場合は、最新コミットを再デプロイしてください。Renderの自動生成キーは `+`・`/`・`=` を含む標準Base64で、旧版の文字種検査が拒否していました。現在は生成キーを変更せず使用できます。キーの共有や作り直しは不要です。
+
 授業での接続:
 
 1. `sh run.sh` でMinecraftを起動します。別ターミナルで `sh menu.sh` → **9** を選び、公開URLと通常操作/BOT参加を選びます。

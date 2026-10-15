@@ -1,8 +1,9 @@
 import {pathToFileURL} from 'node:url';
 import WebSocket from 'ws';
-import {MAX_PAYLOAD, send, assetPath, socketPath} from './protocol.mjs';
+import {MAX_PAYLOAD, send, assetPath, socketPath, validateSecret} from './protocol.mjs';
 
 export function connectBridge({url,secret,port,onReady=()=>{},onClose=()=>{}}) {
+  validateSecret(secret);
   const endpoint = new URL(url); const peers = new Map(), requests = new Map(); let origin;
   const ws = new WebSocket(endpoint,{headers:{Authorization:'Bearer '+secret},maxPayload:MAX_PAYLOAD,perMessageDeflate:false});
   ws.on('message',async bytes=>{

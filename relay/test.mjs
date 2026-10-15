@@ -4,16 +4,17 @@ import http from 'node:http';
 import {once} from 'node:events';
 import WebSocket,{WebSocketServer} from 'ws';
 import {createRelay} from './server.mjs';
+import {validateSecret} from './protocol.mjs';
 import {connectBridge} from './bridge.mjs';
 const secret='a'.repeat(43),origin='https://craftlink.example';
 const listen=async server=>{server.listen(0,'127.0.0.1');await once(server,'listening');return server.address().port;};
-async function fixture(withBridge=true){
+async function fixture(withBridge=true,ownerSecret=secret){
  const local=http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html','Content-Security-Policy':"connect-src 'self' wss:"});res.end('<p>CraftLink</p>');});
  const localSockets=new WebSocketServer({server:local});let lastOrigin;
  localSockets.on('connection',(ws,req)=>{lastOrigin=req.headers.origin;ws.on('message',bytes=>{ws.send(bytes,{binary:false});ws.send(Buffer.from([0,255,42]),{binary:true});});});
- const localPort=await listen(local),relay=createRelay({secret,origin,timeout:1000}),relayPort=await listen(relay.server);
+ const localPort=await listen(local),relay=createRelay({secret:ownerSecret,origin,timeout:1000}),relayPort=await listen(relay.server);
  let bridge;
- if(withBridge)await new Promise(resolve=>bridge=connectBridge({url:`ws://127.0.0.1:${relayPort}/_bridge`,secret,port:localPort,onReady:resolve}));
+ if(withBridge)await new Promise(resolve=>bridge=connectBridge({url:`ws://127.0.0.1:${relayPort}/_bridge`,secret:ownerSecret,port:localPort,onReady:resolve}));
  return {base:`http://127.0.0.1:${relayPort}`,ws:`ws://127.0.0.1:${relayPort}`,bridge,relay,lastOrigin:()=>lastOrigin,
   close:async()=>{bridge?.terminate();await relay.close();for(const ws of localSockets.clients)ws.terminate();await new Promise(r=>local.close(r));}};
 }
@@ -35,4 +36,14 @@ test('no Mac bridge returns 503, health endpoint stays available',async()=>{
 });
 test('Mac bridge disconnection closes browser sockets',async()=>{
  const f=await fixture();const client=new WebSocket(f.ws+'/ws',{origin});try{await once(client,'open');const closed=once(client,'close');f.bridge.terminate();const [code]=await closed;assert.equal(code,1012);}finally{client.terminate();await f.close();}
+});
+
+test('Render standard Base64 secret authenticates without modification',async()=>{
+ const generated=Buffer.alloc(32,251).toString('base64');
+ assert.match(generated,/\+/);assert.match(generated,/\//);assert.match(generated,/=$/);
+ const f=await fixture(true,generated);try{assert.equal((await fetch(f.base+'/')).status,200);}finally{await f.close();}
+});
+test('missing, short, oversized and header-unsafe secrets are rejected',()=>{
+ for(const value of [undefined,'','short','a'.repeat(129),'a'.repeat(32)+'\r\nInjected: value','a'.repeat(32)+' '])assert.throws(()=>validateSecret(value),/CRAFTLINK_RELAY_SECRET/);
+ assert.doesNotThrow(()=>validateSecret('a'.repeat(43)));
 });

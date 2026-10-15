@@ -2,11 +2,11 @@ import http from 'node:http';
 import {timingSafeEqual, randomUUID} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {WebSocketServer} from 'ws';
-import {MAX_PAYLOAD, send, assetPath, socketPath} from './protocol.mjs';
+import {MAX_PAYLOAD, send, assetPath, socketPath, validateSecret} from './protocol.mjs';
 
 /** One private Mac bridge per deployment. No arbitrary upstream URLs or persistent data. */
 export function createRelay({secret, origin, timeout = 10000}) {
-  if (!/^[A-Za-z0-9_-]{32,128}$/.test(secret ?? '')) throw new Error('CRAFTLINK_RELAY_SECRET must contain 32..128 URL-safe characters');
+  validateSecret(secret);
   const parsed = new URL(origin); if (parsed.origin !== origin) throw new Error('Use a root public origin');
   let bridge; const pending = new Map(), peers = new Map();
   const fail = response => { if (!response.writableEnded) { response.writeHead(503, {'Cache-Control':'no-store'}); response.end('CraftLink: Mac is not connected to the relay.'); } };
