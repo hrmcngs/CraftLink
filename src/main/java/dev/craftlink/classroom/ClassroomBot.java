@@ -32,6 +32,7 @@ public final class ClassroomBot extends PathfinderMob {
     public void returnInventory(){for(int i=0;i<36;i++){var item=inventory.removeItemNoUpdate(i);if(!item.isEmpty())spawnAtLocation(item);}setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND,net.minecraft.world.item.ItemStack.EMPTY);}
     public long inventoryVersion(){return inventoryVersion;}
     public void selectSlot(int slot){if(slot<0||slot>8)throw new IllegalArgumentException("Invalid slot");if(selectedSlot!=slot){selectedSlot=slot;inventoryVersion++;}setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND,inventory.getItem(slot).copy());}
+    public void creativeItem(net.minecraft.world.item.ItemStack stack){inventory.setItem(selectedSlot,stack.copy());inventoryVersion++;selectSlot(selectedSlot);}
     public void swapToHand(int slot){if(slot<9||slot>35)throw new IllegalArgumentException("Invalid backpack slot");var previous=inventory.getItem(selectedSlot);inventory.setItem(selectedSlot,inventory.getItem(slot));inventory.setItem(slot,previous);inventoryVersion++;selectSlot(selectedSlot);}
     public com.google.gson.JsonObject inventoryMessage(){
         var result=new com.google.gson.JsonObject();result.addProperty("type","inventory");result.addProperty("selected",selectedSlot);

@@ -10,7 +10,8 @@
     "LocalPlayerSprintMixin",
     "VideoProjectionMixin",
     "AddonKeyMappingMixin",
-    "BotRenderTargetAccessor"
+    "BotRenderTargetAccessor",
+    "BotEntityVisibilityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

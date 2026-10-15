@@ -102,6 +102,7 @@ public final class ClassroomServer {
                 case "disconnect" -> { room.remove(peer); ctx.close(); }
                 case "video" -> room.video(peer, socket, data.get("enabled").getAsBoolean(), data.has("quality") ? dev.craftlink.video.BotVideoQuality.parse(data.get("quality").getAsString()) : dev.craftlink.video.BotVideoQuality.BALANCED);
                 case "frameAck" -> room.frameAck(peer, socket, data.get("frame").getAsInt());
+                case "creative" -> room.creative(peer,socket,data.has("tab")?data.get("tab").getAsString():"",data.has("page")?data.get("page").getAsInt():0,data.has("item")?data.get("item").getAsInt():-1);
                 case "inventory" -> room.inventory(peer,socket,data.has("slot") ? data.get("slot").getAsInt() : -1);
                 case "input" -> {
                     JsonArray buttons = data.getAsJsonArray("held"); if (buttons.size() > ClassroomRoom.BUTTONS.size()) throw new IllegalArgumentException();

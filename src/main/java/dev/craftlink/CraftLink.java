@@ -70,6 +70,7 @@ public final class CraftLink {
                     classroomDimension = mc.player.level().dimension();
                     previousPauseOnLostFocus = mc.options.pauseOnLostFocus;
                     mc.options.pauseOnLostFocus = false;
+                    try { room.catalog(dev.craftlink.classroom.CreativeCatalog.build(mc)); } catch (Exception ignored) { room.catalog(null); }
                     BOTS.start(mc.getSingleplayerServer(),room,mc.player.level().dimension(),mc.player.blockPosition(),mc.player.getYRot());
                 }
             }

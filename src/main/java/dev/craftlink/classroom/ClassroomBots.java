@@ -48,11 +48,20 @@ public final class ClassroomBots {
                 bots.put(entry.getKey(), bot);
             }
             if (moveBack || outsideArea(bot.getX(), bot.getY(), bot.getZ(), anchor.getX()+.5, anchor.getZ()+.5, level.getMinBuildHeight())) place(bot,entry.getValue().number());
-            bot.accept(entry.getValue().input());
             bot.selectSlot(entry.getValue().selectedSlot());
+            var host=owner.getSingleplayerProfile()==null?null:owner.getPlayerList().getPlayer(owner.getSingleplayerProfile().getId());
+            boolean creativeAllowed=host!=null && host.isCreative();
+            var request=entry.getValue().creative();
+            if(request!=null){
+                if(creativeAllowed && room.catalog()!=null){
+                    if(request.item()>=0){try{var stack=room.catalog().stack(request.item());if(stack.isItemEnabled(level.enabledFeatures()))bot.creativeItem(stack);}catch(IllegalArgumentException ignored){}}
+                    else room.publishInventory(entry.getKey(),room.catalog().page(request.tab(),request.page()));
+                }else {var denied=new com.google.gson.JsonObject();denied.addProperty("type","creativeDenied");room.publishInventory(entry.getKey(),denied);}
+            }
+            bot.accept(entry.getValue().input());
             if(entry.getValue().swapSlot()>=9)bot.swapToHand(entry.getValue().swapSlot());
             if(entry.getValue().inventoryRequested() || !Objects.equals(inventoryVersions.get(entry.getKey()),bot.inventoryVersion())) {
-                room.publishInventory(entry.getKey(),bot.inventoryMessage());inventoryVersions.put(entry.getKey(),bot.inventoryVersion());
+                var inventory=bot.inventoryMessage();inventory.addProperty("creative",creativeAllowed);room.publishInventory(entry.getKey(),inventory);inventoryVersions.put(entry.getKey(),bot.inventoryVersion());
             }
         }
         Map<UUID, UUID> ids = new HashMap<>();

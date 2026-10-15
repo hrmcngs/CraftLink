@@ -26,6 +26,10 @@ public final class BotVideoStreamer {
     private long nextCapture;
     private int cursor, sequence;
     private boolean rendering;
+    private volatile int lastPlayerCount;
+    private int playerCount;
+    public int lastPlayerCount(){return lastPlayerCount;}
+    public void entityRendered(Entity entity){if(rendering && entity instanceof net.minecraft.world.entity.player.Player)playerCount++;}
     private volatile String error = "";
     public BotVideoStreamer(ClassroomServer server, ClassroomBots bots){this.server=server;this.bots=bots;}
     public boolean rendering(){return rendering;}
@@ -54,7 +58,7 @@ var modelView=RenderSystem.getModelViewStack();modelView.pushPose();modelView.se
 boolean pushed=false;
 
         try{
-            rendering=true;
+            rendering=true;playerCount=0;
             if(target==null || target.width!=quality.width || target.height!=quality.height){
                 if(target!=null)target.destroyBuffers();
                 target=new TextureTarget(quality.width,quality.height,true,Minecraft.ON_OSX);
@@ -85,7 +89,7 @@ if(depth)RenderSystem.enableDepthTest();else RenderSystem.disableDepthTest();
 if(blend)RenderSystem.enableBlend();else RenderSystem.disableBlend();
 if(cull)RenderSystem.enableCull();else RenderSystem.disableCull();
 RenderSystem.depthMask(depthMask);RenderSystem.setShaderColor(color[0],color[1],color[2],color[3]);
-rendering=false;
+lastPlayerCount=playerCount;rendering=false;
 nextCapture=Math.max(nextCapture,captureStart+2*(System.nanoTime()-captureStart));
 
         }

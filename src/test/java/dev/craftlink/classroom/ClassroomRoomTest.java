@@ -121,4 +121,12 @@ static class VideoSocket extends Socket {
     room.pause(true);room.inventory(a,one,7);room.inventory(a,one,14);states=room.takeInputs();assertEquals(5,states.get(a).selectedSlot());assertEquals(-1,states.get(a).swapSlot());
     assertThrows(IllegalArgumentException.class,()->room.inventory(a,one,36));assertThrows(IllegalArgumentException.class,()->room.inventory(a,one,-2));
 }
+@Test void creativeRequestsRemainBoundedIsolatedAndStopWithPause(){
+    var room=new ClassroomRoom();var one=new Socket();var two=new Socket();var a=room.join(room.token(),"",one);var b=room.join(room.token(),"",two);
+    room.creative(a,two,"",0,2);assertNull(room.takeInputs().get(a).creative());
+    room.creative(a,one,"minecraft:building_blocks",1,-1);var state=room.takeInputs();assertEquals(1,state.get(a).creative().page());assertNull(state.get(b).creative());assertNull(room.takeInputs().get(a).creative());
+    room.creative(a,one,"",0,3);room.pause(true);room.pause(false);assertNull(room.takeInputs().get(a).creative());
+    room.pause(true);room.creative(a,one,"",0,4);assertNull(room.takeInputs().get(a).creative());
+    assertThrows(IllegalArgumentException.class,()->room.creative(a,one,"",0,25000));assertThrows(IllegalArgumentException.class,()->room.creative(a,one,"",601,-1));assertThrows(IllegalArgumentException.class,()->room.creative(a,one,"../?",0,-1));
+}
 }
