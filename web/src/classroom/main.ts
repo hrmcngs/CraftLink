@@ -2,9 +2,9 @@ import { websocketUrl } from '../network/url';
 import './style.css';
 import {VideoView} from '../video/view';
 const root=document.querySelector<HTMLElement>('#classroom')!;
-root.innerHTML=`<canvas id="bot-view" aria-label="自分のBOTの視界"></canvas><div id="video-state" role="status"></div><header><strong id="identity">CraftLink</strong><output id="status" aria-live="polite">せつぞく中…</output><button id="video-quality">画質: 標準</button><button id="video-toggle">映像: ON</button><button id="leave">おわる</button></header><p class="help">あなたのBOTの視界を見ながら操作しよう</p><main><section class="dpad"><button data-key="forward">まえ ▲</button><button data-key="left">◀ ひだり</button><button data-key="back">うしろ ▼</button><button data-key="right">みぎ ▶</button></section><div id="look" aria-label="スワイプで向きをかえる">ここをスワイプ<br>むきをかえる ↔</div><section class="actions"><button data-key="jump">ジャンプ</button><button data-key="sprint">はやく</button><button data-key="sneak">ゆっくり</button><button data-key="use">あいさつ ✨</button></section></main><nav id="bot-hotbar" aria-label="BOTのホットバー">${Array.from({length:9},(_,i)=>`<button data-bot-slot="${i}" aria-label="持ち物 ${i+1}"><span></span><small></small></button>`).join('')}<button id="bot-inventory-open" aria-label="BOTのインベントリを開く">⋯</button></nav><dialog id="bot-inventory" aria-labelledby="inventory-title"><h1 id="inventory-title">BOTの持ち物</h1><p>近くに落ちたアイテムを拾います。持ち物をタップして手に持ちます。</p><div id="bot-inventory-grid">${Array.from({length:36},(_,i)=>`<button data-bot-slot="${i}" aria-label="持ち物 ${i+1}"><span></span><small></small></button>`).join('')}</div><button id="bot-inventory-close">戻る</button></dialog><footer>QRを読み込むと自動で参加できます</footer>`;
+root.innerHTML=`<canvas id="bot-view" aria-label="自分のBOTの視界"></canvas><div id="video-state" role="status"></div><header><strong id="identity">CraftLink</strong><output id="status" aria-live="polite">せつぞく中…</output><button id="settings-open" aria-label="設定メニュー">☰</button><button id="fullscreen" aria-label="全画面表示">⛶</button></header><main><section class="dpad"><button data-key="forward">▲</button><button data-key="left">◀</button><button data-key="back">▼</button><button data-key="right">▶</button></section><div id="look" aria-label="スワイプで向きをかえる"></div><section class="actions"><button data-key="jump" aria-label="ジャンプ">↥</button><button data-key="sprint">はやく</button><button data-key="sneak">ゆっくり</button><button data-key="use">あいさつ ✨</button></section></main><nav id="bot-hotbar" aria-label="BOTのホットバー">${Array.from({length:9},(_,i)=>`<button data-bot-slot="${i}" aria-label="持ち物 ${i+1}"><span></span><small></small></button>`).join('')}<button id="bot-inventory-open" aria-label="BOTのインベントリを開く">⋯</button></nav><dialog id="bot-inventory" aria-labelledby="inventory-title"><button id="bot-inventory-close" aria-label="持ち物を閉じる">×</button><h1 id="inventory-title">BOTの持ち物</h1><p>近くに落ちたアイテムを拾います。持ち物をタップして手に持ちます。</p><div id="bot-inventory-grid">${Array.from({length:36},(_,i)=>`<button data-bot-slot="${i}" aria-label="持ち物 ${i+1}"><span></span><small></small></button>`).join('')}</div></dialog><dialog id="bot-settings" aria-labelledby="settings-title"><button id="settings-close" aria-label="設定を閉じる">×</button><h1 id="settings-title">設定</h1><button id="video-quality">画質: 標準</button><button id="video-toggle">映像: ON</button><button id="leave">参加を終了</button><p id="fullscreen-help"></p><footer>QRを読み込むと自動で参加できます</footer></dialog>`;
 const video=new VideoView(document.querySelector<HTMLCanvasElement>('#bot-view')!,root);
-let videoEnabled=true, videoError="", inventoryOpen=false;
+let videoEnabled=true, videoError="", inventoryOpen=false, settingsOpen=false;
 const qualities=["balanced","smooth","sharp"] as const;
 let qualityIndex=0;try{const saved=localStorage.getItem("craftlink.botVideoQuality");const index=qualities.findIndex(q=>q===saved);if(index>=0)qualityIndex=index;}catch{}
 const qualityButton=document.querySelector<HTMLButtonElement>("#video-quality")!;
@@ -19,11 +19,13 @@ let look:{id:number;x:number;y:number}|undefined;
 const feedback=()=>root.querySelectorAll<HTMLElement>('[data-key]').forEach(b=>b.classList.toggle('pressed',[...held.values()].includes(b.dataset.key!)));
 function send(force=false){if(!ready||socket?.readyState!==WebSocket.OPEN)return;const packet=JSON.stringify({type:'input',held:[...new Set(held.values())],dx:Math.max(-180,Math.min(180,dx)),dy:Math.max(-180,Math.min(180,dy))});const now=performance.now();if(force||dx!==0||dy!==0||packet!==lastSent||now-sentAt>=250){socket.send(packet);lastSent=packet;sentAt=now;dx=0;dy=0;}}
 function release(){held.clear();look=undefined;dx=0;dy=0;feedback();send(true);}
-function update(){ready=!stopped&&approved&&!paused&&!document.hidden&&!inventoryOpen;root.dataset.enabled=String(ready);root.querySelectorAll<HTMLButtonElement>('[data-key]').forEach(button=>button.disabled=!ready);if(stopped)return;document.querySelector('footer')!.textContent=!approved?'参加の接続を確認しています…':paused?'操作は一時停止中です。PCで「開始 / 再開」を押してください':'移動・ジャンプ・視点を同時に操作できます';status.textContent=!approved?'参加の接続を確認中…':paused?'一時停止中 · PCで開始してください':document.hidden?'おやすみ中':'うごかせるよ';}
+function update(){ready=!stopped&&approved&&!paused&&!document.hidden&&!inventoryOpen&&!settingsOpen;root.dataset.enabled=String(ready);root.querySelectorAll<HTMLButtonElement>('[data-key]').forEach(button=>button.disabled=!ready);if(stopped)return;document.querySelector('footer')!.textContent=!approved?'参加の接続を確認しています…':paused?'操作は一時停止中です。PCで「開始 / 再開」を押してください':'移動・ジャンプ・視点を同時に操作できます';status.textContent=!approved?'参加の接続を確認中…':paused?'一時停止中 · PCで開始してください':document.hidden?'おやすみ中':'うごかせるよ';}
 const inventoryDialog=document.querySelector<HTMLDialogElement>('#bot-inventory')!;
 function requestInventory(slot=-1){if(approved&&!stopped&&socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'inventory',slot}));}
 document.querySelector('#bot-inventory-open')!.addEventListener('click',()=>{if(!approved)return;release();inventoryOpen=true;update();inventoryDialog.showModal();requestInventory();});
-document.querySelector('#bot-inventory-close')!.addEventListener('click',()=>inventoryDialog.close());
+function closeInventory(){inventoryDialog.close();inventoryOpen=false;release();update();}
+document.querySelector('#bot-inventory-close')!.addEventListener('click',closeInventory);
+inventoryDialog.addEventListener('cancel',e=>{e.preventDefault();closeInventory();});
 inventoryDialog.addEventListener('close',()=>{inventoryOpen=false;update();});
 root.querySelectorAll<HTMLButtonElement>('[data-bot-slot]').forEach(button=>button.onclick=()=>requestInventory(Number(button.dataset.botSlot)));
 function renderInventory(data: {selected?:unknown;slots?:unknown}) {
@@ -31,6 +33,18 @@ function renderInventory(data: {selected?:unknown;slots?:unknown}) {
  for(const item of data.slots){if(!item||!Number.isInteger(item.slot)||item.slot<0||item.slot>35||typeof item.name!=='string'||typeof item.count!=='number')return;}
  for(const item of data.slots){root.querySelectorAll<HTMLButtonElement>('[data-bot-slot="'+item.slot+'"]').forEach(button=>{button.querySelector('span')!.textContent=item.count>0?item.name:'';button.querySelector('small')!.textContent=item.count>1?String(item.count):'';button.title=item.name;button.classList.toggle('selected',item.slot===data.selected);});}
 }
+const settingsDialog=document.querySelector<HTMLDialogElement>('#bot-settings')!;
+function closeSettings(){settingsDialog.close();settingsOpen=false;release();update();}
+document.querySelector('#settings-open')!.addEventListener('click',()=>{closeInventory();release();settingsOpen=true;update();settingsDialog.showModal();});
+document.querySelector('#settings-close')!.addEventListener('click',closeSettings);
+settingsDialog.addEventListener('close',()=>{settingsOpen=false;update();});
+settingsDialog.addEventListener('cancel',e=>{e.preventDefault();closeSettings();});
+document.querySelector('#fullscreen')!.addEventListener('click',async()=>{
+ release();
+ try{if(document.fullscreenElement){await document.exitFullscreen();return;}if(document.documentElement.requestFullscreen){await document.documentElement.requestFullscreen();return;}}catch{}
+ closeInventory();settingsOpen=true;update();settingsDialog.showModal();
+ document.querySelector('#fullscreen-help')!.textContent='このブラウザではボタンで全画面にできません。iPhoneはSafariの共有 →「ホーム画面に追加」→「Webアプリとして開く」で、追加したアイコンから起動してください。部屋が変わったら新しいQRから追加し直します。';
+});
 function connect(){
  if(stopped)return;
  approved=false;ready=false;document.querySelector('#identity')!.textContent='接続中…';delete root.dataset.number;status.textContent='せつぞく中…';
@@ -48,7 +62,7 @@ ws.onmessage=async e=>{
   if(data.type==='pong'){videoError=typeof data.videoStatus==='string'?data.videoStatus:'';lastPong=performance.now();if(ready)status.textContent=`うごかせるよ · ${Math.round(lastPong-pingAt)} ms`;}
   if(data.type==='revoked'){stopped=true;resume='';try{sessionStorage.removeItem(storageKey);}catch{}release();ws.close();status.textContent='主催者がさんかをしゅうりょうしました';}
  };
- ws.onclose=()=>{inventoryDialog.close();root.querySelectorAll('[data-bot-slot] span,[data-bot-slot] small').forEach(label=>label.textContent='');document.querySelector('#identity')!.textContent='未接続';delete root.dataset.number;video.clear();ready=false;approved=false;release();update();root.dataset.enabled='false';if(!stopped){status.textContent='切断 · さいせつぞく中…';document.querySelector('footer')!.textContent='PCの学校用起動を確認してください。部屋を作り直した場合は、新しいQRを読み直します。';retry=window.setTimeout(connect,2000);}};
+ ws.onclose=()=>{closeSettings();closeInventory();root.querySelectorAll('[data-bot-slot] span,[data-bot-slot] small').forEach(label=>label.textContent='');document.querySelector('#identity')!.textContent='未接続';delete root.dataset.number;video.clear();ready=false;approved=false;release();update();root.dataset.enabled='false';if(!stopped){status.textContent='切断 · さいせつぞく中…';document.querySelector('footer')!.textContent='PCの学校用起動を確認してください。部屋を作り直した場合は、新しいQRを読み直します。';retry=window.setTimeout(connect,2000);}};
  ws.onerror=()=>ws.close();
 }
 root.querySelectorAll<HTMLElement>('[data-key]').forEach(button=>{

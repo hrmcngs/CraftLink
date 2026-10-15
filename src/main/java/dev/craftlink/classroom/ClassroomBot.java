@@ -55,6 +55,10 @@ public final class ClassroomBot extends PathfinderMob {
                 setXxa(x/length); setZza(z/length);
             }
         };
+        // Vanilla LookControl normally resets a mob's vertical rotation each tick.
+        lookControl = new net.minecraft.world.entity.ai.control.LookControl(this) {
+            @Override public void tick() { setYHeadRot(getYRot()); }
+        };
         jumpControl = new JumpControl(this) {
             @Override public void tick() { setJumping(held.contains("jump") || jumpPulse); jumpPulse = false; }
         };
