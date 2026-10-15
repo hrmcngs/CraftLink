@@ -34,6 +34,7 @@ public final class CraftLink {
         public static final InputBridge INPUT = new InputBridge(SERVER.input, VIDEO);
         public static final dev.craftlink.classroom.ClassroomServer CLASSROOM = new dev.craftlink.classroom.ClassroomServer();
         public static final dev.craftlink.classroom.ClassroomBots BOTS = new dev.craftlink.classroom.ClassroomBots();
+        public static final dev.craftlink.video.BotVideoStreamer BOT_VIDEO = new dev.craftlink.video.BotVideoStreamer(CLASSROOM, BOTS);
         private static dev.craftlink.classroom.ClassroomRoom activeRoom;
         private static net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> classroomDimension;
         private static Boolean previousPauseOnLostFocus;
@@ -53,8 +54,8 @@ public final class CraftLink {
                 options.pauseOnLostFocus = previousPauseOnLostFocus; previousPauseOnLostFocus = null; options.save();
             }
         }
-        @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { stopClassroom(); CLASSROOM.shutdown(); dev.craftlink.addon.AddonActions.releaseAll(); VIDEO.close(); SERVER.shutdown(); }
-        @SubscribeEvent public static void render(TickEvent.RenderTickEvent e) { if (e.phase == TickEvent.Phase.END) VIDEO.capture(Minecraft.getInstance()); }
+        @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { stopClassroom(); CLASSROOM.shutdown(); dev.craftlink.addon.AddonActions.releaseAll(); BOT_VIDEO.close(); VIDEO.close(); SERVER.shutdown(); }
+        @SubscribeEvent public static void render(TickEvent.RenderTickEvent e) { if (e.phase == TickEvent.Phase.END) { VIDEO.capture(Minecraft.getInstance()); BOT_VIDEO.capture(Minecraft.getInstance(), e.renderTickTime); } }
         private static void register(RegisterKeyMappingsEvent e) { e.register(OPEN); e.register(CLASSROOM_PAUSE); }
         @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST) public static void tick(TickEvent.ClientTickEvent e) {
             if (e.phase != TickEvent.Phase.START) return;

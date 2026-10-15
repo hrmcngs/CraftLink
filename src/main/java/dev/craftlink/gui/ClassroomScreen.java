@@ -10,7 +10,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/** Teacher-only lobby, approval and emergency pause. Does not pause the integrated world. */
+/** Host-only lobby, approval and emergency pause. Does not pause the integrated world. */
 public final class ClassroomScreen extends Screen {
     private final Screen parent;
     private int page;
@@ -21,6 +21,7 @@ public final class ClassroomScreen extends Screen {
     @Override protected void init() {
         int x = width/2;
         addRenderableWidget(Button.builder(Component.literal("別のWi-Fi"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, true))).bounds(4, 4, 100, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("全員を許可"), b -> { var room=Client.CLASSROOM.room(); if(room!=null) for(var peer:room.views()) if(peer.connected()) room.approve(peer.id()); }).bounds(width-104,4,100,20).build());
         start = addRenderableWidget(Button.builder(Component.literal("受付を開始"), b -> {
             if (minecraft.getSingleplayerServer() != null && minecraft.player != null && !usbLaunch()) {
                 var settings = LinkConfig.launchSettings();
@@ -33,7 +34,8 @@ public final class ClassroomScreen extends Screen {
         addRenderableWidget(Button.builder(Component.literal("接続先切替"), b -> Client.CLASSROOM.nextAddress()).bounds(x-50,height-51,100,20).build());
         addRenderableWidget(Button.builder(Component.literal("URLコピー"), b -> minecraft.keyboardHandler.setClipboard(Client.CLASSROOM.url())).bounds(x+55,height-51,100,20).build());
         addRenderableWidget(Button.builder(Component.literal("前 / 次"), b -> { page=1-page;roster="";rebuildWidgets(); }).bounds(x-155,height-26,100,20).build());
-        addRenderableWidget(Button.builder(Component.literal("戻る"), b -> onClose()).bounds(x-50,height-26,205,20).build());
+        addRenderableWidget(Button.builder(Component.literal("BOTを呼び戻す"), b -> Client.BOTS.recall()).bounds(x-50,height-26,100,20).build());
+        addRenderableWidget(Button.builder(Component.literal("戻る"), b -> onClose()).bounds(x+55,height-26,100,20).build());
         var room = Client.CLASSROOM.room();
         List<ClassroomRoom.View> peers = room == null ? List.of() : room.views();
         for (int i=page*4;i<Math.min(peers.size(),(page+1)*4);i++) {
@@ -54,11 +56,11 @@ public final class ClassroomScreen extends Screen {
     }
     @Override public void render(GuiGraphics g,int mx,int my,float partial) {
         renderBackground(g);
-        g.drawCenteredString(font,title,width/2,9,0xffffff);
+        g.drawCenteredString(font,Component.literal("CraftLink みんなで参加"),width/2,9,0xffffff);
         var room=Client.CLASSROOM.room();
-        String status=Client.CLASSROOM.status()+(room==null?"":" / "+room.views().size()+"台 / "+(room.paused()?"停止中":"操作中"));
+        String status=Client.CLASSROOM.status()+(room==null?"":" / "+room.views().size()+"台 / BOT "+Client.BOTS.entityIds().size()+"体 / "+(room.paused()?"停止中":"操作中"));
         g.drawCenteredString(font,status,width/2,27,0xaaffaa);
-        g.drawCenteredString(font,usbLaunch()?"参加モードはLAN起動（sh run.sh）を使用してください":minecraft.getSingleplayerServer()==null?"シングルプレイのワールドで開いてください":"先生の画面を見て操作 / 採掘・設置はできません",width/2,43,0xaaaaaa);
+        g.drawCenteredString(font,usbLaunch()?"参加モードはLAN起動（sh run.sh）を使用してください":minecraft.getSingleplayerServer()==null?"シングルプレイのワールドで開いてください":"「許可」でBOT出現 / スマホにBOT視点を配信",width/2,43,0xaaaaaa);
         String url=Client.CLASSROOM.url();
         if(!url.equals(qrUrl)){qrUrl=url;qr=null;if(!url.isEmpty())try{qr=ConnectionQr.encode(url);}catch(Exception ignored){}}
         if(qr!=null){int scale=Math.max(1,Math.min(3,Math.min(145,height-150)/qr.getWidth()));int size=qr.getWidth()*scale,left=(160-size)/2;
@@ -66,6 +68,7 @@ public final class ClassroomScreen extends Screen {
             for(int y=0;y<qr.getHeight();y++)for(int x=0;x<qr.getWidth();x++)if(qr.get(x,y))g.fill(left+x*scale,62+y*scale,left+(x+1)*scale,62+(y+1)*scale,0xff000000);
         }
         g.drawCenteredString(font,font.plainSubstrByWidth(url,width-12),width/2,height-89,0xffffff);
+        if(!Client.BOT_VIDEO.error().isEmpty()) g.drawCenteredString(font,Client.BOT_VIDEO.error(),width/2,height-101,0xff8888);
         super.render(g,mx,my,partial);
     }
     @Override public boolean isPauseScreen(){return false;}

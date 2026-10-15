@@ -68,6 +68,10 @@ public final class ClassroomServer {
             if (!channel.isWritable()) { channel.close(); return; }
             channel.writeAndFlush(new TextWebSocketFrame(json));
         }
+        public boolean sendVideo(byte[] packet) {
+            if (!channel.isActive() || !channel.isWritable()) return false;
+            channel.writeAndFlush(new BinaryWebSocketFrame(Unpooled.wrappedBuffer(packet))); return true;
+        }
         public void close() { channel.close(); }
     }
     private static final class Handler extends SimpleChannelInboundHandler<Object> {
@@ -94,10 +98,12 @@ public final class ClassroomServer {
             switch (type) {
                 case "ping" -> socket.send("{\"type\":\"pong\"}");
                 case "disconnect" -> { room.remove(peer); ctx.close(); }
+                case "video" -> room.video(peer, socket, data.get("enabled").getAsBoolean());
+                case "frameAck" -> room.frameAck(peer, socket, data.get("frame").getAsInt());
                 case "input" -> {
                     JsonArray buttons = data.getAsJsonArray("held"); if (buttons.size() > ClassroomRoom.BUTTONS.size()) throw new IllegalArgumentException();
                     Set<String> held = new HashSet<>(); for (JsonElement button : buttons) held.add(button.getAsString());
-                    room.input(peer, socket, held, data.get("dx").getAsDouble());
+                    room.input(peer, socket, held, data.get("dx").getAsDouble(), data.has("dy") ? data.get("dy").getAsDouble() : 0);
                 }
                 default -> throw new IllegalArgumentException("Unsupported classroom message");
             }
@@ -118,7 +124,7 @@ public final class ClassroomServer {
             var response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,bytes == null ? HttpResponseStatus.NOT_FOUND : HttpResponseStatus.OK,Unpooled.wrappedBuffer(bytes == null ? new byte[0] : bytes));
             response.headers().set(HttpHeaderNames.CONTENT_TYPE,path.endsWith(".js") ? "text/javascript" : path.endsWith(".css") ? "text/css" : "text/html; charset=utf-8")
                 .set(HttpHeaderNames.CONTENT_LENGTH,response.content().readableBytes()).set("Cache-Control","no-store").set("Referrer-Policy","no-referrer").set("X-Content-Type-Options","nosniff")
-                .set("Content-Security-Policy","default-src 'self'; connect-src 'self' ws: wss:; style-src 'self'; frame-ancestors 'none'");
+                .set("Content-Security-Policy","default-src 'self'; connect-src 'self' ws: wss:; style-src 'self'; img-src 'self' blob:; frame-ancestors 'none'");
             ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
         @Override public void channelInactive(ChannelHandlerContext ctx) { if (peer != null) room.disconnect(peer,socket); }

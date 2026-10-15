@@ -14,6 +14,6 @@ abstract class VideoProjectionMixin {
     @Inject(method = "renderLevel", at = @At("HEAD"))
     private void craftlink$projection(PoseStack pose, float partial, long deadline, boolean outline, Camera camera,
                                       GameRenderer renderer, LightTexture light, Matrix4f projection, CallbackInfo ci) {
-        if (Client.VIDEO.active()) Client.VIDEO.projection(new Matrix4f(projection).mul(pose.last().pose()).invert());
+        if (Client.VIDEO.active() && !Client.BOT_VIDEO.rendering()) Client.VIDEO.projection(new Matrix4f(projection).mul(pose.last().pose()).invert());
     }
 }

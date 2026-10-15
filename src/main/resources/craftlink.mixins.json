@@ -9,7 +9,8 @@
     "MinecraftInputMixin",
     "LocalPlayerSprintMixin",
     "VideoProjectionMixin",
-    "AddonKeyMappingMixin"
+    "AddonKeyMappingMixin",
+    "BotRenderTargetAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
