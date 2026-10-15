@@ -1,4 +1,6 @@
+import { InputCadence } from './input-cadence';
 export class Link {
+  private inputCadence = new InputCadence();
   private socket?: WebSocket;
   private retry?: number;
   private stopped = false;
@@ -9,6 +11,7 @@ export class Link {
   constructor(private token: string, private status: (text: string) => void, private reset: () => void, private preferences: (value: unknown) => void = () => {}, private frame: (blob: Blob) => Promise<number | undefined> = async () => undefined) {}
   connect() {
     if (this.stopped) return;
+    this.inputCadence = new InputCadence();
     this.status('接続中…');
     const ws = this.socket = new WebSocket(`ws://${location.host}/ws`);
     ws.onopen = () => { this.lastPong = performance.now(); ws.send(JSON.stringify({type: 'hello', token: this.token})); };
@@ -33,7 +36,14 @@ export class Link {
     };
     ws.onerror = () => ws.close();
   }
-  send(data: unknown) { if (this.ready && this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(data)); }
+  send(data: unknown) {
+    if (!this.ready || this.socket?.readyState !== WebSocket.OPEN) return;
+    const serialized = JSON.stringify(data);
+    const packet = data as {type?: string; dx?: number; dy?: number; slot?: number};
+    if (packet.type === 'input' && !this.inputCadence.allow(serialized, performance.now(),
+      !!packet.dx || !!packet.dy || (packet.slot !== undefined && packet.slot >= 0))) return;
+    this.socket.send(serialized);
+  }
   setVideoEnabled(enabled:boolean) { this.videoEnabled=enabled; this.send({type:'video',enabled}); }
   heartbeat() {
     if (this.socket?.readyState !== WebSocket.OPEN) return;

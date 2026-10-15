@@ -25,3 +25,17 @@ test('video header validates context, dimensions and frame id',()=>{
  view.setUint32(8,999999);assert.throws(()=>parseFrameHeader(packet));
  assert.throws(()=>parseFrameHeader(new ArrayBuffer(10)));
 });
+
+test('idle input is refreshed before timeout without losing edges or look deltas',async()=>{
+ const {InputCadence}=await import('../src/network/input-cadence.ts');
+ const cadence=new InputCadence();
+ assert.equal(cadence.allow('forward',0,false),true);
+ assert.equal(cadence.allow('forward',33,false),false);
+ assert.equal(cadence.allow('forward',250,false),true);
+ assert.equal(cadence.allow('released',251,false),true);
+ assert.equal(cadence.allow('forward',252,false),true);
+ assert.equal(cadence.allow('look',253,true),true);
+ assert.equal(cadence.allow('look',254,true),true);
+ assert.equal(cadence.allow('slot',255,true),true);
+ assert.equal(cadence.allow('slot',256,true),true);
+});

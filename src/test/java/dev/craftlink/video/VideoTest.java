@@ -6,6 +6,17 @@ import org.joml.Matrix4f;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class VideoTest {
+    @Test void reusedEncoderUpdatesPixelsAndResizesWithoutCorruptingPreviousOutput() throws Exception {
+        var encoder = new JpegEncoder();
+        int[] red = new int[16 * 16]; java.util.Arrays.fill(red, 0xff0000ff);
+        byte[] first = encoder.encodeFrame(16, 16, red);
+        int[] blue = new int[16 * 16]; java.util.Arrays.fill(blue, 0xffff0000);
+        var second = ImageIO.read(new ByteArrayInputStream(encoder.encodeFrame(16, 16, blue)));
+        assertTrue((second.getRGB(8, 8) & 255) > 200);
+        assertTrue(((ImageIO.read(new ByteArrayInputStream(first)).getRGB(8, 8) >>> 16) & 255) > 200);
+        var resized = ImageIO.read(new ByteArrayInputStream(encoder.encodeFrame(8, 8, new int[64])));
+        assertEquals(8, resized.getWidth()); assertEquals(8, resized.getHeight());
+    }
     @Test void unprojectionUsesTapLocationAndViewRotation() {
         Matrix4f projection = new Matrix4f().perspective((float)Math.toRadians(90),2,.1f,100);
         var center=ScreenRay.direction(new Matrix4f(projection).invert(),.5,.5);

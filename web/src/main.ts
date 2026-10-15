@@ -50,7 +50,11 @@ document.querySelector('#disconnect')!.addEventListener('click', () => { dialog.
 document.querySelector('#fullscreen')!.addEventListener('click', () => { document.documentElement.requestFullscreen?.().catch(() => {}); });
 window.addEventListener('blur', release);
 window.addEventListener('resize', release);
-document.addEventListener('visibilitychange', () => { if (document.hidden) release(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { release(); video.clear(); }
+  // Stop GPU capture/JPEG/network work while the controller tab is in the background.
+  link.setVideoEnabled(!document.hidden && document.querySelector<HTMLInputElement>('#video-enabled')!.checked);
+});
 window.addEventListener('pagehide', () => link.disconnect());
 document.addEventListener('contextmenu', e => e.preventDefault());
 setInterval(() => { if (!document.hidden && link.ready) {touch.pump();link.send(touch.packet());} video.refresh(); }, 33);

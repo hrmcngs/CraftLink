@@ -32,9 +32,11 @@ export class VideoView {
     } finally { URL.revokeObjectURL(url); }
   }
   refresh() {
-    this.root.dataset.video=this.fresh()?'live':'waiting';
+    const fresh=this.fresh(), state=fresh?'live':'waiting';
+    if(this.root.dataset.video!==state)this.root.dataset.video=state;
     const status=this.root.querySelector<HTMLElement>('#video-state');
-    if(status) status.textContent=!this.enabled?'映像転送はオフです':!this.fresh()?'Minecraftの映像を待っています':this.frame?.context===2?'直接タップ操作は一人称視点で使用してください':'';
+    const message=!this.enabled?'映像転送はオフです':!fresh?'Minecraftの映像を待っています':this.frame?.context===2?'直接タップ操作は一人称視点で使用してください':'';
+    if(status && status.textContent!==message) status.textContent=message;
   }
   clear() {this.generation++;this.frame=undefined;this.canvas.getContext('2d')?.clearRect(0,0,this.canvas.width,this.canvas.height);this.root.dataset.context='world';this.refresh();}
 }

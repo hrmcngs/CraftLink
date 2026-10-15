@@ -23,6 +23,12 @@ public final class VideoStreamer {
     private final LinkServer server;
     private final ExecutorService encoder = Executors.newSingleThreadExecutor(r -> { var thread = new Thread(r, "CraftLink video encoder"); thread.setDaemon(true); return thread; });
     private final AtomicBoolean encoding = new AtomicBoolean();
+    private final JpegEncoder jpegEncoder = new JpegEncoder();
+    private int[] previousPixels;
+    private int previousWidth, previousHeight;
+    private Screen previousScreen;
+    private int previousContext = -1;
+    private long previousEpoch = -1, lastEncodedAt;
     private final ArrayDeque<Sample> history = new ArrayDeque<>();
     private TextureTarget target;
     private Matrix4f worldInverse;
@@ -59,18 +65,29 @@ public final class VideoStreamer {
             GL30.glBlitFramebuffer(0, 0, source.viewWidth, source.viewHeight, 0, 0, width, height, GL11.GL_COLOR_BUFFER_BIT, GL11.GL_LINEAR);
             int[] pixels;
             try (var image = Screenshot.takeScreenshot(target)) { pixels = image.getPixelsRGBA(); }
-            int id = sequence = sequence == Integer.MAX_VALUE ? 1 : sequence + 1;
             long epoch = server.videoEpoch();
             boolean world = mc.player != null && mc.options.getCameraType().isFirstPerson() && mc.getCameraEntity() == mc.player
                 && worldInverse != null && System.nanoTime() - projectionAt < 200_000_000L;
             int context = mc.screen != null ? 1 : world ? 0 : 2;
+            // Keep a fresh frame for touch validation, but don't repeatedly compress static UI.
+            if (epoch == previousEpoch && width == previousWidth && height == previousHeight
+                && previousScreen == mc.screen && previousContext == context
+                && System.nanoTime() - lastEncodedAt < 500_000_000L
+                && java.util.Arrays.equals(previousPixels, pixels)) {
+                encoding.set(false);
+                return;
+            }
+            previousPixels = pixels; previousWidth = width; previousHeight = height;
+            previousScreen = mc.screen; previousContext = context;
+            previousEpoch = epoch; lastEncodedAt = System.nanoTime();
+            int id = sequence = sequence == Integer.MAX_VALUE ? 1 : sequence + 1;
             history.addFirst(new Sample(id, epoch, System.nanoTime(), context, mc.screen,
                 mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(),
                 mc.getCameraEntity(), world ? new Matrix4f(worldInverse) : null));
             while (history.size() > 32) history.removeLast();
             encoder.execute(() -> {
                 try {
-                    byte[] jpeg = JpegEncoder.encode(width, height, pixels);
+                    byte[] jpeg = jpegEncoder.encodeFrame(width, height, pixels);
                     server.publishVideo(epoch, id, VideoFrame.packet(id, width, height, context, jpeg)); error = "";
                 } catch (Exception failure) { error = "映像エンコード失敗: " + failure.getClass().getSimpleName(); }
                 finally { encoding.set(false); }
