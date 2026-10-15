@@ -23,6 +23,7 @@ public final class CraftLink {
     public CraftLink() {
         var context = FMLJavaModLoadingContext.get();
         context.registerConfig(ModConfig.Type.CLIENT, LinkConfig.SPEC);
+        dev.craftlink.classroom.ClassroomEntities.register(context.getModEventBus());
         if (FMLEnvironment.dist == Dist.CLIENT) Client.init();
     }
     public static final class Client {
