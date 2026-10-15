@@ -17,7 +17,7 @@ function release(){held.clear();look=undefined;dx=0;dy=0;feedback();send(true);}
 function update(){ready=!stopped&&approved&&!paused&&!document.hidden;root.dataset.enabled=String(ready);root.querySelectorAll<HTMLButtonElement>('[data-key]').forEach(button=>button.disabled=!ready);if(stopped)return;document.querySelector('footer')!.textContent=!approved?'PCで F8 → みんなで参加 →「許可して開始」を押してください':paused?'操作は一時停止中です。PCで「許可して開始」または「開始 / 再開」を押してください':'移動・ジャンプ・視点を同時に操作できます';status.textContent=!approved?'PCで接続を許可してください':paused?'一時停止中 · PCで開始してください':document.hidden?'おやすみ中':'うごかせるよ';}
 function connect(){
  if(stopped)return;
- approved=false;ready=false;status.textContent='せつぞく中…';
+ approved=false;ready=false;document.querySelector('#identity')!.textContent='接続中…';delete root.dataset.number;status.textContent='せつぞく中…';
  const ws=socket=new WebSocket(websocketUrl(location,'/classroom/ws'));
  ws.onopen=()=>{lastPong=performance.now();lastSent='';sentAt=-Infinity;ws.send(JSON.stringify({type:'hello',token,resume}));};
 ws.onmessage=async e=>{
@@ -31,7 +31,7 @@ ws.onmessage=async e=>{
   if(data.type==='pong'){lastPong=performance.now();if(ready)status.textContent=`うごかせるよ · ${Math.round(lastPong-pingAt)} ms`;}
   if(data.type==='revoked'){stopped=true;resume='';try{sessionStorage.removeItem(storageKey);}catch{}release();ws.close();status.textContent='主催者がさんかをしゅうりょうしました';}
  };
- ws.onclose=()=>{video.clear();ready=false;approved=false;release();update();root.dataset.enabled='false';if(!stopped){status.textContent='さいせつぞく中…（30秒をすぎたら主催者のきょかが必要です）';retry=window.setTimeout(connect,2000);}};
+ ws.onclose=()=>{document.querySelector('#identity')!.textContent='未接続';delete root.dataset.number;video.clear();ready=false;approved=false;release();update();root.dataset.enabled='false';if(!stopped){status.textContent='切断 · さいせつぞく中…';document.querySelector('footer')!.textContent='PCの学校用起動を確認してください。部屋を作り直した場合は、新しいQRを読み直します。';retry=window.setTimeout(connect,2000);}};
  ws.onerror=()=>ws.close();
 }
 root.querySelectorAll<HTMLElement>('[data-key]').forEach(button=>{
