@@ -37,7 +37,7 @@ while :; do
       esac
       continue ;;
     7)
-      printf '\n起動後、F8 →「接続を開始」→ スマホでQRを読む → PCで接続を許可。\nLAN: PCとスマホが通信できる同じネットワークを使用します。\nUSB: AndroidのUSBデバッグを有効にし、PCを許可してケーブル接続します。adbが必要です。\niPhoneはこのAndroid USBモードには対応していません。\n依存取得のオンライン/オフライン設定は、スマホの接続方式とは別です。\n詳細: %s/README.md\n' "$project_dir"
+      printf '\n起動後、F8 →「接続を開始」→ スマホでQRを読む → PCで接続を許可。\nLAN: PCとスマホが通信できる同じネットワークを使用します。\nUSB: AndroidのUSBデバッグを有効にし、PCを許可してケーブル接続します。adbが必要です。\niPhoneはこのAndroid USBモードには対応していません。\n依存取得のオンライン/オフライン設定は、スマホの接続方式とは別です。\n参加モード: LANで起動し、シングルプレイ → F8 →「みんなで参加」。F9で全員停止できます。\n詳細: %s/README.md\n' "$project_dir"
       continue ;;
     1) set -- sh "$project_dir/build.sh" "$mode" ;;
     2|3|4)

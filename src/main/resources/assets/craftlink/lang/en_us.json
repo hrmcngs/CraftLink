@@ -16,5 +16,6 @@
   "craftlink.addons.title": "Additional Mod Controls…",
   "craftlink.addons.help": "Choose controls for your phone (up to 16)",
   "craftlink.addons.clear": "Clear all",
-  "craftlink.addons.empty": "No additional mod controls available"
+  "craftlink.addons.empty": "No additional mod controls available",
+  "key.craftlink.classroomPause": "Pause all classroom participants"
 }

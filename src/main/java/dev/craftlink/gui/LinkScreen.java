@@ -17,6 +17,7 @@ public final class LinkScreen extends Screen {
     public LinkScreen(Screen parent) { super(Component.literal("CraftLink 0.1.0 / " + Minecraft.getInstance().getUser().getName())); this.parent = parent; }
     @Override protected void init() {
         int x = width / 2;
+        addRenderableWidget(Button.builder(Component.literal("みんなで参加"), b -> minecraft.setScreen(new ClassroomScreen(this))).bounds(4, 4, 100, 20).build());
         addRenderableWidget(Button.builder(Component.literal("接続を開始"), b -> { var settings = LinkConfig.launchSettings(); Client.SERVER.start(settings.port(), settings.bindAddress(), settings.advertisedHost()); }).bounds(x - 155, height - 76, 74, 20).build());
         addRenderableWidget(Button.builder(Component.literal("停止"), b -> Client.SERVER.stop()).bounds(x - 76, height - 76, 74, 20).build());
         addRenderableWidget(Button.builder(Component.literal("端末を切断"), b -> Client.SERVER.disconnect()).bounds(x + 82, height - 76, 73, 20).build());

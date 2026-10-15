@@ -25,7 +25,8 @@ minecraft {
     mappings channel: 'official', version: '1.20.1'
     runs {
         client {
-            workingDirectory project.file('run')
+            workingDirectory project.file(providers.gradleProperty('craftlinkRunDirectory').getOrElse('run'))
+            jvmArgs '-Xmx2G'
             property 'craftlink.transport', craftlinkTransport
             if (craftlinkPort != null) property 'craftlink.port', craftlinkPort
             mods { craftlink { source sourceSets.devClient } }
@@ -72,7 +73,7 @@ tasks.register('verifyOfflineWeb') {
         }
     }
 }
-tasks.register('webBuild', Exec) { dependsOn 'webInstall', 'verifyOfflineWeb'; workingDir 'web'; commandLine 'npm', 'run', 'build'; inputs.files(fileTree('web/src'), 'web/index.html', 'web/tsconfig.json', 'web/package.json', 'web/package-lock.json'); outputs.dir('web/dist') }
+tasks.register('webBuild', Exec) { dependsOn 'webInstall', 'verifyOfflineWeb'; workingDir 'web'; commandLine 'npm', 'run', 'build'; inputs.files(fileTree('web/src'), 'web/index.html', 'web/classroom.html', 'web/vite.config.ts', 'web/tsconfig.json', 'web/package.json', 'web/package-lock.json'); outputs.dir('web/dist') }
 processResources { dependsOn 'webBuild'; from('web/dist') { into 'web' } }
 jar { archiveClassifier = 'thin' }
 shadowJar {

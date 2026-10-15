@@ -28,20 +28,48 @@ public final class CraftLink {
     public static final class Client {
         public static final LinkServer SERVER = new LinkServer();
         public static final KeyMapping OPEN = new KeyMapping("key.craftlink.open", GLFW.GLFW_KEY_F8, "key.categories.craftlink");
+        public static final KeyMapping CLASSROOM_PAUSE = new KeyMapping("key.craftlink.classroomPause", GLFW.GLFW_KEY_F9, "key.categories.craftlink");
         public static final dev.craftlink.video.VideoStreamer VIDEO = new dev.craftlink.video.VideoStreamer(SERVER);
         public static final InputBridge INPUT = new InputBridge(SERVER.input, VIDEO);
+        public static final dev.craftlink.classroom.ClassroomServer CLASSROOM = new dev.craftlink.classroom.ClassroomServer();
+        public static final dev.craftlink.classroom.ClassroomBots BOTS = new dev.craftlink.classroom.ClassroomBots();
+        private static dev.craftlink.classroom.ClassroomRoom activeRoom;
+        private static net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> classroomDimension;
+        private static Boolean previousPauseOnLostFocus;
         private static void init() {
             FMLJavaModLoadingContext.get().getModEventBus().addListener(Client::register);
             MinecraftForge.EVENT_BUS.register(Client.class);
             MinecraftForge.EVENT_BUS.register(dev.craftlink.gui.ControlsIntegration.class);
+            MinecraftForge.EVENT_BUS.register(BOTS);
             Runtime.getRuntime().addShutdownHook(new Thread(SERVER::shutdown, "CraftLink shutdown"));
+            Runtime.getRuntime().addShutdownHook(new Thread(CLASSROOM::shutdown, "CraftLink classroom shutdown"));
         }
-        @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { dev.craftlink.addon.AddonActions.releaseAll(); VIDEO.close(); SERVER.shutdown(); }
+        public static void stopClassroom() {
+            CLASSROOM.stop(); BOTS.stop(); activeRoom = null; classroomDimension = null;
+            if (previousPauseOnLostFocus != null) {
+                var options = Minecraft.getInstance().options;
+                options.pauseOnLostFocus = previousPauseOnLostFocus; previousPauseOnLostFocus = null; options.save();
+            }
+        }
+        @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { stopClassroom(); CLASSROOM.shutdown(); dev.craftlink.addon.AddonActions.releaseAll(); VIDEO.close(); SERVER.shutdown(); }
         @SubscribeEvent public static void render(TickEvent.RenderTickEvent e) { if (e.phase == TickEvent.Phase.END) VIDEO.capture(Minecraft.getInstance()); }
-        private static void register(RegisterKeyMappingsEvent e) { e.register(OPEN); }
+        private static void register(RegisterKeyMappingsEvent e) { e.register(OPEN); e.register(CLASSROOM_PAUSE); }
         @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST) public static void tick(TickEvent.ClientTickEvent e) {
             if (e.phase != TickEvent.Phase.START) return;
             Minecraft mc = Minecraft.getInstance();
+            while (CLASSROOM_PAUSE.consumeClick()) { var current = CLASSROOM.room(); if (current != null) current.pause(true); }
+            var room = CLASSROOM.room();
+            if (room != null) {
+                if (mc.getSingleplayerServer() == null || mc.player == null || room.expired()
+                    || room == activeRoom && !mc.player.level().dimension().equals(classroomDimension)) stopClassroom();
+                else if (room != activeRoom) {
+                    activeRoom = room;
+                    classroomDimension = mc.player.level().dimension();
+                    previousPauseOnLostFocus = mc.options.pauseOnLostFocus;
+                    mc.options.pauseOnLostFocus = false;
+                    BOTS.start(mc.getSingleplayerServer(),room,mc.player.level().dimension(),mc.player.blockPosition(),mc.player.getYRot());
+                }
+            }
             SERVER.setControllerPreferences(LinkConfig.controllerPreferences());
             SERVER.setVideoAllowed(LinkConfig.VIDEO_ENABLED.get());
             while (OPEN.consumeClick()) mc.setScreen(new LinkScreen(mc.screen));

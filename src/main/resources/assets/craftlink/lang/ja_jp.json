@@ -16,5 +16,6 @@
   "craftlink.addons.title": "MODの追加操作…",
   "craftlink.addons.help": "スマホに表示する操作を選択（最大16個）",
   "craftlink.addons.clear": "すべて解除",
-  "craftlink.addons.empty": "追加できるMODの操作がありません"
+  "craftlink.addons.empty": "追加できるMODの操作がありません",
+  "key.craftlink.classroomPause": "参加モードの全員停止"
 }
