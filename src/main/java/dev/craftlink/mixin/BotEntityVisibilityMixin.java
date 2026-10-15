@@ -23,6 +23,12 @@ public abstract class BotEntityVisibilityMixin {
     }
     @Inject(method="renderEntity",at=@At("HEAD"))
     private void craftlink$actorRendered(Entity entity,double x,double y,double z,float partial,PoseStack pose,MultiBufferSource buffers,CallbackInfo ci){
+        CraftLink.Client.BOT_VIDEO.bindWorldTarget();
         CraftLink.Client.BOT_VIDEO.entityRendered(entity);
+    }
+    /** Clear/outline passes can change FBOs; water and cutout layers must return to this camera's target. */
+    @Inject(method="renderChunkLayer",at=@At("HEAD"))
+    private void craftlink$layerTarget(net.minecraft.client.renderer.RenderType type,PoseStack pose,double x,double y,double z,org.joml.Matrix4f projection,CallbackInfo ci){
+        CraftLink.Client.BOT_VIDEO.bindWorldTarget();
     }
 }

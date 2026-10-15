@@ -33,6 +33,7 @@ public final class BotVideoStreamer {
     public void entityRendered(Entity entity){if(rendering && entity instanceof net.minecraft.world.entity.player.Player)playerCount++;}
     private volatile String error = "";
     public BotVideoStreamer(ClassroomServer server, ClassroomBots bots){this.server=server;this.bots=bots;}
+    public void bindWorldTarget(){if(rendering && target!=null)target.bindWrite(true);}
     public boolean rendering(){return rendering;}
     public String error(){return error;}
     public void capture(Minecraft mc,float partial){
@@ -52,6 +53,7 @@ public final class BotVideoStreamer {
         var inverse=new Matrix3f(RenderSystem.getInverseViewRotationMatrix());
         int read=GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING),draw=GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING),texture=GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         int[] viewport=new int[4];GL11.glGetIntegerv(GL11.GL_VIEWPORT,viewport);
+boolean scissor=GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);int[] scissorBox=new int[4];GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX,scissorBox);
 boolean depth=GL11.glIsEnabled(GL11.GL_DEPTH_TEST), blend=GL11.glIsEnabled(GL11.GL_BLEND), cull=GL11.glIsEnabled(GL11.GL_CULL_FACE);
 boolean depthMask=GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
 float[] color=RenderSystem.getShaderColor().clone();
@@ -59,7 +61,7 @@ var modelView=RenderSystem.getModelViewStack();modelView.pushPose();modelView.se
 boolean pushed=false;
 
         try{
-            rendering=true;playerCount=0;
+            rendering=true;playerCount=0;RenderSystem.disableScissor();
             if(target==null || target.width!=quality.width || target.height!=quality.height){
                 if(target!=null)target.destroyBuffers();
                 target=new TextureTarget(quality.width,quality.height,true,Minecraft.ON_OSX);
@@ -101,6 +103,7 @@ modelView.popPose();RenderSystem.applyModelViewMatrix();
 if(depth)RenderSystem.enableDepthTest();else RenderSystem.disableDepthTest();
 if(blend)RenderSystem.enableBlend();else RenderSystem.disableBlend();
 if(cull)RenderSystem.enableCull();else RenderSystem.disableCull();
+if(scissor)RenderSystem.enableScissor(scissorBox[0],scissorBox[1],scissorBox[2],scissorBox[3]);else RenderSystem.disableScissor();
 RenderSystem.depthMask(depthMask);RenderSystem.setShaderColor(color[0],color[1],color[2],color[3]);
 lastPlayerCount=playerCount;rendering=false;
 nextCapture=Math.max(nextCapture,captureStart+2*(System.nanoTime()-captureStart));
