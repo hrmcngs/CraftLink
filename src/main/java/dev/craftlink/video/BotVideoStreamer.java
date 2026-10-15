@@ -21,6 +21,7 @@ public final class BotVideoStreamer {
     private final ClassroomBots bots;
     private final ExecutorService encoder = Executors.newSingleThreadExecutor(r -> {var t=new Thread(r,"CraftLink BOT video");t.setDaemon(true);return t;});
     private final AtomicBoolean encoding = new AtomicBoolean();
+    private final BotFirstPersonRenderer firstPerson=new BotFirstPersonRenderer();
     private final JpegEncoder jpeg = new JpegEncoder();
     private TextureTarget target;
     private long nextCapture;
@@ -74,6 +75,18 @@ boolean pushed=false;
             mc.getProfiler().push("craftlink_bot_view");pushed=true;
             mc.levelRenderer.prepareCullFrustum(pose,camera.getPosition(),lens);
             mc.levelRenderer.renderLevel(pose,partial,System.nanoTime(),false,camera,mc.gameRenderer,mc.gameRenderer.lightTexture(),lens);
+            if(bot instanceof ClassroomBot humanoid){
+                // Vanilla hands are a second, camera-local pass over the world image.
+                target.bindWrite(true);
+                modelView.setIdentity();RenderSystem.applyModelViewMatrix();
+                RenderSystem.setProjectionMatrix(lens,VertexSorting.DISTANCE_TO_ORIGIN);
+                RenderSystem.enableDepthTest();RenderSystem.depthMask(true);RenderSystem.enableCull();RenderSystem.disableBlend();RenderSystem.setShaderColor(1,1,1,1);
+                RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT,Minecraft.ON_OSX);
+                RenderSystem.setInverseViewRotationMatrix(new Matrix3f());
+                mc.gameRenderer.lightTexture().turnOnLightLayer();
+                try { firstPerson.render(mc,humanoid,partial); }
+                finally { mc.gameRenderer.lightTexture().turnOffLightLayer(); }
+            }
             int[] pixels;try(var image=Screenshot.takeScreenshot(target)){pixels=image.getPixelsRGBA();}
             int frame=sequence=sequence==Integer.MAX_VALUE?1:sequence+1;
             encoder.execute(()->{try{room.publishVideo(peer,frame,VideoFrame.packet(frame,quality.width,quality.height,0,jpeg.encodeFrame(quality.width,quality.height,pixels,quality.jpegQuality)));error="";room.videoStatus("");}catch(Exception failure){error="BOT映像の圧縮に失敗しました";room.videoStatus(error);}finally{encoding.set(false);}});

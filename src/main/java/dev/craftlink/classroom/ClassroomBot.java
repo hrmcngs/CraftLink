@@ -72,6 +72,8 @@ public final class ClassroomBot extends PathfinderMob {
         setCustomName(Component.literal(number + "号 " + NAMES[number-1]).withStyle(COLORS[number-1])); setCustomNameVisible(true);
     }
     @Override protected void defineSynchedData() { super.defineSynchedData(); entityData.define(NUMBER, 1); }
+    @Override public float getStandingEyeHeight(Pose pose,net.minecraft.world.entity.EntityDimensions dimensions){return pose==Pose.CROUCHING?1.27f:1.62f;}
+    @Override public net.minecraft.world.entity.EntityDimensions getDimensions(Pose pose){return pose==Pose.CROUCHING?net.minecraft.world.entity.EntityDimensions.scalable(.6f,1.5f):super.getDimensions(pose);}
     public int participantNumber() { return entityData.get(NUMBER); }
     @Override public void aiStep() { updateSwingTime(); super.aiStep(); }
     public void accept(RemoteState.Snapshot input) {
