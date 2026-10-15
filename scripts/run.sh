@@ -61,4 +61,13 @@ if [[ "$transport" == usb && "$prepare" == false ]]; then
   printf 'Android USB mode: Wi-Fi is not used. Press F8, start the connection, scan the 127.0.0.1 QR, and approve on PC.\n'
 fi
 printf 'CraftLink development client: %s (server starts only when you press Start in F8).\n' "$transport"
-bash ./gradlew "${args[@]}"
+if bash ./gradlew "${args[@]}"; then
+  exit 0
+else
+  result=$?
+  printf '\nMinecraftの起動に失敗しました（終了コード %s）。\nログ: %s/run/logs/latest.log\n' "$result" "$project_dir" >&2
+  shopt -s nullglob
+  reports=(run/crash-reports/crash-*.txt)
+  if (( ${#reports[@]} > 0 )); then printf 'クラッシュレポート: %s/%s\n' "$project_dir" "${reports[${#reports[@]}-1]}" >&2; fi
+  exit "$result"
+fi

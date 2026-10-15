@@ -32,13 +32,19 @@ public final class BotVideoStreamer {
     public int lastPlayerCount(){return lastPlayerCount;}
     public void entityRendered(Entity entity){if(rendering && entity instanceof net.minecraft.world.entity.player.Player)playerCount++;}
     private volatile String error = "";
+    private volatile ClassroomRoom failedRoom;
+    public void suspend(RuntimeException failure){
+        rendering=false;failedRoom=server.room();error="BOT映像を停止しました。部屋を終了して再開してください";
+        if(failedRoom!=null)failedRoom.videoStatus(error);
+        com.mojang.logging.LogUtils.getLogger().error("CraftLink BOT video suspended after a rendering failure",failure);
+    }
     public BotVideoStreamer(ClassroomServer server, ClassroomBots bots){this.server=server;this.bots=bots;}
     public void bindWorldTarget(){if(rendering && target!=null)target.bindWrite(true);}
     public boolean rendering(){return rendering;}
     public String error(){return error;}
     public void capture(Minecraft mc,float partial){
         ClassroomRoom room=server.room();
-        if(room==null||mc.level==null||mc.player==null||encoding.get()||encoder.isShutdown()||System.nanoTime()<nextCapture)return;
+        if(room==null||room==failedRoom||mc.getOverlay()!=null||mc.level==null||mc.player==null||encoding.get()||encoder.isShutdown()||System.nanoTime()<nextCapture)return;
         var peers=room.videoTargets();if(peers.isEmpty())return;
         long captureStart=System.nanoTime();
         nextCapture=captureStart+50_000_000L;
@@ -57,7 +63,9 @@ boolean scissor=GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);int[] scissorBox=new int[
 boolean depth=GL11.glIsEnabled(GL11.GL_DEPTH_TEST), blend=GL11.glIsEnabled(GL11.GL_BLEND), cull=GL11.glIsEnabled(GL11.GL_CULL_FACE);
 boolean depthMask=GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
 float[] color=RenderSystem.getShaderColor().clone();
-var modelView=RenderSystem.getModelViewStack();modelView.pushPose();modelView.setIdentity();RenderSystem.applyModelViewMatrix();
+var modelView=RenderSystem.getModelViewStack();
+var savedPoses=new PoseStackSnapshot(((dev.craftlink.mixin.PoseStackAccessor)modelView).craftlink$poses());
+modelView.pushPose();modelView.setIdentity();RenderSystem.applyModelViewMatrix();
 boolean pushed=false;
 
         try{
@@ -92,14 +100,14 @@ boolean pushed=false;
             int[] pixels;try(var image=Screenshot.takeScreenshot(target)){pixels=image.getPixelsRGBA();}
             int frame=sequence=sequence==Integer.MAX_VALUE?1:sequence+1;
             encoder.execute(()->{try{room.publishVideo(peer,frame,VideoFrame.packet(frame,quality.width,quality.height,0,jpeg.encodeFrame(quality.width,quality.height,pixels,quality.jpegQuality)));error="";room.videoStatus("");}catch(Exception failure){error="BOT映像の圧縮に失敗しました";room.videoStatus(error);}finally{encoding.set(false);}});
-        }catch(Exception failure){error="BOT映像取得失敗: "+failure.getClass().getSimpleName();room.videoStatus(error);encoding.set(false);nextCapture=System.nanoTime()+5_000_000_000L;}
+        }catch(Exception failure){suspend(failure instanceof RuntimeException runtime?runtime:new RuntimeException(failure));encoding.set(false);}
         finally{
-            if(pushed)mc.getProfiler().pop();
+            if(pushed)try{mc.getProfiler().pop();}catch(RuntimeException failure){suspend(failure);}
             mc.cameraEntity=originalCamera;((BotRenderTargetAccessor)mc).craftlink$target(originalTarget);
             RenderSystem.setProjectionMatrix(projection,sorting);RenderSystem.setInverseViewRotationMatrix(inverse);
             GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER,read);GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER,draw);RenderSystem.bindTexture(texture);RenderSystem.viewport(viewport[0],viewport[1],viewport[2],viewport[3]);
             mc.getEntityRenderDispatcher().prepare(mc.level,mc.gameRenderer.getMainCamera(),mc.crosshairPickEntity);
-modelView.popPose();RenderSystem.applyModelViewMatrix();
+savedPoses.restore(((dev.craftlink.mixin.PoseStackAccessor)modelView).craftlink$poses());RenderSystem.applyModelViewMatrix();
 if(depth)RenderSystem.enableDepthTest();else RenderSystem.disableDepthTest();
 if(blend)RenderSystem.enableBlend();else RenderSystem.disableBlend();
 if(cull)RenderSystem.enableCull();else RenderSystem.disableCull();

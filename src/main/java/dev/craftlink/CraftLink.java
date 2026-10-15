@@ -38,7 +38,8 @@ public final class CraftLink {
         private static dev.craftlink.classroom.ClassroomRoom activeRoom;
         private static net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> classroomDimension;
         private static Boolean previousPauseOnLostFocus;
-        private static boolean schoolStarted;
+        private static boolean schoolStarted, worldReady;
+        private static final dev.craftlink.input.WorldStartGate WORLD_START=new dev.craftlink.input.WorldStartGate();
         private static void init() {
             FMLJavaModLoadingContext.get().getModEventBus().addListener(Client::register);
             MinecraftForge.EVENT_BUS.register(Client.class);
@@ -55,17 +56,24 @@ public final class CraftLink {
             }
         }
         @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { stopClassroom(); CLASSROOM.shutdown(); dev.craftlink.addon.AddonActions.releaseAll(); BOT_VIDEO.close(); VIDEO.close(); SERVER.shutdown(); }
-        @SubscribeEvent public static void render(TickEvent.RenderTickEvent e) { if (e.phase == TickEvent.Phase.END) { VIDEO.capture(Minecraft.getInstance()); BOT_VIDEO.capture(Minecraft.getInstance(), e.renderTickTime); } }
+        @SubscribeEvent public static void render(TickEvent.RenderTickEvent e) { if (e.phase == TickEvent.Phase.END) { VIDEO.capture(Minecraft.getInstance()); } }
+        @SubscribeEvent public static void renderWorld(net.minecraftforge.client.event.RenderLevelStageEvent e) {
+            if(e.getStage()!=net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_LEVEL || !worldReady || BOT_VIDEO.rendering())return;
+            try { BOT_VIDEO.capture(Minecraft.getInstance(),e.getPartialTick()); }
+            catch(RuntimeException failure){BOT_VIDEO.suspend(failure);}
+        }
         private static void register(RegisterKeyMappingsEvent e) { e.register(OPEN); e.register(CLASSROOM_PAUSE); }
         @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST) public static void tick(TickEvent.ClientTickEvent e) {
             if (e.phase != TickEvent.Phase.START) return;
             Minecraft mc = Minecraft.getInstance();
+            worldReady=WORLD_START.tick(mc.level,mc.player!=null && mc.getOverlay()==null && !(mc.screen instanceof net.minecraft.client.gui.screens.ReceivingLevelScreen));
+            if(!LinkConfig.SPEC.isLoaded())return;
             while (CLASSROOM_PAUSE.consumeClick()) { var current = CLASSROOM.room(); if (current != null) current.pause(true); }
             var room = CLASSROOM.room();
             if (room != null) {
                 if (mc.getSingleplayerServer() == null || mc.player == null || room.expired()
                     || room == activeRoom && !mc.player.level().dimension().equals(classroomDimension)) stopClassroom();
-                else if (room != activeRoom) {
+                else if (room != activeRoom && worldReady) {
                     activeRoom = room;
                     classroomDimension = mc.player.level().dimension();
                     previousPauseOnLostFocus = mc.options.pauseOnLostFocus;
@@ -79,7 +87,7 @@ public final class CraftLink {
                 if (mc.player == null) {
                     if (schoolStarted && schoolMode.equals("controller")) SERVER.stop();
                     schoolStarted = false;
-                } else if (!schoolStarted) {
+                } else if (!schoolStarted && worldReady) {
                     schoolStarted = true;
                     var settings = LinkConfig.launchSettings();
                     if (schoolMode.equals("classroom")) {

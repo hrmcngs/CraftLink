@@ -11,7 +11,8 @@
     "VideoProjectionMixin",
     "AddonKeyMappingMixin",
     "BotRenderTargetAccessor",
-    "BotEntityVisibilityMixin"
+    "BotEntityVisibilityMixin",
+    "PoseStackAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
