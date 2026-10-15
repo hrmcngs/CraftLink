@@ -96,7 +96,9 @@ public final class ClassroomServer {
                 peer = room.join(data.get("token").getAsString(), data.has("resume") ? data.get("resume").getAsString() : "", socket); return;
             }
             switch (type) {
-                case "ping" -> socket.send("{\"type\":\"pong\"}");
+                case "ping" -> {
+                    var pong = new JsonObject(); pong.addProperty("type", "pong"); pong.addProperty("videoStatus", room.videoStatus()); socket.send(pong.toString());
+                }
                 case "disconnect" -> { room.remove(peer); ctx.close(); }
                 case "video" -> room.video(peer, socket, data.get("enabled").getAsBoolean());
                 case "frameAck" -> room.frameAck(peer, socket, data.get("frame").getAsInt());

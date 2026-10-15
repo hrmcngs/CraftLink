@@ -19,6 +19,9 @@ public final class ClassroomRoom {
     private final Map<UUID, Peer> peers = new LinkedHashMap<>();
     private final LongSupplier clock;
     private boolean paused, closed;
+    private volatile String videoStatus = "";
+    public void videoStatus(String message) { videoStatus = message; }
+    public String videoStatus() { return videoStatus; }
     private static final class Peer {
         final UUID id = UUID.randomUUID();
         final int number;

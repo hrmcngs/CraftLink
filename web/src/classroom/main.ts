@@ -4,7 +4,7 @@ import {VideoView} from '../video/view';
 const root=document.querySelector<HTMLElement>('#classroom')!;
 root.innerHTML=`<canvas id="bot-view" aria-label="自分のBOTの視界"></canvas><div id="video-state" role="status"></div><header><strong id="identity">CraftLink</strong><output id="status" aria-live="polite">せつぞく中…</output><button id="video-toggle">映像: ON</button><button id="leave">おわる</button></header><p class="help">あなたのBOTの視界を見ながら操作しよう</p><main><section class="dpad"><button data-key="forward">まえ ▲</button><button data-key="left">◀ ひだり</button><button data-key="back">うしろ ▼</button><button data-key="right">みぎ ▶</button></section><div id="look" aria-label="スワイプで向きをかえる">ここをスワイプ<br>むきをかえる ↔</div><section class="actions"><button data-key="jump">ジャンプ</button><button data-key="sprint">はやく</button><button data-key="sneak">ゆっくり</button><button data-key="use">あいさつ ✨</button></section></main><footer>QRを読み込むと自動で参加できます</footer>`;
 const video=new VideoView(document.querySelector<HTMLCanvasElement>('#bot-view')!,root);
-let videoEnabled=true;
+let videoEnabled=true, videoError="";
 const status=document.querySelector<HTMLOutputElement>('#status')!;
 const token=location.hash.slice(1), storageKey='craftlink.classroom.'+token;
 let resume='';try{resume=sessionStorage.getItem(storageKey)??'';}catch{}
@@ -22,13 +22,13 @@ function connect(){
  ws.onopen=()=>{lastPong=performance.now();lastSent='';sentAt=-Infinity;ws.send(JSON.stringify({type:'hello',token,resume}));};
 ws.onmessage=async e=>{
  if(typeof e.data!=='string'){
-  try{const id=await video.receive(e.data instanceof Blob?e.data:new Blob([e.data]));if(id!==undefined&&socket===ws&&approved&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'frameAck',frame:id}));}catch{status.textContent='BOT映像の受信に失敗しました';}return;
+  try{const id=await video.receive(e.data instanceof Blob?e.data:new Blob([e.data]));if(id!==undefined)videoError='';if(id!==undefined&&socket===ws&&approved&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'frameAck',frame:id}));}catch{videoError='BOT映像を表示できませんでした。ページを開き直してください';}return;
  }
  const data=JSON.parse(e.data);
 
   if(data.type==='welcome'){if(typeof data.resume!=='string'||!Number.isInteger(data.number)||data.number<1||data.number>8){ws.close();return;}resume=data.resume;try{sessionStorage.setItem(storageKey,resume);}catch{}root.dataset.number=String(data.number);document.querySelector('#identity')!.textContent=`あなたは ${data.number}号`;}
   if(data.type==='state'){release();approved=data.approved===true;paused=data.paused!==false;update();requestVideo();}
-  if(data.type==='pong'){lastPong=performance.now();if(ready)status.textContent=`うごかせるよ · ${Math.round(lastPong-pingAt)} ms`;}
+  if(data.type==='pong'){videoError=typeof data.videoStatus==='string'?data.videoStatus:'';lastPong=performance.now();if(ready)status.textContent=`うごかせるよ · ${Math.round(lastPong-pingAt)} ms`;}
   if(data.type==='revoked'){stopped=true;resume='';try{sessionStorage.removeItem(storageKey);}catch{}release();ws.close();status.textContent='主催者がさんかをしゅうりょうしました';}
  };
  ws.onclose=()=>{document.querySelector('#identity')!.textContent='未接続';delete root.dataset.number;video.clear();ready=false;approved=false;release();update();root.dataset.enabled='false';if(!stopped){status.textContent='切断 · さいせつぞく中…';document.querySelector('footer')!.textContent='PCの学校用起動を確認してください。部屋を作り直した場合は、新しいQRを読み直します。';retry=window.setTimeout(connect,2000);}};
@@ -48,6 +48,6 @@ document.querySelector('#video-toggle')!.addEventListener('click',()=>{videoEnab
 document.querySelector('#leave')!.addEventListener('click',()=>{release();stopped=true;clearTimeout(retry);if(socket?.readyState===WebSocket.OPEN)socket.send('{"type":"disconnect"}');socket?.close();resume='';try{sessionStorage.removeItem(storageKey);}catch{}status.textContent='おつかれさま！';});
 window.addEventListener('blur',release);window.addEventListener('resize',release);window.addEventListener('pagehide',()=>{release();stopped=true;clearTimeout(retry);socket?.close();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)release();update();requestVideo();});document.addEventListener('contextmenu',e=>e.preventDefault());
-setInterval(()=>{if(ready)send();video.refresh();},33);
+setInterval(()=>{if(ready)send();video.refresh();if(videoEnabled&&videoError)document.querySelector('#video-state')!.textContent=videoError;},33);
 setInterval(()=>{if(socket?.readyState===WebSocket.OPEN){if(performance.now()-lastPong>5000){socket.close();return;}pingAt=performance.now();socket.send('{"type":"ping"}');}},1000);
 update();root.dataset.enabled='false';if(/^[A-Za-z0-9_-]{43}$/.test(token))connect();else status.textContent='主催者のQRコードからひらいてね';

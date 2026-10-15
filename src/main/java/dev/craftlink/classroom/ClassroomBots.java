@@ -46,7 +46,7 @@ public final class ClassroomBots {
                 if (!level.addFreshEntity(bot)) continue;
                 bots.put(entry.getKey(), bot);
             }
-            if (moveBack || bot.distanceToSqr(anchor.getX()+.5, anchor.getY(), anchor.getZ()+.5) > 32*32 || bot.getY() < anchor.getY()-8 || bot.getY() > anchor.getY()+16) place(bot,entry.getValue().number());
+            if (moveBack || outsideArea(bot.getX(), bot.getY(), bot.getZ(), anchor.getX()+.5, anchor.getZ()+.5, level.getMinBuildHeight())) place(bot,entry.getValue().number());
             bot.accept(entry.getValue().input());
         }
         Map<UUID, UUID> ids = new HashMap<>();
@@ -57,19 +57,38 @@ public final class ClassroomBots {
         double angle = Math.toRadians(yaw), lane = (number-1)%4*1.5-2.25, forward = 3+(number-1)/4*1.5;
         double x = anchor.getX()+.5+Math.cos(angle)*lane-Math.sin(angle)*forward;
         double z = anchor.getZ()+.5+Math.sin(angle)*lane+Math.cos(angle)*forward;
-        // Prefer ground in front of the host and avoid spawning inside walls or other bots.
-        for (int dy : new int[]{0,1,2,-1,-2,-3,-4}) for (int radius=0;radius<=3;radius++) {
+        // Search all the way down: the host may have opened the room while flying.
+        for (int radius=0;radius<=3;radius++) {
             for (int[] offset : new int[][]{{radius,0},{-radius,0},{0,radius},{0,-radius}}) {
-                bot.moveTo(x+offset[0],anchor.getY()+dy+.1,z+offset[1],yaw,0);
-                var below = BlockPos.containing(bot.getX(),bot.getY()-.2,bot.getZ());
-                if (level.getWorldBorder().isWithinBounds(bot.getBoundingBox()) && level.noCollision(bot,bot.getBoundingBox())
-                    && !level.getBlockState(below).getCollisionShape(level,below).isEmpty()) {
-                    bot.setDeltaMovement(0,0,0); return;
-                }
+                if (placeOnGround(bot, x+offset[0], z+offset[1])) return;
             }
         }
-        bot.moveTo(x,anchor.getY()+.1,z,yaw,0);bot.setDeltaMovement(0,0,0);
+        // A nearby cliff/void must not become an endlessly falling spawn point.
+        if (!placeOnGround(bot, anchor.getX()+.5, anchor.getZ()+.5)) {
+            bot.moveTo(anchor.getX()+.5, anchor.getY(), anchor.getZ()+.5, yaw, 0);
+            bot.setDeltaMovement(0,0,0);
+        }
     }
+    private boolean placeOnGround(ClassroomBot bot, double x, double z) {
+        int top = Math.min(level.getMaxBuildHeight()-2, anchor.getY()+2);
+        for (int y=top; y>=level.getMinBuildHeight(); y--) {
+            var below = BlockPos.containing(x,y,z);
+            var state = level.getBlockState(below);
+            var shape = state.getCollisionShape(level,below);
+            if (shape.isEmpty() || !state.getFluidState().isEmpty()) continue;
+            double feet = y+shape.max(net.minecraft.core.Direction.Axis.Y);
+            bot.moveTo(x,feet,z,yaw,0);
+            if (level.getWorldBorder().isWithinBounds(bot.getBoundingBox()) && level.noCollision(bot,bot.getBoundingBox())) {
+                bot.setDeltaMovement(0,0,0); bot.fallDistance=0; return true;
+            }
+        }
+        return false;
+    }
+    static boolean outsideArea(double x, double y, double z, double anchorX, double anchorZ, int minimumY) {
+        double dx=x-anchorX, dz=z-anchorZ;
+        return dx*dx+dz*dz>32*32 || y<minimumY-4;
+    }
+
     private void clear() { for (var bot : bots.values()) bot.discard(); bots.clear(); entityIds = Map.of(); room = null; level = null; owner = null; }
     @SubscribeEvent public void stopping(ServerStoppingEvent event) { if (event.getServer() == owner) clear(); }
 }

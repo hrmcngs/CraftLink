@@ -35,10 +35,11 @@ public final class BotVideoStreamer {
         if(room==null||mc.level==null||mc.player==null||encoding.get()||encoder.isShutdown()||System.nanoTime()<nextCapture)return;
         var peers=room.videoTargets();if(peers.isEmpty())return;
         nextCapture=System.nanoTime()+83_333_333L;
-        if(Minecraft.useShaderTransparency()){error="BOT映像: 描画優先度を処理優先または描画優先に変更してください";return;}
+        if(Minecraft.useShaderTransparency()){error="BOT映像: PCのビデオ設定でグラフィックスを処理優先または描画優先に変更してください";room.videoStatus(error);return;}
         var peer=peers.get(Math.floorMod(cursor++,peers.size()));var uuid=bots.entityIds().get(peer.id());
         Entity bot=null;for(Entity entity:mc.level.entitiesForRendering())if(entity.getUUID().equals(uuid)){bot=entity;break;}
-        if(bot==null||!encoding.compareAndSet(false,true))return;
+        if(bot==null){room.videoStatus("BOTを読み込み中です。PCでBOTの近くへ移動してください");return;}
+        if(!encoding.compareAndSet(false,true))return;
         var originalTarget=mc.getMainRenderTarget();var originalCamera=mc.cameraEntity;
         var projection=new Matrix4f(RenderSystem.getProjectionMatrix());var sorting=RenderSystem.getVertexSorting();
         var inverse=new Matrix3f(RenderSystem.getInverseViewRotationMatrix());
@@ -66,8 +67,8 @@ boolean pushed=false;
             mc.levelRenderer.renderLevel(pose,partial,System.nanoTime(),false,camera,mc.gameRenderer,mc.gameRenderer.lightTexture(),lens);
             int[] pixels;try(var image=Screenshot.takeScreenshot(target)){pixels=image.getPixelsRGBA();}
             int frame=sequence=sequence==Integer.MAX_VALUE?1:sequence+1;
-            encoder.execute(()->{try{room.publishVideo(peer,frame,VideoFrame.packet(frame,480,270,0,jpeg.encodeFrame(480,270,pixels)));error="";}catch(Exception failure){error="BOT映像の圧縮に失敗しました";}finally{encoding.set(false);}});
-        }catch(Exception failure){error="BOT映像取得失敗: "+failure.getClass().getSimpleName();encoding.set(false);nextCapture=System.nanoTime()+5_000_000_000L;}
+            encoder.execute(()->{try{room.publishVideo(peer,frame,VideoFrame.packet(frame,480,270,0,jpeg.encodeFrame(480,270,pixels)));error="";room.videoStatus("");}catch(Exception failure){error="BOT映像の圧縮に失敗しました";room.videoStatus(error);}finally{encoding.set(false);}});
+        }catch(Exception failure){error="BOT映像取得失敗: "+failure.getClass().getSimpleName();room.videoStatus(error);encoding.set(false);nextCapture=System.nanoTime()+5_000_000_000L;}
         finally{
             if(pushed)mc.getProfiler().pop();
             mc.cameraEntity=originalCamera;((BotRenderTargetAccessor)mc).craftlink$target(originalTarget);
