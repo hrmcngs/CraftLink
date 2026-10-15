@@ -107,7 +107,8 @@ public final class ClassroomServer {
                 case "input" -> {
                     JsonArray buttons = data.getAsJsonArray("held"); if (buttons.size() > ClassroomRoom.BUTTONS.size()) throw new IllegalArgumentException();
                     Set<String> held = new HashSet<>(); for (JsonElement button : buttons) held.add(button.getAsString());
-                    room.input(peer, socket, held, data.get("dx").getAsDouble(), data.has("dy") ? data.get("dy").getAsDouble() : 0);
+                    var target=data.has("target")&&!data.get("target").isJsonNull()?data.getAsJsonObject("target"):null;
+                    room.input(peer, socket, held, data.get("dx").getAsDouble(), data.has("dy") ? data.get("dy").getAsDouble() : 0,target==null?null:new ClassroomRoom.Touch(target.get("frame").getAsInt(),target.get("x").getAsDouble(),target.get("y").getAsDouble()));
                 }
                 default -> throw new IllegalArgumentException("Unsupported classroom message");
             }
@@ -128,7 +129,7 @@ public final class ClassroomServer {
             var response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,bytes == null ? HttpResponseStatus.NOT_FOUND : HttpResponseStatus.OK,Unpooled.wrappedBuffer(bytes == null ? new byte[0] : bytes));
             response.headers().set(HttpHeaderNames.CONTENT_TYPE,path.endsWith(".js") ? "text/javascript" : path.endsWith(".css") ? "text/css" : "text/html; charset=utf-8")
                 .set(HttpHeaderNames.CONTENT_LENGTH,response.content().readableBytes()).set("Cache-Control","no-store").set("Referrer-Policy","no-referrer").set("X-Content-Type-Options","nosniff")
-                .set("Content-Security-Policy","default-src 'self'; connect-src 'self' ws: wss:; style-src 'self'; img-src 'self' blob:; frame-ancestors 'none'");
+                .set("Content-Security-Policy","default-src 'self'; connect-src 'self' ws: wss:; style-src 'self'; img-src 'self' blob: data:; frame-ancestors 'none'");
             ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
         @Override public void channelInactive(ChannelHandlerContext ctx) { if (peer != null) room.disconnect(peer,socket); }

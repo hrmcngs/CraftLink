@@ -40,7 +40,7 @@ public final class CreativeCatalog {
         int pages=tab==null?1:Math.max(1,(tab.items.size()+PAGE_SIZE-1)/PAGE_SIZE);int current=Math.max(0,Math.min(page,pages-1));
         result.addProperty("tab",tab==null?"":tab.id);result.addProperty("page",current);result.addProperty("pages",pages);var entries=new JsonArray();
         if(tab!=null)for(int i=current*PAGE_SIZE;i<Math.min(tab.items.size(),(current+1)*PAGE_SIZE);i++){
-            int index=tab.items.get(i);var item=items.get(index);var json=new JsonObject();json.addProperty("index",index);json.addProperty("id",item.id);json.addProperty("name",item.name);entries.add(json);
+            int index=tab.items.get(i);var item=items.get(index);var json=new JsonObject();json.addProperty("index",index);json.addProperty("id",item.id);json.addProperty("name",item.name);json.addProperty("iconKey",dev.craftlink.video.ItemIcons.request(item.template));entries.add(json);
         }
         result.add("items",entries);return result;
     }

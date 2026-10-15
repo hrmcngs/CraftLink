@@ -55,12 +55,13 @@ public final class CraftLink {
                 options.pauseOnLostFocus = previousPauseOnLostFocus; previousPauseOnLostFocus = null; options.save();
             }
         }
-        @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { stopClassroom(); CLASSROOM.shutdown(); dev.craftlink.addon.AddonActions.releaseAll(); BOT_VIDEO.close(); VIDEO.close(); SERVER.shutdown(); }
+        @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { stopClassroom(); CLASSROOM.shutdown(); dev.craftlink.addon.AddonActions.releaseAll(); BOT_VIDEO.close(); VIDEO.close(); dev.craftlink.video.ItemIcons.close();SERVER.shutdown(); }
         @SubscribeEvent public static void render(TickEvent.RenderTickEvent e) {
             if(e.phase==TickEvent.Phase.END){VIDEO.capture(Minecraft.getInstance());return;}
             // Finish the auxiliary camera before vanilla sets up and renders the PC camera.
             // Running between the PC world and hand/HUD passes leaks shared renderer state.
             if(!worldReady || BOT_VIDEO.rendering())return;
+            dev.craftlink.video.ItemIcons.renderQueued(Minecraft.getInstance());
             try { BOT_VIDEO.capture(Minecraft.getInstance(),e.renderTickTime); }
             catch(RuntimeException failure){BOT_VIDEO.suspend(failure);}
         }

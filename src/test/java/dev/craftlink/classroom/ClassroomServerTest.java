@@ -25,7 +25,7 @@ class ClassroomServerTest {
             b.socket.sendText("{\"type\":\"input\",\"held\":[\"left\"],\"dx\":0}",true).join();
             await(()->{var inputs=room.takeInputs();return inputs.values().stream().anyMatch(p->p.input().held().equals(Set.of("forward")))&&inputs.values().stream().anyMatch(p->p.input().held().equals(Set.of("left")));});
             room.pause(true);assertTrue(room.takeInputs().values().stream().allMatch(p->p.input().held().isEmpty()));
-            a.socket.sendText("{\"type\":\"input\",\"held\":[\"attack\"],\"dx\":0}",true).join();
+            a.socket.sendText("{\"type\":\"input\",\"held\":[\"osCommand\"],\"dx\":0}",true).join();
             await(()->room.views().stream().filter(ClassroomRoom.View::connected).count()==1);
             assertTrue(room.views().stream().anyMatch(ClassroomRoom.View::connected));
             b.socket.sendClose(1000,"done").join();a.socket.abort();

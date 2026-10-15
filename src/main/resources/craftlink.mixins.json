@@ -12,7 +12,8 @@
     "AddonKeyMappingMixin",
     "BotRenderTargetAccessor",
     "BotEntityVisibilityMixin",
-    "PoseStackAccessor"
+    "PoseStackAccessor",
+    "BlockActionAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

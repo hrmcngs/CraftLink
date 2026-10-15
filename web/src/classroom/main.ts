@@ -2,7 +2,7 @@ import { websocketUrl } from '../network/url';
 import './style.css';
 import {VideoView} from '../video/view';
 const root=document.querySelector<HTMLElement>('#classroom')!;
-root.innerHTML=`<canvas id="bot-view" aria-label="自分のBOTの視界"></canvas><div id="video-state" role="status"></div><header><strong id="identity">CraftLink</strong><output id="status" aria-live="polite">せつぞく中…</output><button id="settings-open" aria-label="設定メニュー">☰</button><button id="fullscreen" aria-label="全画面表示">⛶</button></header><main><section class="dpad"><button data-key="forward">▲</button><button data-key="left">◀</button><button data-key="back">▼</button><button data-key="right">▶</button></section><div id="look" aria-label="スワイプで向きをかえる"></div><section class="actions"><button data-key="jump" aria-label="ジャンプ">↥</button><button data-key="sprint">はやく</button><button data-key="sneak">ゆっくり</button><button data-key="use">あいさつ ✨</button></section></main><nav id="bot-hotbar" aria-label="BOTのホットバー">${Array.from({length:9},(_,i)=>`<button data-bot-slot="${i}" aria-label="持ち物 ${i+1}"><span></span><small></small></button>`).join('')}<button id="bot-inventory-open" aria-label="BOTのインベントリを開く">⋯</button></nav><dialog id="bot-inventory" aria-labelledby="inventory-title"><button id="bot-inventory-close" aria-label="持ち物を閉じる">×</button><h1 id="inventory-title">BOTの持ち物</h1><p>近くに落ちたアイテムを拾います。持ち物をタップして手に持ちます。</p><div class="inventory-tabs"><button id="tab-inventory" aria-pressed="true">持ち物</button><button id="tab-creative" aria-pressed="false" disabled>クリエイティブ</button></div><section id="creative-pane" hidden><label>カテゴリ <select id="creative-category" aria-label="クリエイティブタブ"></select></label><div id="creative-items"></div><nav id="creative-pages"><button id="creative-prev">前</button><output id="creative-page"></output><button id="creative-next">次</button></nav><p id="creative-status" role="status"></p></section><div id="bot-inventory-grid">${Array.from({length:36},(_,i)=>`<button data-bot-slot="${i}" aria-label="持ち物 ${i+1}"><span></span><small></small></button>`).join('')}</div></dialog><dialog id="bot-settings" aria-labelledby="settings-title"><button id="settings-close" aria-label="設定を閉じる">×</button><h1 id="settings-title">設定</h1><button id="video-quality">画質: 標準</button><button id="video-toggle">映像: ON</button><button id="leave">参加を終了</button><p id="fullscreen-help"></p><footer>QRを読み込むと自動で参加できます</footer></dialog>`;
+root.innerHTML=`<canvas id="bot-view" aria-label="自分のBOTの視界"></canvas><div id="video-state" role="status"></div><header><strong id="identity">CraftLink</strong><output id="status" aria-live="polite">せつぞく中…</output><button id="settings-open" aria-label="設定メニュー">☰</button><button id="fullscreen" aria-label="全画面表示">⛶</button></header><main><section class="dpad"><button data-key="forward">▲</button><button data-key="left">◀</button><button data-key="back">▼</button><button data-key="right">▶</button></section><div id="look" aria-label="スワイプで向きをかえる"></div><section class="actions"><button data-key="jump" aria-label="ジャンプ">↥</button><button data-key="sprint">はやく</button><button data-key="sneak">ゆっくり</button><button data-key="attack">こわす</button><button data-key="use">おく / つかう</button></section></main><nav id="bot-hotbar" aria-label="BOTのホットバー">${Array.from({length:9},(_,i)=>`<button data-bot-slot="${i}" aria-label="持ち物 ${i+1}"><span></span><small></small></button>`).join('')}<button id="bot-inventory-open" aria-label="BOTのインベントリを開く">⋯</button></nav><dialog id="bot-inventory" aria-labelledby="inventory-title"><button id="bot-inventory-close" aria-label="持ち物を閉じる">×</button><h1 id="inventory-title">BOTの持ち物</h1><p>アイテムをタップして手に持ちます。クリエイティブは主催者が切り替えます。</p><div class="inventory-tabs"><button id="tab-inventory" aria-pressed="true">持ち物</button><button id="tab-creative" aria-pressed="false" disabled>クリエイティブ</button></div><section id="creative-pane" hidden><label>カテゴリ <select id="creative-category" aria-label="クリエイティブタブ"></select></label><div id="creative-items"></div><nav id="creative-pages"><button id="creative-prev">前</button><output id="creative-page"></output><button id="creative-next">次</button></nav><p id="creative-status" role="status"></p></section><div id="bot-inventory-grid">${Array.from({length:36},(_,i)=>`<button data-bot-slot="${i}" aria-label="持ち物 ${i+1}"><span></span><small></small></button>`).join('')}</div></dialog><dialog id="bot-settings" aria-labelledby="settings-title"><button id="settings-close" aria-label="設定を閉じる">×</button><h1 id="settings-title">設定</h1><p id="participant-mode">サバイバル</p><p>ブロックをタップ: 設置・使用<br>長押し: 破壊 / スワイプ: 視点</p><button id="video-quality">画質: 標準</button><button id="video-toggle">映像: ON</button><button id="leave">参加を終了</button><p id="fullscreen-help"></p><footer>QRを読み込むと自動で参加できます</footer></dialog>`;
 const video=new VideoView(document.querySelector<HTMLCanvasElement>('#bot-view')!,root);
 let videoEnabled=true, videoError="", inventoryOpen=false, settingsOpen=false;
 const qualities=["balanced","smooth","sharp"] as const;
@@ -14,11 +14,12 @@ const status=document.querySelector<HTMLOutputElement>('#status')!;
 const token=location.hash.slice(1), storageKey='craftlink.classroom.'+token;
 let resume='';try{resume=sessionStorage.getItem(storageKey)??'';}catch{}
 let socket:WebSocket|undefined, ready=false, approved=false, paused=true, stopped=false, retry:number|undefined;
+let touchPoint:{x:number;y:number}|undefined;
 const held=new Map<number,string>();let dx=0,dy=0,lastSent='',sentAt=-Infinity,lastPong=0,pingAt=0;
-let look:{id:number;x:number;y:number}|undefined;
+let look:{id:number;x:number;y:number;startX:number;startY:number;moved:boolean;mining:boolean}|undefined;let longPress:number|undefined;
 const feedback=()=>root.querySelectorAll<HTMLElement>('[data-key]').forEach(b=>b.classList.toggle('pressed',[...held.values()].includes(b.dataset.key!)));
-function send(force=false){if(!ready||socket?.readyState!==WebSocket.OPEN)return;const packet=JSON.stringify({type:'input',held:[...new Set(held.values())],dx:Math.max(-180,Math.min(180,dx)),dy:Math.max(-180,Math.min(180,dy))});const now=performance.now();if(force||dx!==0||dy!==0||packet!==lastSent||now-sentAt>=250){socket.send(packet);lastSent=packet;sentAt=now;dx=0;dy=0;}}
-function release(){held.clear();look=undefined;dx=0;dy=0;feedback();send(true);}
+function send(force=false){if(!ready||socket?.readyState!==WebSocket.OPEN)return;const target=touchPoint?video.point(touchPoint.x,touchPoint.y):undefined;const keys=[...new Set(held.values())].filter(key=>!touchPoint||target||(key!=='attack'&&key!=='use'));const packet=JSON.stringify({type:'input',held:keys,dx:Math.max(-180,Math.min(180,dx)),dy:Math.max(-180,Math.min(180,dy)),target});const now=performance.now();if(force||dx!==0||dy!==0||packet!==lastSent||now-sentAt>=250){socket.send(packet);lastSent=packet;sentAt=now;dx=0;dy=0;}}
+function release(){held.clear();look=undefined;clearTimeout(longPress);touchPoint=undefined;dx=0;dy=0;feedback();send(true);}
 function update(){ready=!stopped&&approved&&!paused&&!document.hidden&&!inventoryOpen&&!settingsOpen;root.dataset.enabled=String(ready);root.querySelectorAll<HTMLButtonElement>('[data-key]').forEach(button=>button.disabled=!ready);if(stopped)return;document.querySelector('footer')!.textContent=!approved?'参加の接続を確認しています…':paused?'操作は一時停止中です。PCで「開始 / 再開」を押してください':'移動・ジャンプ・視点を同時に操作できます';status.textContent=!approved?'参加の接続を確認中…':paused?'一時停止中 · PCで開始してください':document.hidden?'おやすみ中':'うごかせるよ';}
 const inventoryDialog=document.querySelector<HTMLDialogElement>('#bot-inventory')!;
 function requestInventory(slot=-1){if(approved&&!stopped&&socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'inventory',slot}));}
@@ -28,11 +29,24 @@ document.querySelector('#bot-inventory-close')!.addEventListener('click',closeIn
 inventoryDialog.addEventListener('cancel',e=>{e.preventDefault();closeInventory();});
 inventoryDialog.addEventListener('close',()=>{inventoryOpen=false;update();});
 root.querySelectorAll<HTMLButtonElement>('[data-bot-slot]').forEach(button=>button.onclick=()=>requestInventory(Number(button.dataset.botSlot)));
+const icons=new Map<string,string>();
+function iconLabel(label:HTMLElement,key:unknown,name:string){
+ label.replaceChildren();const text=document.createElement('span');text.className='item-name';text.textContent=name;label.append(text);label.classList.remove('has-icon');
+ if(typeof key!=='string'||!/^\d+$/.test(key))return;
+ const image=document.createElement('img');image.className='item-icon';image.dataset.iconKey=key;image.alt=name;image.draggable=false;
+ const cached=icons.get(key);if(cached){image.src=cached;label.classList.add('has-icon');}label.append(image);
+}
+function renderIcons(data:{icons?:unknown}){
+ if(!Array.isArray(data.icons)||data.icons.length>45)return;
+ for(const icon of data.icons){if(!icon||typeof icon.key!=='string'||!/^\d+$/.test(icon.key)||typeof icon.image!=='string'||icon.image.length>65536||!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(icon.image))continue;
+ icons.set(icon.key,icon.image);while(icons.size>1024)icons.delete(icons.keys().next().value!);
+ root.querySelectorAll<HTMLImageElement>('img[data-icon-key="'+icon.key+'"]').forEach(image=>{image.src=icon.image;image.parentElement!.classList.add('has-icon');});}
+}
 function renderInventory(data: {selected?:unknown;slots?:unknown;creative?:unknown}) {
- creativeAllowed=data.creative===true;document.querySelector<HTMLButtonElement>('#tab-creative')!.disabled=!creativeAllowed;
+ creativeAllowed=data.creative===true;if(!creativeAllowed)inventoryTab(false);document.querySelector<HTMLButtonElement>('#tab-creative')!.disabled=!creativeAllowed;
  if(!Number.isInteger(data.selected)||!Array.isArray(data.slots)||data.slots.length!==36)return;
  for(const item of data.slots){if(!item||!Number.isInteger(item.slot)||item.slot<0||item.slot>35||typeof item.name!=='string'||typeof item.count!=='number')return;}
- for(const item of data.slots){root.querySelectorAll<HTMLButtonElement>('[data-bot-slot="'+item.slot+'"]').forEach(button=>{button.querySelector('span')!.textContent=item.count>0?item.name:'';button.querySelector('small')!.textContent=item.count>1?String(item.count):'';button.title=item.name;button.classList.toggle('selected',item.slot===data.selected);});}
+ for(const item of data.slots){root.querySelectorAll<HTMLButtonElement>('[data-bot-slot="'+item.slot+'"]').forEach(button=>{iconLabel(button.querySelector('span')!,item.count>0?item.iconKey:'',item.count>0?item.name:'');button.setAttribute('aria-label',item.name||'空の持ち物');button.querySelector('small')!.textContent=item.count>1?String(item.count):'';button.title=item.name;button.classList.toggle('selected',item.slot===data.selected);});}
 }
 const settingsDialog=document.querySelector<HTMLDialogElement>('#bot-settings')!;
 function closeSettings(){settingsDialog.close();settingsOpen=false;release();update();}
@@ -69,7 +83,7 @@ function renderCreative(data: {tabs?:unknown;items?:unknown;tab?:unknown;page?:u
  creativeCategory.replaceChildren();for(const tab of data.tabs){const option=document.createElement('option');option.value=tab.id;option.textContent=tab.name;creativeCategory.append(option);}
  creativeTab=data.tab;creativePage=data.page;creativePages=data.pages;creativeCategory.value=creativeTab;
  const grid=document.querySelector('#creative-items')!;grid.replaceChildren();
- for(const item of data.items){const button=document.createElement('button');button.textContent=item.name;button.title=item.name;button.onclick=()=>{requestCreative(item.index);document.querySelector('#creative-status')!.textContent=item.name+' を選択しました';};grid.append(button);}
+ for(const item of data.items){const button=document.createElement('button');const label=document.createElement('span');iconLabel(label,item.iconKey,item.name);button.append(label);button.title=item.name;button.setAttribute('aria-label',item.name);button.onclick=()=>{requestCreative(item.index);document.querySelector('#creative-status')!.textContent=item.name+' を選択しました';};grid.append(button);}
  document.querySelector('#creative-page')!.textContent=(creativePage+1)+' / '+creativePages;
  document.querySelector<HTMLButtonElement>('#creative-prev')!.disabled=creativePage<=0;document.querySelector<HTMLButtonElement>('#creative-next')!.disabled=creativePage+1>=creativePages;
  document.querySelector('#creative-status')!.textContent='アイテムをタップして、選択中のホットバー枠に出します';
@@ -87,9 +101,10 @@ ws.onmessage=async e=>{
 
   if(data.type==='welcome'){if(typeof data.resume!=='string'||!Number.isInteger(data.number)||data.number<1||data.number>8){ws.close();return;}resume=data.resume;try{sessionStorage.setItem(storageKey,resume);}catch{}root.dataset.number=String(data.number);document.querySelector('#identity')!.textContent=`あなたは ${data.number}号`;}
   if(data.type==='inventory')renderInventory(data);
+  if(data.type==='itemIcons')renderIcons(data);
   if(data.type==='creative')renderCreative(data);
-  if(data.type==='creativeDenied'){document.querySelector('#creative-status')!.textContent='PCプレイヤーがクリエイティブのときに使えます';}
-  if(data.type==='state'){release();approved=data.approved===true;paused=data.paused!==false;update();requestVideo();}
+  if(data.type==='creativeDenied'){document.querySelector('#creative-status')!.textContent='主催者が参加者をクリエイティブに切り替えると使えます';}
+  if(data.type==='state'){document.querySelector('#participant-mode')!.textContent=data.mode==='creative'?'クリエイティブ':'サバイバル';release();approved=data.approved===true;paused=data.paused!==false;update();requestVideo();}
   if(data.type==='pong'){videoError=typeof data.videoStatus==='string'?data.videoStatus:'';lastPong=performance.now();if(ready)status.textContent=`うごかせるよ · ${Math.round(lastPong-pingAt)} ms`;}
   if(data.type==='revoked'){stopped=true;resume='';try{sessionStorage.removeItem(storageKey);}catch{}release();ws.close();status.textContent='主催者がさんかをしゅうりょうしました';}
  };
@@ -102,9 +117,24 @@ root.querySelectorAll<HTMLElement>('[data-key]').forEach(button=>{
  button.onpointerup=up;button.onpointercancel=up;button.onlostpointercapture=up;
 });
 const area=document.querySelector<HTMLElement>('#look')!;
-area.onpointerdown=e=>{if(!ready||look)return;e.preventDefault();area.setPointerCapture(e.pointerId);look={id:e.pointerId,x:e.clientX,y:e.clientY};};
-area.onpointermove=e=>{if(look?.id===e.pointerId){dx+=(e.clientX-look.x)*.35;dy+=(e.clientY-look.y)*.35;look.x=e.clientX;look.y=e.clientY;}};
-const endLook=(e:PointerEvent)=>{if(look?.id===e.pointerId){send();look=undefined;}};area.onpointerup=endLook;area.onpointercancel=endLook;area.onlostpointercapture=endLook;
+area.onpointerdown=e=>{
+ if(!ready||look)return;e.preventDefault();area.setPointerCapture(e.pointerId);look={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,moved:false,mining:false};
+ const id=e.pointerId;
+ longPress=window.setTimeout(()=>{if(!ready||look?.id!==id||look.moved||!video.point(look.x,look.y))return;look.mining=true;touchPoint={x:look.x,y:look.y};held.set(id,'attack');feedback();send(true);},350);
+};
+area.onpointermove=e=>{if(look?.id!==e.pointerId)return;
+ if(Math.hypot(e.clientX-look.startX,e.clientY-look.startY)>10){look.moved=true;clearTimeout(longPress);}
+ if(look.mining){touchPoint={x:e.clientX,y:e.clientY};}else if(look.moved){dx+=(e.clientX-look.x)*.35;dy+=(e.clientY-look.y)*.35;}
+ look.x=e.clientX;look.y=e.clientY;
+};
+const endLook=(e:PointerEvent)=>{
+ if(look?.id!==e.pointerId)return;clearTimeout(longPress);
+ if(e.type==='pointerup'&&!look.moved&&!look.mining&&ready&&video.point(e.clientX,e.clientY)){
+  touchPoint={x:e.clientX,y:e.clientY};held.set(e.pointerId,'use');send(true);
+ }
+ held.delete(e.pointerId);touchPoint=undefined;feedback();send(true);look=undefined;
+};
+area.onpointerup=endLook;area.onpointercancel=endLook;area.onlostpointercapture=endLook;
 function requestVideo(){const enabled=videoEnabled&&approved&&!document.hidden&&!stopped;video.setEnabled(enabled);if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'video',enabled,quality:qualities[qualityIndex]}));}
 document.querySelector('#video-toggle')!.addEventListener('click',()=>{videoEnabled=!videoEnabled;document.querySelector('#video-toggle')!.textContent=`映像: ${videoEnabled?'ON':'OFF'}`;requestVideo();});
 document.querySelector('#leave')!.addEventListener('click',()=>{release();stopped=true;clearTimeout(retry);if(socket?.readyState===WebSocket.OPEN)socket.send('{"type":"disconnect"}');socket?.close();resume='';try{sessionStorage.removeItem(storageKey);}catch{}status.textContent='おつかれさま！';});

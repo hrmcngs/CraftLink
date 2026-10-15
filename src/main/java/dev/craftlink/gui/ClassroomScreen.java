@@ -16,12 +16,13 @@ public final class ClassroomScreen extends Screen {
     private int page;
     private String roster = "", qrUrl = "";
     private BitMatrix qr;
-    private Button start, pause, allowStart;
+    private Button start, pause;
+    private Button mode;
     public ClassroomScreen(Screen parent) { super(Component.literal("CraftLink みんなで参加 / 最大8台")); this.parent = parent; }
     @Override protected void init() {
         int x = width/2;
         addRenderableWidget(Button.builder(Component.literal("別のWi-Fi"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, true))).bounds(4, 4, 100, 20).build());
-        allowStart = addRenderableWidget(Button.builder(Component.literal("許可して開始"), b -> { var room=Client.CLASSROOM.room(); if(room!=null) minecraft.setScreen(null); }).bounds(width-104,4,100,20).build());
+        mode=addRenderableWidget(Button.builder(Component.literal("参加者: サバイバル"),b->{var current=Client.CLASSROOM.room();if(current!=null)current.mode(current.mode()==ClassroomRoom.Mode.SURVIVAL?ClassroomRoom.Mode.CREATIVE:ClassroomRoom.Mode.SURVIVAL);}).bounds(width-154,4,150,20).build());
         start = addRenderableWidget(Button.builder(Component.literal("受付を開始"), b -> {
             if (minecraft.getSingleplayerServer() != null && minecraft.player != null && !usbLaunch()) {
                 var settings = LinkConfig.launchSettings();
@@ -53,11 +54,12 @@ public final class ClassroomScreen extends Screen {
         if(!roster.equals(next)) rebuildWidgets();
         start.active = !Client.CLASSROOM.running() && minecraft.getSingleplayerServer()!=null && minecraft.player!=null && !usbLaunch();
         pause.active = Client.CLASSROOM.running();
-        allowStart.active = room != null && room.views().stream().anyMatch(ClassroomRoom.View::connected);
+        mode.active=room!=null;
+        mode.setMessage(Component.literal("参加者: "+(room!=null&&room.mode()==ClassroomRoom.Mode.CREATIVE?"クリエイティブ":"サバイバル")));
     }
     @Override public void render(GuiGraphics g,int mx,int my,float partial) {
         renderBackground(g);
-        g.drawCenteredString(font,Component.literal("CraftLink みんなで参加"),width/2,9,0xffffff);
+        g.drawString(font,Component.literal("CraftLink"),111,9,0xffffff);
         var room=Client.CLASSROOM.room();
         String status=Client.CLASSROOM.status()+(room==null?"":" / "+room.views().size()+"台 / BOT "+Client.BOTS.entityIds().size()+"体 / "+(room.paused()?"停止中":"操作中"));
         g.drawCenteredString(font,status,width/2,27,0xaaffaa);

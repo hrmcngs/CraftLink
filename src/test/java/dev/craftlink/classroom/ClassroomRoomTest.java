@@ -129,4 +129,26 @@ static class VideoSocket extends Socket {
     room.pause(true);room.creative(a,one,"",0,4);assertNull(room.takeInputs().get(a).creative());
     assertThrows(IllegalArgumentException.class,()->room.creative(a,one,"",0,25000));assertThrows(IllegalArgumentException.class,()->room.creative(a,one,"",601,-1));assertThrows(IllegalArgumentException.class,()->room.creative(a,one,"../?",0,-1));
 }
+
+@Test void hostModeChangeClearsQueuedActionsAndNotifiesAllPhones(){
+ var room=new ClassroomRoom();var one=new Socket();var two=new Socket();var a=room.join(room.token(),"",one);room.join(room.token(),"",two);
+ assertEquals(ClassroomRoom.Mode.SURVIVAL,room.mode());room.input(a,one,Set.of("attack","use"),0);room.creative(a,one,"",0,1);
+ room.mode(ClassroomRoom.Mode.CREATIVE);var input=room.takeInputs().get(a);assertTrue(input.input().held().isEmpty());assertTrue(input.input().presses().isEmpty());assertNull(input.creative());assertTrue(input.inventoryRequested());
+ assertTrue(one.messages.stream().anyMatch(m->m.contains("creative")));assertTrue(two.messages.stream().anyMatch(m->m.contains("creative")));
+}
+@Test void directTouchUsesOnlyFreshFramesSentToThatPeerAndSurvivesShortTapRelease(){
+ long[] now={1};var room=new ClassroomRoom(()->now[0]);var one=new VideoSocket();var two=new VideoSocket();var a=room.join(room.token(),"",one);var b=room.join(room.token(),"",two);
+ room.video(a,one,true);var target=room.videoTargets().get(0);var view=new ClassroomRoom.ViewSample(1,2,3,90,15,16.0/9);
+ room.publishVideo(target,7,new byte[]{1},view);
+ room.input(a,one,Set.of("use"),0,0,new ClassroomRoom.Touch(7,.25,.75));room.input(a,one,Set.of(),0);
+ var snapshot=room.takeInputs().get(a);assertTrue(snapshot.input().presses().contains("use"));assertEquals(.25,snapshot.aim().x());assertEquals(view,snapshot.aim().view());assertNull(room.takeInputs().get(a).aim());
+ room.input(b,two,Set.of("attack"),0,0,new ClassroomRoom.Touch(7,.5,.5));assertTrue(room.takeInputs().get(b).input().held().isEmpty());
+ now[0]+=2_000_000_001L;room.input(a,one,Set.of("attack"),0,0,new ClassroomRoom.Touch(7,.5,.5));assertTrue(room.takeInputs().get(a).input().held().isEmpty());
+ assertThrows(IllegalArgumentException.class,()->new ClassroomRoom.Touch(7,Double.NaN,.5));assertThrows(IllegalArgumentException.class,()->new ClassroomRoom.Touch(7,.5,1.01));
+}
+@Test void pauseAndDisconnectCancelTouchMining(){
+ var room=new ClassroomRoom();var socket=new VideoSocket();var id=room.join(room.token(),"",socket);room.video(id,socket,true);room.publishVideo(room.videoTargets().get(0),1,new byte[]{1},new ClassroomRoom.ViewSample(0,0,0,0,0,1));
+ room.input(id,socket,Set.of("attack"),0,0,new ClassroomRoom.Touch(1,.5,.5));room.pause(true);var input=room.takeInputs().get(id);assertNull(input.aim());assertTrue(input.input().held().isEmpty());
+ room.pause(false);room.input(id,socket,Set.of("attack"),0,0,new ClassroomRoom.Touch(1,.5,.5));room.disconnect(id,socket);input=room.takeInputs().get(id);assertNull(input.aim());assertTrue(input.input().held().isEmpty());
+}
 }

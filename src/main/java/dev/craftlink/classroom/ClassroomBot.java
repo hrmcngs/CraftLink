@@ -38,6 +38,7 @@ public final class ClassroomBot extends PathfinderMob {
         var result=new com.google.gson.JsonObject();result.addProperty("type","inventory");result.addProperty("selected",selectedSlot);
         var slots=new com.google.gson.JsonArray();
         for(int i=0;i<inventory.getContainerSize();i++){var item=inventory.getItem(i);var slot=new com.google.gson.JsonObject();slot.addProperty("slot",i);slot.addProperty("id",net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item.getItem()).toString());slot.addProperty("name",item.isEmpty()?"":item.getHoverName().getString());slot.addProperty("count",item.getCount());slots.add(slot);}
+        for(int i=0;i<slots.size();i++)slots.get(i).getAsJsonObject().addProperty("iconKey",dev.craftlink.video.ItemIcons.request(inventory.getItem(i)));
         result.add("slots",slots);return result;
     }
     @Override protected void pickUpItem(net.minecraft.world.entity.item.ItemEntity entity){
@@ -47,6 +48,7 @@ public final class ClassroomBot extends PathfinderMob {
     }
     public ClassroomBot(EntityType<? extends ClassroomBot> type, Level level) {
         super(type, level);
+        setDropChance(net.minecraft.world.entity.EquipmentSlot.MAINHAND,0);
         moveControl = new MoveControl(this) {
             @Override public void tick() {
                 float x = (held.contains("left") ? 1 : 0) - (held.contains("right") ? 1 : 0);
@@ -83,10 +85,18 @@ public final class ClassroomBot extends PathfinderMob {
         setShiftKeyDown(held.contains("sneak")); setSprinting(held.contains("sprint") && !isShiftKeyDown());
         setPose(isShiftKeyDown() ? Pose.CROUCHING : Pose.STANDING);
         if (held.isEmpty()) setDeltaMovement(0, getDeltaMovement().y, 0);
-        if (input.presses().contains("use")) {
+        if (input.presses().contains("use") || input.presses().contains("attack")) {
             swing(InteractionHand.MAIN_HAND);
-            ((ServerLevel)level()).sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), getY()+2, getZ(), 8,.35,.25,.35,0);
         }
+    }
+    public void copyInventoryTo(Player player){
+        for(int i=0;i<36;i++)player.getInventory().setItem(i,inventory.getItem(i).copy());
+        player.getInventory().selected=selectedSlot;
+    }
+    public void copyInventoryFrom(Player player){
+        boolean changed=false;
+        for(int i=0;i<36;i++){var next=player.getInventory().getItem(i);if(!net.minecraft.world.item.ItemStack.matches(inventory.getItem(i),next)){inventory.setItem(i,next.copy());changed=true;}}
+        if(changed){inventoryVersion++;selectSlot(selectedSlot);}
     }
     @Override protected void customServerAiStep() { /* No autonomous goals: remote intent controls movement. */ }
     @Override public InteractionResult mobInteract(Player player, InteractionHand hand) { return InteractionResult.PASS; }

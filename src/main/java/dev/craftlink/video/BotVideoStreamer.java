@@ -100,7 +100,8 @@ boolean pushed=false;
             }
             int[] pixels;try(var image=Screenshot.takeScreenshot(target)){pixels=image.getPixelsRGBA();}
             int frame=sequence=sequence==Integer.MAX_VALUE?1:sequence+1;
-            encoder.execute(()->{try{room.publishVideo(peer,frame,VideoFrame.packet(frame,quality.width,quality.height,0,jpeg.encodeFrame(quality.width,quality.height,pixels,quality.jpegQuality)));error="";room.videoStatus("");}catch(Exception failure){error="BOT映像の圧縮に失敗しました";room.videoStatus(error);}finally{encoding.set(false);}});
+            var view=new ClassroomRoom.ViewSample(camera.getPosition().x,camera.getPosition().y,camera.getPosition().z,camera.getYRot(),camera.getXRot(),(double)quality.width/quality.height);
+            encoder.execute(()->{try{room.publishVideo(peer,frame,VideoFrame.packet(frame,quality.width,quality.height,0,jpeg.encodeFrame(quality.width,quality.height,pixels,quality.jpegQuality)),view);error="";room.videoStatus("");}catch(Exception failure){error="BOT映像の圧縮に失敗しました";room.videoStatus(error);}finally{encoding.set(false);}});
         }catch(Exception failure){suspend(failure instanceof RuntimeException runtime?runtime:new RuntimeException(failure));encoding.set(false);}
         finally{
             if(pushed)try{mc.getProfiler().pop();}catch(RuntimeException failure){suspend(failure);}
