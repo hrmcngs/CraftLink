@@ -49,7 +49,7 @@ public final class VideoStreamer {
         nextCapture = System.nanoTime() + 66_666_667L; // up to 15 FPS; never queue frames
         if (!encoding.compareAndSet(false, true)) return;
         int read = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING), draw = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
-        int texture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        var sharedState = new VideoRenderState();
         int[] viewport = new int[4]; GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
         try {
             var source = mc.getMainRenderTarget();
@@ -95,7 +95,7 @@ public final class VideoStreamer {
         } catch (Exception failure) { error = "映像取得失敗: " + failure.getClass().getSimpleName(); encoding.set(false); }
         finally {
             GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, read); GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, draw);
-            RenderSystem.bindTexture(texture);
+            sharedState.restore();
             RenderSystem.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
         }
     }

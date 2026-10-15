@@ -56,10 +56,12 @@ public final class CraftLink {
             }
         }
         @SubscribeEvent public static void shutdown(GameShuttingDownEvent e) { stopClassroom(); CLASSROOM.shutdown(); dev.craftlink.addon.AddonActions.releaseAll(); BOT_VIDEO.close(); VIDEO.close(); SERVER.shutdown(); }
-        @SubscribeEvent public static void render(TickEvent.RenderTickEvent e) { if (e.phase == TickEvent.Phase.END) { VIDEO.capture(Minecraft.getInstance()); } }
-        @SubscribeEvent public static void renderWorld(net.minecraftforge.client.event.RenderLevelStageEvent e) {
-            if(e.getStage()!=net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_LEVEL || !worldReady || BOT_VIDEO.rendering())return;
-            try { BOT_VIDEO.capture(Minecraft.getInstance(),e.getPartialTick()); }
+        @SubscribeEvent public static void render(TickEvent.RenderTickEvent e) {
+            if(e.phase==TickEvent.Phase.END){VIDEO.capture(Minecraft.getInstance());return;}
+            // Finish the auxiliary camera before vanilla sets up and renders the PC camera.
+            // Running between the PC world and hand/HUD passes leaks shared renderer state.
+            if(!worldReady || BOT_VIDEO.rendering())return;
+            try { BOT_VIDEO.capture(Minecraft.getInstance(),e.renderTickTime); }
             catch(RuntimeException failure){BOT_VIDEO.suspend(failure);}
         }
         private static void register(RegisterKeyMappingsEvent e) { e.register(OPEN); e.register(CLASSROOM_PAUSE); }

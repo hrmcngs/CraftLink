@@ -54,10 +54,11 @@ public final class BotVideoStreamer {
         if(bot==null){room.videoStatus("BOTを読み込み中です。PCでBOTの近くへ移動してください");return;}
         if(!encoding.compareAndSet(false,true))return;
         var quality=peer.quality();
+        var sharedState=new VideoRenderState();
         var originalTarget=mc.getMainRenderTarget();var originalCamera=mc.cameraEntity;
         var projection=new Matrix4f(RenderSystem.getProjectionMatrix());var sorting=RenderSystem.getVertexSorting();
         var inverse=new Matrix3f(RenderSystem.getInverseViewRotationMatrix());
-        int read=GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING),draw=GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING),texture=GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        int read=GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING),draw=GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         int[] viewport=new int[4];GL11.glGetIntegerv(GL11.GL_VIEWPORT,viewport);
 boolean scissor=GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);int[] scissorBox=new int[4];GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX,scissorBox);
 boolean depth=GL11.glIsEnabled(GL11.GL_DEPTH_TEST), blend=GL11.glIsEnabled(GL11.GL_BLEND), cull=GL11.glIsEnabled(GL11.GL_CULL_FACE);
@@ -105,8 +106,10 @@ boolean pushed=false;
             if(pushed)try{mc.getProfiler().pop();}catch(RuntimeException failure){suspend(failure);}
             mc.cameraEntity=originalCamera;((BotRenderTargetAccessor)mc).craftlink$target(originalTarget);
             RenderSystem.setProjectionMatrix(projection,sorting);RenderSystem.setInverseViewRotationMatrix(inverse);
-            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER,read);GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER,draw);RenderSystem.bindTexture(texture);RenderSystem.viewport(viewport[0],viewport[1],viewport[2],viewport[3]);
+            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER,read);GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER,draw);RenderSystem.viewport(viewport[0],viewport[1],viewport[2],viewport[3]);
             mc.getEntityRenderDispatcher().prepare(mc.level,mc.gameRenderer.getMainCamera(),mc.crosshairPickEntity);
+            mc.getBlockEntityRenderDispatcher().prepare(mc.level,mc.gameRenderer.getMainCamera(),mc.hitResult);
+            sharedState.restore();
 savedPoses.restore(((dev.craftlink.mixin.PoseStackAccessor)modelView).craftlink$poses());RenderSystem.applyModelViewMatrix();
 if(depth)RenderSystem.enableDepthTest();else RenderSystem.disableDepthTest();
 if(blend)RenderSystem.enableBlend();else RenderSystem.disableBlend();
