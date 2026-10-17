@@ -36,6 +36,20 @@ minecraft {
     }
 }
 repositories { mavenCentral(); maven { url = 'https://repo.spongepowered.org/repository/maven-public/' } }
+def withModpack = providers.gradleProperty('craftlinkModpack').map { it.toBoolean() }.getOrElse(false)
+def modpackManifest = file('.craftlink/modpack/manifest.json')
+def weapons = null
+if (withModpack) {
+    if (!modpackManifest.isFile()) throw new GradleException('先に sh build-mods.sh を実行してください。')
+    weapons = new groovy.json.JsonSlurper().parse(modpackManifest)
+    repositories {
+        maven { url = 'https://maven.theillusivec4.top/' }
+        flatDir { dirs file('.craftlink/modpack') }
+    }
+}
+configurations { modpackDistribution }
+// The launch uses devClient output, so its runtime must inherit optional Mods too.
+configurations.devClientRuntimeOnly.extendsFrom(configurations.runtimeOnly)
 mixin { add sourceSets.main, 'craftlink.refmap.json'; config 'craftlink.mixins.json' }
 configurations { embedded }
 dependencies {
@@ -46,7 +60,30 @@ dependencies {
     implementation 'io.netty:netty-codec-http:4.1.137.Final'
     implementation 'com.google.zxing:core:3.5.3'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    if (withModpack) {
+        runtimeOnly fg.deobf("craftlink.local:weapons:${weapons.sha256}")
+        runtimeOnly fg.deobf('top.theillusivec4.curios:curios-forge:5.14.1+1.20.1')
+        modpackDistribution('top.theillusivec4.curios:curios-forge:5.14.1+1.20.1') { transitive = false }
+    }
 }
+tasks.register('modpack', Sync) {
+    dependsOn 'build'
+    onlyIf { withModpack }
+    into layout.buildDirectory.dir('modpack/mods')
+    from tasks.shadowJar.archiveFile
+    from configurations.modpackDistribution
+    if (withModpack) from(file(".craftlink/modpack/weapons-${weapons.sha256}.jar")) { rename { 'The-four-primitives-and-Weapons.jar' } }
+}
+if (withModpack) {
+    // Stage these before configuring ForgeGradle: resolving a Mod configuration here
+    // would lock repositories before ForgeGradle installs its remapping filters.
+    for (def name : ['curios', 'weapons']) {
+        def rules = file(".craftlink/modpack/access-${name}.cfg")
+        if (!rules.isFile()) throw new GradleException('先に sh build-mods.sh を実行してModのアクセス設定を更新してください。')
+        minecraft.accessTransformer rules
+    }
+}
+
 def webOffline = providers.gradleProperty('webOffline').map { it.toBoolean() }.getOrElse(false)
 tasks.register('webInstall', Exec) {
     workingDir 'web'

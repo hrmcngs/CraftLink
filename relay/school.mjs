@@ -59,6 +59,7 @@ export function launchSchool(options,dependencies={}) {
       if(finished||starting)return;starting=true;clearTimeout(startup);
       log('中継接続済み。Minecraftでワールドを開くと、参加用QRを自動表示します。');
       const args=[path.join(options.root,'run.sh'),'lan'];if(options.offline)args.push('--offline');
+      if(options.mods)args.push('--mods');
       const childEnv={...process.env,ORG_GRADLE_PROJECT_craftlinkExternalUrl:url,ORG_GRADLE_PROJECT_craftlinkSchoolMode:options.mode};
       delete childEnv.CRAFTLINK_RELAY_SECRET;
       try{
@@ -73,13 +74,13 @@ export function launchSchool(options,dependencies={}) {
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  try{
   const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),args=process.argv.slice(2);
-  let mode='classroom',offline=true,setup=false;
-  for(const arg of args){if(arg==='controller'||arg==='classroom')mode=arg;else if(arg==='--offline')offline=true;else if(arg==='--online')offline=false;else if(arg==='--setup')setup=true;else throw new Error('Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup]');}
+  let mode='classroom',offline=true,setup=false,mods=false;
+  for(const arg of args){if(arg==='controller'||arg==='classroom')mode=arg;else if(arg==='--offline')offline=true;else if(arg==='--online')offline=false;else if(arg==='--setup')setup=true;else if(arg==='--mods')mods=true;else throw new Error('Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup] [--mods]');}
   let config=setup?undefined:readConfig(root);
   if(!config){config=saveConfig(root,{url:process.env.CRAFTLINK_SCHOOL_URL??DEFAULT_URL,secret:process.env.CRAFTLINK_RELAY_SECRET});console.log('初回設定をこのMacに保存しました。次回からキーの入力は不要です。');}
   // Do not pass the relay credential into Minecraft/Gradle child processes.
   delete process.env.CRAFTLINK_RELAY_SECRET;
-  const running=launchSchool({...config,root,mode,offline,port:localPort(root,mode)});
+  const running=launchSchool({...config,root,mode,offline,mods,port:localPort(root,mode)});
   process.once('SIGINT',()=>running.stop(130));process.once('SIGTERM',()=>running.stop(143));
   process.exitCode=await running.done;
  }catch(error){console.error(error.message);process.exitCode=1;}

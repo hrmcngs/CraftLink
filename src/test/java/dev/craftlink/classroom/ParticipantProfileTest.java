@@ -14,7 +14,7 @@ class ParticipantProfileTest {
         assertEquals(9,ParticipantProfile.SKINS.size());
         for(int i=0;i<9;i++)assertEquals(i,new ParticipantProfile("名前",ParticipantProfile.SKINS.get(i)).skinIndex(1));
         assertEquals(0,ParticipantProfile.DEFAULT.skinIndex(1));assertEquals(7,ParticipantProfile.DEFAULT.skinIndex(8));
-        assertEquals("あか",ParticipantProfile.DEFAULT.displayName(1));
+        assertEquals("Bot1",ParticipantProfile.DEFAULT.displayName(1));assertEquals("Bot8",ParticipantProfile.DEFAULT.displayName(8));
         for(String value:new String[]{"https://example.com/skin.png","../steve","STEVE","", "unknown"})assertThrows(IllegalArgumentException.class,()->new ParticipantProfile("",value));
     }
 }

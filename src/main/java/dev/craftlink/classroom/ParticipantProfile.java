@@ -6,7 +6,6 @@ import java.util.List;
 /** Display identity only; participant UUID, permissions and resume token stay independent. */
 public record ParticipantProfile(String name,String skin) {
     public static final List<String> SKINS=List.of("steve","alex","ari","efe","kai","makena","noor","sunny","zuri");
-    private static final List<String> NAMES=List.of("あか","あお","みどり","きいろ","むらさき","みずいろ","オレンジ","しろ");
     public static final ParticipantProfile DEFAULT=new ParticipantProfile("","auto");
     public ParticipantProfile {
         if(name==null)name="";
@@ -16,6 +15,6 @@ public record ParticipantProfile(String name,String skin) {
         if(skin==null)skin="auto";
         if(!skin.equals("auto")&&!SKINS.contains(skin))throw new IllegalArgumentException("Unknown skin");
     }
-    public String displayName(int number){return name.isEmpty()?NAMES.get(number-1):name;}
+    public String displayName(int number){return name.isEmpty()?"Bot"+number:name;}
     public int skinIndex(int number){return skin.equals("auto")?Math.floorMod(number-1,SKINS.size()):SKINS.indexOf(skin);}
 }

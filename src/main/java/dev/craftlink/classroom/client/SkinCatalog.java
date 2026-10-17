@@ -17,6 +17,7 @@ public final class SkinCatalog {
             try(var stream=mc.getResourceManager().open(new ResourceLocation("minecraft","textures/entity/player/wide/"+id+".png"));var texture=NativeImage.read(stream);var face=new NativeImage(8,8,false)){
                 for(int y=0;y<8;y++)for(int x=0;x<8;x++){face.setPixelRGBA(x,y,texture.getPixelRGBA(8+x,8+y));face.blendPixel(x,y,texture.getPixelRGBA(40+x,8+y));}
                 entry.addProperty("image","data:image/png;base64,"+Base64.getEncoder().encodeToString(face.asByteArray()));
+                byte[] skin=texture.asByteArray();if(skin.length<=196608)entry.addProperty("texture","data:image/png;base64,"+Base64.getEncoder().encodeToString(skin));
             }catch(Exception failure){com.mojang.logging.LogUtils.getLogger().warn("CraftLink skin preview unavailable: {}",id);}
             skins.add(entry);
         }

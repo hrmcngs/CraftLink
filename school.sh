@@ -2,6 +2,7 @@
 # CraftLink インターネット中継付き起動（このファイルのあるフォルダーで実行）
 # sh school.sh             # 保存済み設定でMinecraftと中継をまとめて起動
 # sh school.sh --online    # 初回・依存キャッシュ不足時（依存取得を許可）
+# sh school.sh --mods      # Curios・武器Mod入りで起動
 # sh school.sh --setup     # 中継の接続設定をやり直す
 # sh school.sh controller  # BOT参加ではなく自分のプレイヤーを操作
 # 初回のみ中継の秘密キーを非表示入力します。このファイルに記載しないでください。

@@ -9,6 +9,54 @@ class ClassroomRoomTest {
         public void send(String json){messages.add(json);} public void close(){closed=true;}
         String resume(){return JsonParser.parseString(messages.get(0)).getAsJsonObject().get("resume").getAsString();}
     }
+    @Test void analogMovementIsBoundedAndStopsWithPauseOrEmptyInput(){
+        var room=new ClassroomRoom();var socket=new Socket();var id=room.join(room.token(),"",socket);
+        var move=new ClassroomRoom.Move(.3,.4);room.input(id,socket,Set.of("forward","right"),0,0,null,move);
+        assertEquals(move,room.takeInputs().get(id).movement());
+        room.input(id,socket,Set.of(),0,0,null,move);assertNull(room.takeInputs().get(id).movement());
+        room.input(id,socket,Set.of("forward"),0,0,null,move);room.pause(true);assertNull(room.takeInputs().get(id).movement());
+        assertThrows(IllegalArgumentException.class,()->new ClassroomRoom.Move(Double.NaN,0));
+        assertThrows(IllegalArgumentException.class,()->new ClassroomRoom.Move(2,0));
+        var diagonal=new ClassroomRoom.Move(1,1);assertEquals(1,Math.hypot(diagonal.x(),diagonal.z()),1e-6);
+    }
+    @Test void inventoryMovesAreBoundedIsolatedAndCancelledByPause(){
+        var room=new ClassroomRoom();var one=new Socket();var two=new Socket();var id=room.join(room.token(),"",one);room.join(room.token(),"",two);
+        room.takeInputs();room.moveItem(id,two,9,10,false);assertEquals(-1,room.takeInputs().get(id).swapSlot());
+        room.moveItem(id,one,9,10,false);assertEquals(10000+9*169+10,room.takeInputs().get(id).swapSlot());
+        assertEquals(-1,room.takeInputs().get(id).swapSlot());
+        room.moveItem(id,one,41,0,true);assertEquals(10000+169*169+41*169,room.takeInputs().get(id).swapSlot());
+        room.moveItem(id,one,0,40,false);room.pause(true);room.pause(false);assertEquals(-1,room.takeInputs().get(id).swapSlot());
+        room.pause(true);room.moveItem(id,one,0,39,false);assertEquals(-1,room.takeInputs().get(id).swapSlot());
+        assertThrows(IllegalArgumentException.class,()->room.moveItem(id,one,-1,0,false));
+        assertThrows(IllegalArgumentException.class,()->room.moveItem(id,one,0,169,false));
+    }
+    @Test void individualModeUpdatesOnlyItsParticipantAndGlobalModeResetsOverrides(){
+        var room=new ClassroomRoom();var one=new Socket();var two=new Socket();
+        var a=room.join(room.token(),"",one);var b=room.join(room.token(),"",two);
+        room.input(a,one,Set.of("use"),0);room.input(b,two,Set.of("forward"),0);
+        room.drop(a,one,0,true);room.creative(a,one,"",0,1);
+        assertTrue(room.mode(1,ClassroomRoom.Mode.CREATIVE));
+        var inputs=room.takeInputs();
+        assertEquals(ClassroomRoom.Mode.CREATIVE,inputs.get(a).mode());
+        assertEquals(ClassroomRoom.Mode.SURVIVAL,inputs.get(b).mode());
+        assertTrue(inputs.get(a).input().held().isEmpty());assertNull(inputs.get(a).drop());assertNull(inputs.get(a).creative());
+        assertEquals(Set.of("forward"),inputs.get(b).input().held());assertTrue(inputs.get(a).inventoryRequested());
+        var state=JsonParser.parseString(one.messages.get(one.messages.size()-1)).getAsJsonObject();
+        assertEquals("creative",state.get("mode").getAsString());
+        room.flight(a,one);room.flight(b,two);inputs=room.takeInputs();assertTrue(inputs.get(a).flying());assertFalse(inputs.get(b).flying());
+        assertTrue(room.mode(1,ClassroomRoom.Mode.SURVIVAL));assertFalse(room.takeInputs().get(a).flying());
+        room.mode(2,ClassroomRoom.Mode.SURVIVAL);room.mode(ClassroomRoom.Mode.CREATIVE);
+        assertTrue(room.takeInputs().values().stream().allMatch(input->input.mode()==ClassroomRoom.Mode.CREATIVE));
+        assertFalse(room.mode(8,ClassroomRoom.Mode.CREATIVE));
+    }
+    @Test void individualModeSurvivesReconnectAndAppliesWhilePaused(){
+        var room=new ClassroomRoom();var socket=new Socket();var id=room.join(room.token(),"",socket);
+        String resume=socket.resume();room.pause(true);assertTrue(room.mode(1,ClassroomRoom.Mode.CREATIVE));
+        assertTrue(room.paused());room.disconnect(id,socket);var reconnected=new Socket();
+        assertEquals(id,room.join(room.token(),resume,reconnected));
+        assertEquals(ClassroomRoom.Mode.CREATIVE,room.takeInputs().get(id).mode());
+        room.remove(id);assertFalse(room.mode(1,ClassroomRoom.Mode.SURVIVAL));
+    }
     @Test void qrJoinImmediatelyEnablesIndependentInputsAndManualPauseStillBlocks(){
         var room=new ClassroomRoom();var one=new Socket();var two=new Socket();
         UUID a=room.join(room.token(),"",one),b=room.join(room.token(),"",two);
@@ -119,7 +167,18 @@ static class VideoSocket extends Socket {
     room.inventory(a,one,12);assertEquals(12,room.takeInputs().get(a).swapSlot());assertEquals(-1,room.takeInputs().get(a).swapSlot());
     room.inventory(a,one,13);room.pause(true);room.pause(false);assertEquals(-1,room.takeInputs().get(a).swapSlot());
     room.pause(true);room.inventory(a,one,7);room.inventory(a,one,14);states=room.takeInputs();assertEquals(5,states.get(a).selectedSlot());assertEquals(-1,states.get(a).swapSlot());
-    assertThrows(IllegalArgumentException.class,()->room.inventory(a,one,36));assertThrows(IllegalArgumentException.class,()->room.inventory(a,one,-2));
+    assertThrows(IllegalArgumentException.class,()->room.inventory(a,one,41));assertThrows(IllegalArgumentException.class,()->room.inventory(a,one,-2));
+}
+@Test void equipmentRequestsAreIsolatedBoundedAndCancelled(){
+    var room=new ClassroomRoom();var one=new Socket();var two=new Socket();var id=room.join(room.token(),"",one);room.join(room.token(),"",two);
+    room.takeInputs();room.equip(id,two,0,40);assertEquals(-1,room.takeInputs().get(id).swapSlot());
+    room.equip(id,one,0,40);assertTrue(room.takeInputs().get(id).swapSlot()>=1000);assertEquals(-1,room.takeInputs().get(id).swapSlot());
+    room.equip(id,one,35,168);room.pause(true);room.pause(false);assertEquals(-1,room.takeInputs().get(id).swapSlot());
+    room.pause(true);room.equip(id,one,0,39);assertEquals(-1,room.takeInputs().get(id).swapSlot());room.pause(false);
+    room.equip(id,one,0,41);room.disconnect(id,one);assertEquals(-1,room.takeInputs().get(id).swapSlot());
+    assertThrows(IllegalArgumentException.class,()->room.equip(id,one,36,40));
+    assertThrows(IllegalArgumentException.class,()->room.equip(id,one,0,35));
+    assertThrows(IllegalArgumentException.class,()->room.equip(id,one,0,169));
 }
 @Test void creativeRequestsRemainBoundedIsolatedAndStopWithPause(){
     var room=new ClassroomRoom();var one=new Socket();var two=new Socket();var a=room.join(room.token(),"",one);var b=room.join(room.token(),"",two);
@@ -157,7 +216,7 @@ static class VideoSocket extends Socket {
  room.drop(id,b,0,true);assertNull(room.takeInputs().get(id).drop());room.inventory(id,a,5);room.drop(id,a,-1,false);var input=room.takeInputs().get(id);assertEquals(5,input.drop().slot());assertFalse(input.drop().all());assertNull(room.takeInputs().get(id).drop());
  room.drop(id,a,35,true);assertTrue(room.takeInputs().get(id).drop().all());room.drop(id,a,0,true);room.pause(true);room.pause(false);assertNull(room.takeInputs().get(id).drop());
  room.drop(id,a,0,true);room.mode(ClassroomRoom.Mode.CREATIVE);assertNull(room.takeInputs().get(id).drop());room.drop(id,a,0,true);room.disconnect(id,a);assertNull(room.takeInputs().get(id).drop());
- assertThrows(IllegalArgumentException.class,()->room.drop(id,a,36,false));assertThrows(IllegalArgumentException.class,()->room.drop(id,a,-2,false));
+ assertThrows(IllegalArgumentException.class,()->room.drop(id,a,41,false));assertThrows(IllegalArgumentException.class,()->room.drop(id,a,-2,false));
 }
 @Test void onlyCreativeParticipantsCanFlyAndModeChangesLandEveryone(){
  var room=new ClassroomRoom();var a=new Socket();var b=new Socket();var id=room.join(room.token(),"",a);room.join(room.token(),"",b);
@@ -181,4 +240,23 @@ static class VideoSocket extends Socket {
  var room=new ClassroomRoom();var socket=new Socket();assertThrows(IllegalArgumentException.class,()->room.join(room.token(),"",socket,"<bad>","alex"));assertTrue(room.views().isEmpty());
  var id=room.join(room.token(),"",socket,"Alex","alex");assertThrows(IllegalArgumentException.class,()->room.profile(id,socket,"名前","https://outside/skin"));assertEquals("Alex",room.takeInputs().get(id).profile().name());
 }
+@Test void countedMovesAndDropsStayBoundedAndMenuActionsDoNotSurvivePause(){
+ var room=new ClassroomRoom();var socket=new Socket();var other=new Socket();var id=room.join(room.token(),"",socket);room.join(room.token(),"",other);
+ room.moveItem(id,socket,9,10,false,7);int encoded=room.takeInputs().get(id).swapSlot()-100000;assertEquals(7,encoded/(169*169)+1);assertEquals(9*169+10,encoded%(169*169));
+ room.drop(id,socket,9,false,7);assertEquals(7,room.takeInputs().get(id).drop().count());
+ assertThrows(IllegalArgumentException.class,()->room.moveItem(id,socket,9,10,false,65));assertThrows(IllegalArgumentException.class,()->room.drop(id,socket,9,false,0));
+ var action=new ClassroomRoom.UiAction("click",2,3,0,"");room.ui(id,other,action);assertTrue(room.takeUi(id).isEmpty());
+ room.ui(id,socket,action);assertEquals(List.of(action),room.takeUi(id));assertTrue(room.takeUi(id).isEmpty());
+ room.ui(id,socket,action);room.pause(true);room.pause(false);assertTrue(room.takeUi(id).isEmpty());
+ room.ui(id,socket,action);room.disconnect(id,socket);assertTrue(room.takeUi(id).isEmpty());
+}
+
+@Test void weaponSkillActionsAreIsolatedOrderedAndCancelledOnPause(){
+ var room=new ClassroomRoom();var socket=new Socket();var other=new Socket();var id=room.join(room.token(),"",socket);room.join(room.token(),"",other);
+ var start=new ClassroomRoom.UiAction("skillStart",-1,-1,0,"");var release=new ClassroomRoom.UiAction("skillRelease",-1,-1,0,"");
+ room.ui(id,other,start);assertTrue(room.takeUi(id).isEmpty());room.ui(id,socket,start);room.ui(id,socket,release);assertEquals(List.of(start,release),room.takeUi(id));
+ assertTrue(room.canAct(id));room.ui(id,socket,start);room.pause(true);assertFalse(room.canAct(id));assertTrue(room.takeUi(id).isEmpty());room.ui(id,socket,release);room.pause(false);assertTrue(room.takeUi(id).isEmpty());
+ room.disconnect(id,socket);assertFalse(room.canAct(id));room.ui(id,socket,start);assertTrue(room.takeUi(id).isEmpty());
+}
+
 }

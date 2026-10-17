@@ -96,6 +96,7 @@ public final class ClassroomServer {
                 peer = room.join(data.get("token").getAsString(), data.has("resume") ? data.get("resume").getAsString() : "", socket,data.has("name")?data.get("name").getAsString():null,data.has("skin")?data.get("skin").getAsString():null); return;
             }
             switch (type) {
+                case "ui" -> room.ui(peer,socket,new ClassroomRoom.UiAction(data.get("action").getAsString(),data.has("menu")?data.get("menu").getAsInt():-1,data.has("slot")?data.get("slot").getAsInt():-1,data.has("button")?data.get("button").getAsInt():0,data.has("text")?data.get("text").getAsString():""));
                 case "profile" -> room.profile(peer,socket,data.get("name").getAsString(),data.get("skin").getAsString());
                 case "ping" -> {
                     var pong = new JsonObject(); pong.addProperty("type", "pong"); pong.addProperty("videoStatus", room.videoStatus()); socket.send(pong.toString());
@@ -104,15 +105,17 @@ public final class ClassroomServer {
                 case "video" -> room.video(peer, socket, data.get("enabled").getAsBoolean(), data.has("quality") ? dev.craftlink.video.BotVideoQuality.parse(data.get("quality").getAsString()) : dev.craftlink.video.BotVideoQuality.BALANCED);
                 case "frameAck" -> room.frameAck(peer, socket, data.get("frame").getAsInt());
                 case "creative" -> room.creative(peer,socket,data.has("tab")?data.get("tab").getAsString():"",data.has("page")?data.get("page").getAsInt():0,data.has("item")?data.get("item").getAsInt():-1);
+                case "moveItem" -> room.moveItem(peer,socket,data.get("source").getAsInt(),data.get("target").getAsInt(),data.has("half")&&data.get("half").getAsBoolean(),data.has("count")?data.get("count").getAsInt():-1);
+                case "equip" -> room.equip(peer,socket,data.get("slot").getAsInt(),data.get("target").getAsInt());
                 case "inventory" -> room.inventory(peer,socket,data.has("slot") ? data.get("slot").getAsInt() : -1);
-                case "drop" -> room.drop(peer,socket,data.has("slot")?data.get("slot").getAsInt():-1,data.has("all")&&data.get("all").getAsBoolean());
+                case "drop" -> room.drop(peer,socket,data.has("slot")?data.get("slot").getAsInt():-1,data.has("all")&&data.get("all").getAsBoolean(),data.has("count")?data.get("count").getAsInt():-1);
                 case "flight" -> room.flight(peer,socket);
                 case "preferences" -> room.preferences(peer,socket,data.has("autoJump")&&data.get("autoJump").getAsBoolean());
                 case "input" -> {
                     JsonArray buttons = data.getAsJsonArray("held"); if (buttons.size() > ClassroomRoom.BUTTONS.size()) throw new IllegalArgumentException();
                     Set<String> held = new HashSet<>(); for (JsonElement button : buttons) held.add(button.getAsString());
                     var target=data.has("target")&&!data.get("target").isJsonNull()?data.getAsJsonObject("target"):null;
-                    room.input(peer, socket, held, data.get("dx").getAsDouble(), data.has("dy") ? data.get("dy").getAsDouble() : 0,target==null?null:new ClassroomRoom.Touch(target.get("frame").getAsInt(),target.get("x").getAsDouble(),target.get("y").getAsDouble()));
+                    room.input(peer, socket, held, data.get("dx").getAsDouble(), data.has("dy") ? data.get("dy").getAsDouble() : 0,target==null?null:new ClassroomRoom.Touch(target.get("frame").getAsInt(),target.get("x").getAsDouble(),target.get("y").getAsDouble()),data.has("moveX")&&data.has("moveZ")?new ClassroomRoom.Move(data.get("moveX").getAsDouble(),data.get("moveZ").getAsDouble()):null);
                 }
                 default -> throw new IllegalArgumentException("Unsupported classroom message");
             }

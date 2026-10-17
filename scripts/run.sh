@@ -6,12 +6,14 @@ transport=lan
 offline=false
 prepare=false
 port=""
-usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--port 1024..65535] [--prepare]\n'; }
+modpack=false
+usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--mods] [--port 1024..65535] [--prepare]\n'; }
 if [[ "${1:-}" == lan || "${1:-}" == usb ]]; then transport="$1"; shift; fi
 while (( $# )); do
   case "$1" in
     --offline|offline) offline=true; shift ;;
     --prepare) prepare=true; shift ;;
+    --mods) modpack=true; shift ;;
     --port) if (( $# < 2 )) || [[ -z "$2" ]]; then usage >&2; exit 2; fi; port="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
@@ -27,6 +29,7 @@ for tool in java node npm; do
 done
 args=(runClient --console=plain "-PcraftlinkTransport=$transport")
 if [[ "$prepare" == true ]]; then args=(classes prepareRunClient --console=plain "-PcraftlinkTransport=$transport"); fi
+if [[ "$modpack" == true ]]; then args+=(-PcraftlinkModpack=true); fi
 if [[ -n "$port" ]]; then args+=("-PcraftlinkPort=$port"); fi
 if [[ "$offline" == true ]]; then
   if [[ ! -d web/node_modules ]]; then printf 'Offline dependencies missing. First run: sh run.sh --prepare\n' >&2; exit 1; fi

@@ -4,11 +4,13 @@
   "package": "dev.craftlink.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "craftlink.refmap.json",
+  "mixins": ["BotCuriosSlotsMixin"],
   "client": [
     "MinecraftActions",
     "MinecraftInputMixin",
     "LocalPlayerSprintMixin",
     "VideoProjectionMixin",
+    "BotTerrainMixin",
     "AddonKeyMappingMixin",
     "BotRenderTargetAccessor",
     "BotEntityVisibilityMixin",

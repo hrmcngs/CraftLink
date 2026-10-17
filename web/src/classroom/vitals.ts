@@ -1,0 +1,45 @@
+export interface Vitals {survival:boolean;health:number;maxHealth:number;absorption:number;armor:number;food:number;level:number;progress:number;effects:{id:string;name:string;amplifier:number;duration:number;color:number}[]}
+export function normalizeVitals(value:unknown):Vitals|undefined{
+ if(!value||typeof value!=='object')return;
+ const d=value as Record<string,unknown>;
+ for(const key of ['health','maxHealth','absorption','armor','food','level','progress'])if(typeof d[key]!=='number'||!Number.isFinite(d[key]))return;
+ if(typeof d.survival!=='boolean'||!Array.isArray(d.effects)||d.effects.length>128)return;
+ const effects=[];
+ for(const effect of d.effects){
+  if(!effect||typeof effect.id!=='string'||typeof effect.name!=='string'||effect.name.length>160||!Number.isInteger(effect.amplifier)||!Number.isInteger(effect.duration)||!Number.isInteger(effect.color))return;
+  effects.push({id:effect.id,name:effect.name,amplifier:Math.max(0,Math.min(255,effect.amplifier)),duration:Math.max(-1,effect.duration),color:effect.color&0xffffff});
+ }
+ const maxHealth=Math.max(1,Math.min(1024,d.maxHealth as number));
+ return {survival:d.survival,health:Math.max(0,Math.min(maxHealth,d.health as number)),maxHealth,absorption:Math.max(0,Math.min(1024,d.absorption as number)),armor:Math.max(0,Math.min(20,d.armor as number)),food:Math.max(0,Math.min(20,d.food as number)),level:Math.max(0,Math.min(2147483647,Math.floor(d.level as number))),progress:Math.max(0,Math.min(1,d.progress as number)),effects};
+}
+const heart='M2 1h3v2h2V1h3v1h2v4h-2v2H8v2H6v2H4v-2H2V8H0V3h2z';
+const food='M2 1h5v1h2v5H7v2H3V7H1V3h1z M7 8h2v2h2v2H9v-1H7z';
+const shield='M1 1h10v6L6 12 1 7z';
+function meter(element:HTMLElement,value:number,count:number,path:string,color:string){
+ element.replaceChildren();element.style.setProperty('--meter-color',color);
+ for(let i=0;i<count;i++){
+  const icon=document.createElement('span');icon.className='meter-icon';icon.setAttribute('aria-hidden','true');
+  icon.innerHTML=`<svg viewBox="0 0 12 13"><path d="${path}"/></svg><span class="meter-fill"><svg viewBox="0 0 12 13"><path d="${path}"/></svg></span>`;
+  (icon.lastElementChild as HTMLElement).style.clipPath=`inset(0 ${100-Math.max(0,Math.min(1,value/2-i))*100}% 0 0)`;
+  element.append(icon);
+ }
+}
+export function renderVitals(root:HTMLElement,value:unknown){
+ const data=normalizeVitals(value);if(!data)return;
+ const bars=root.querySelector<HTMLElement>('#survival-bars')!;bars.hidden=!data.survival;
+ const poisoned=data.effects.some(e=>e.id==='minecraft:poison'),withered=data.effects.some(e=>e.id==='minecraft:wither');
+ const health=root.querySelector<HTMLElement>('#health-meter')!;meter(health,data.health,Math.min(40,Math.ceil(data.maxHealth/2)),heart,poisoned?'#779d32':withered?'#63535d':'#ed3939');health.setAttribute('aria-label',`体力 ${data.health} / ${data.maxHealth}`);
+ const absorption=root.querySelector<HTMLElement>('#absorption-meter')!;meter(absorption,data.absorption,Math.min(20,Math.ceil(data.absorption/2)),heart,'#f8d64c');absorption.hidden=data.absorption<=0;
+ const armor=root.querySelector<HTMLElement>('#armor-meter')!;meter(armor,data.armor,10,shield,'#d6e3e8');armor.hidden=data.armor<=0;armor.setAttribute('aria-label',`防御力 ${data.armor} / 20`);
+ const hunger=root.querySelector<HTMLElement>('#food-meter')!;meter(hunger,data.food,10,food,'#bb7842');hunger.setAttribute('aria-label',`満腹度 ${data.food} / 20`);
+ root.querySelector<HTMLElement>('#experience-level')!.textContent=String(data.level);
+ root.querySelector<HTMLElement>('#experience-fill')!.style.width=(data.progress*100)+'%';
+ const xp=root.querySelector<HTMLElement>('#experience-bar')!;xp.setAttribute('aria-valuenow',String(Math.round(data.progress*100)));xp.setAttribute('aria-valuetext',`レベル ${data.level}`);
+ const effects=root.querySelector<HTMLElement>('#bot-effects')!;effects.replaceChildren();
+ for(const effect of data.effects){
+  const badge=document.createElement('div');badge.className='effect-badge';badge.style.setProperty('--effect-color','#'+effect.color.toString(16).padStart(6,'0'));
+  const name=document.createElement('span');name.textContent=effect.name+(effect.amplifier>0?' '+(effect.amplifier+1):'');
+  const time=document.createElement('small');const seconds=Math.ceil(effect.duration/20);time.textContent=effect.duration<0?'∞':Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');badge.append(name,time);effects.append(badge);
+ }
+}
+export const vitalsMarkup='<div id="bot-vitals"><div id="survival-bars" hidden><div id="armor-meter" class="meter" aria-label="防御力" hidden></div><div class="survival-row"><div class="heart-meters"><div id="health-meter" class="meter" aria-label="体力"></div><div id="absorption-meter" class="meter" hidden></div></div><div id="food-meter" class="meter" aria-label="満腹度"></div></div><span id="experience-level"></span><div id="experience-bar" role="progressbar" aria-label="経験値" aria-valuemin="0" aria-valuemax="100"><i id="experience-fill"></i></div></div></div><aside id="bot-effects" aria-label="現在のステータス効果"></aside>';

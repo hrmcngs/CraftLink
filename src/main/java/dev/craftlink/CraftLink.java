@@ -44,7 +44,9 @@ public final class CraftLink {
             FMLJavaModLoadingContext.get().getModEventBus().addListener(Client::register);
             MinecraftForge.EVENT_BUS.register(Client.class);
             MinecraftForge.EVENT_BUS.register(dev.craftlink.gui.ControlsIntegration.class);
+            MinecraftForge.EVENT_BUS.register(dev.craftlink.gui.PlayerAccessoriesIntegration.class);
             MinecraftForge.EVENT_BUS.register(BOTS);
+            MinecraftForge.EVENT_BUS.register(dev.craftlink.classroom.ClassroomCommands.class);
             Runtime.getRuntime().addShutdownHook(new Thread(SERVER::shutdown, "CraftLink shutdown"));
             Runtime.getRuntime().addShutdownHook(new Thread(CLASSROOM::shutdown, "CraftLink classroom shutdown"));
         }
@@ -83,7 +85,7 @@ public final class CraftLink {
                     mc.options.pauseOnLostFocus = false;
                     try { room.catalog(dev.craftlink.classroom.CreativeCatalog.build(mc)); } catch (Exception ignored) { room.catalog(null); }
                     room.skins(dev.craftlink.classroom.client.SkinCatalog.build(mc));
-                    BOTS.start(mc.getSingleplayerServer(),room,mc.player.level().dimension(),mc.player.blockPosition(),mc.player.getYRot());
+                    BOTS.start(mc.getSingleplayerServer(),room,mc.player.level().dimension(),mc.player.blockPosition(),mc.player.getYRot(),mc.player.getUUID());
                 }
             }
             String schoolMode = System.getProperty("craftlink.schoolMode", "");

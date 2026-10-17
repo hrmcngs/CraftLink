@@ -33,10 +33,11 @@ public final class BotVideoStreamer {
     public void entityRendered(Entity entity){if(rendering && entity instanceof net.minecraft.world.entity.player.Player)playerCount++;}
     private volatile String error = "";
     private volatile ClassroomRoom failedRoom;
+    private long retryAfter;
     public void suspend(RuntimeException failure){
-        rendering=false;failedRoom=server.room();error="BOT映像を停止しました。部屋を終了して再開してください";
+        rendering=false;failedRoom=server.room();retryAfter=System.nanoTime()+2_000_000_000L;error="BOT映像の描画を再試行しています";
         if(failedRoom!=null)failedRoom.videoStatus(error);
-        com.mojang.logging.LogUtils.getLogger().error("CraftLink BOT video suspended after a rendering failure",failure);
+        com.mojang.logging.LogUtils.getLogger().error("CraftLink BOT video will retry after a rendering failure",failure);
     }
     public BotVideoStreamer(ClassroomServer server, ClassroomBots bots){this.server=server;this.bots=bots;}
     public void bindWorldTarget(){if(rendering && target!=null)target.bindWrite(true);}
@@ -44,7 +45,7 @@ public final class BotVideoStreamer {
     public String error(){return error;}
     public void capture(Minecraft mc,float partial){
         ClassroomRoom room=server.room();
-        if(room==null||room==failedRoom||mc.getOverlay()!=null||mc.level==null||mc.player==null||encoding.get()||encoder.isShutdown()||System.nanoTime()<nextCapture)return;
+        if(room==null||room==failedRoom&&System.nanoTime()<retryAfter||mc.getOverlay()!=null||mc.level==null||mc.player==null||encoding.get()||encoder.isShutdown()||System.nanoTime()<nextCapture)return;
         var peers=room.videoTargets();if(peers.isEmpty())return;
         long captureStart=System.nanoTime();
         nextCapture=captureStart+50_000_000L;
@@ -56,6 +57,7 @@ public final class BotVideoStreamer {
         var quality=peer.quality();
         var sharedState=new VideoRenderState();
         var originalTarget=mc.getMainRenderTarget();var originalCamera=mc.cameraEntity;
+        boolean originalSmartCull=mc.smartCull;
         var projection=new Matrix4f(RenderSystem.getProjectionMatrix());var sorting=RenderSystem.getVertexSorting();
         var inverse=new Matrix3f(RenderSystem.getInverseViewRotationMatrix());
         int read=GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING),draw=GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
@@ -71,6 +73,8 @@ boolean pushed=false;
 
         try{
             rendering=true;playerCount=0;RenderSystem.disableScissor();
+            // A PC-camera occlusion graph can omit the floor seen from the BOT.
+            mc.smartCull=false;
             if(target==null || target.width!=quality.width || target.height!=quality.height){
                 if(target!=null)target.destroyBuffers();
                 target=new TextureTarget(quality.width,quality.height,true,Minecraft.ON_OSX);
@@ -102,10 +106,10 @@ boolean pushed=false;
             int frame=sequence=sequence==Integer.MAX_VALUE?1:sequence+1;
             var view=new ClassroomRoom.ViewSample(camera.getPosition().x,camera.getPosition().y,camera.getPosition().z,camera.getYRot(),camera.getXRot(),(double)quality.width/quality.height);
             encoder.execute(()->{try{room.publishVideo(peer,frame,VideoFrame.packet(frame,quality.width,quality.height,0,jpeg.encodeFrame(quality.width,quality.height,pixels,quality.jpegQuality)),view);error="";room.videoStatus("");}catch(Exception failure){error="BOT映像の圧縮に失敗しました";room.videoStatus(error);}finally{encoding.set(false);}});
-        }catch(Exception failure){suspend(failure instanceof RuntimeException runtime?runtime:new RuntimeException(failure));encoding.set(false);}
+        }catch(Exception|LinkageError failure){suspend(failure instanceof RuntimeException runtime?runtime:new RuntimeException(failure));encoding.set(false);}
         finally{
             if(pushed)try{mc.getProfiler().pop();}catch(RuntimeException failure){suspend(failure);}
-            mc.cameraEntity=originalCamera;((BotRenderTargetAccessor)mc).craftlink$target(originalTarget);
+            mc.smartCull=originalSmartCull;mc.cameraEntity=originalCamera;((BotRenderTargetAccessor)mc).craftlink$target(originalTarget);
             RenderSystem.setProjectionMatrix(projection,sorting);RenderSystem.setInverseViewRotationMatrix(inverse);
             GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER,read);GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER,draw);RenderSystem.viewport(viewport[0],viewport[1],viewport[2],viewport[3]);
             mc.getEntityRenderDispatcher().prepare(mc.level,mc.gameRenderer.getMainCamera(),mc.crosshairPickEntity);

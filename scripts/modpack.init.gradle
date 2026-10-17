@@ -1,0 +1,29 @@
+// Export the exact rebuilt distribution, without editing the other project.
+gradle.projectsEvaluated {
+    rootProject.tasks.register('craftlinkStage') {
+        dependsOn rootProject.tasks.named('build')
+        mustRunAfter 'reobfJar', 'compactDistributionJar'
+        doLast {
+            def jar = rootProject.tasks.named('jar').get().archiveFile.get().asFile
+            def digest = java.security.MessageDigest.getInstance('SHA-256').digest(jar.bytes).encodeHex().toString()
+            def directory = new File(rootProject.property('craftlinkStageDirectory').toString())
+            directory.mkdirs()
+            def curios = rootProject.configurations.detachedConfiguration(rootProject.dependencies.create('top.theillusivec4.curios:curios-forge:5.14.1+1.20.1'))
+            curios.transitive = false
+            def archives = [weapons: jar, curios: curios.singleFile]
+            archives.each { name, archive ->
+                new java.util.zip.ZipFile(archive).withCloseable { zip ->
+                    def entry = zip.getEntry('META-INF/accesstransformer.cfg')
+                    def text = entry == null ? '# No access rules\n' : zip.getInputStream(entry).withCloseable { it.getText('UTF-8') }
+                    def rules = new File(directory, "access-${name}.cfg")
+                    if (!rules.exists() || rules.getText('UTF-8') != text) rules.setText(text, 'UTF-8')
+                }
+            }
+            rootProject.copy { from jar; into directory; rename { "weapons-${digest}.jar" } }
+            new File(directory, 'manifest.json').text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([
+                project: rootProject.projectDir.absolutePath, sourceJar: jar.name, sha256: digest,
+                minecraft: '1.20.1', curios: '5.14.1+1.20.1'
+            ]))
+        }
+    }
+}

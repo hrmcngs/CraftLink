@@ -17,9 +17,9 @@ test('unsafe URLs, exposed credentials and symlink settings are rejected',()=>{
 test('school bridge uses the existing Minecraft port for each mode',()=>{
  const root=temporary();try{assert.equal(localPort(root,'classroom'),8766);fs.mkdirSync(path.join(root,'run/config'),{recursive:true});fs.writeFileSync(path.join(root,'run/config/craftlink-client.toml'),'port = 9000\nclassroomPort = 9001 # classroom\n');assert.equal(localPort(root,'controller'),9000);assert.equal(localPort(root,'classroom'),9001);}finally{fs.rmSync(root,{recursive:true});}
 });
-function lifecycle(extra={}){
+function lifecycle(extra={},options={}){
  const connections=[],games=[],game=new EventEmitter();let terminated=0;
- const running=launchSchool({url,secret,mode:'classroom',port:8766,root:'/tmp/project with spaces',offline:true},{
+ const running=launchSchool({url,secret,mode:'classroom',port:8766,root:'/tmp/project with spaces',offline:true,...options},{
   connect:options=>{const bridge={terminate(){bridge.closed=true;}};connections.push({options,bridge});return bridge;},
   spawnGame:(...args)=>{games.push(args);return game;},terminate:()=>terminated++,log:()=>{},retryMs:5,startupMs:1000,...extra
  });return {running,connections,games,game,terminated:()=>terminated};
@@ -31,6 +31,9 @@ test('one launch connects first, starts Minecraft with the URL automatically, an
 });
 test('relay reconnects without starting a second Minecraft; Ctrl+C stops both',async()=>{
  const f=lifecycle();try{f.connections[0].options.onReady();f.connections[0].options.onClose();await new Promise(resolve=>setTimeout(resolve,20));assert.equal(f.connections.length,2);f.connections[1].options.onReady();assert.equal(f.games.length,1);f.running.stop(130);assert.equal(await f.running.done,130);assert.equal(f.terminated(),1);assert.equal(f.connections[1].bridge.closed,true);}finally{f.running.stop();}
+});
+test('Mod-enabled school launch passes the Mod profile through to Minecraft',async()=>{
+ const f=lifecycle({}, {mods:true});try{f.connections[0].options.onReady();assert.deepEqual(f.games[0][1],['/tmp/project with spaces/run.sh','lan','--offline','--mods']);f.game.emit('exit',0);assert.equal(await f.running.done,0);}finally{f.running.stop();}
 });
 test('unreachable relay times out without starting Minecraft',async()=>{
  const f=lifecycle({startupMs:10});assert.equal(await f.running.done,1);assert.equal(f.games.length,0);assert.equal(f.connections[0].bridge.closed,true);

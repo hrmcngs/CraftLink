@@ -8,8 +8,9 @@ for arg in "$@"; do
     --setup) setup=true ;;
     --offline) offline=true ;;
     --online) offline=false ;;
+    --mods) ;;
     classroom|controller) ;;
-    --help|-h) printf 'Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup]\n標準はBOT参加・取得済みキャッシュで起動。初回のみRenderの認証キーを入力。以降はMinecraftと中継をまとめて起動します。\n'; exit 0 ;;
+    --help|-h) printf 'Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup] [--mods]\n標準はBOT参加・取得済みキャッシュで起動。--modsでCurios・武器Modを読み込みます。初回のみRenderの認証キーを入力。\n'; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$arg" >&2; exit 2 ;;
   esac
 done
