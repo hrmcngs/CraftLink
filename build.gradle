@@ -32,6 +32,7 @@ minecraft {
             property 'craftlink.transport', craftlinkTransport
             if (craftlinkLogin) {
                 property 'devauth.enabled', 'true'
+                property 'devauth.account', 'main'
                 property 'devauth.configDir', file('.craftlink/dev-auth').absolutePath
             }
             if (providers.gradleProperty('craftlinkExternalUrl').isPresent()) property 'craftlink.externalUrl', providers.gradleProperty('craftlinkExternalUrl').get()
@@ -209,10 +210,11 @@ tasks.matching { it.name == 'runClient' }.configureEach { dependsOn 'prepareDevC
 tasks.register('verifyDevLogin') {
     doLast {
         if (!craftlinkLogin) throw new GradleException('Use -PcraftlinkLogin=true to verify development login.')
+        if (minecraft.runs.client.properties['devauth.account'] != 'main') throw new GradleException('The authenticated client must select the main Microsoft account.')
         def auth = configurations.devClientRuntimeClasspath.resolvedConfiguration.resolvedArtifacts.find {
             it.moduleVersion.id.group == 'me.djtheredstoner' && it.name == 'DevAuth-forge-latest'
         }
         if (auth == null || !auth.file.isFile()) throw new GradleException('DevAuth is missing from the development runtime.')
-        logger.lifecycle("CraftLink: DevAuth ${auth.moduleVersion.id.version} is present on the development runtime; no account credentials were read.")
+        logger.lifecycle("CraftLink: DevAuth ${auth.moduleVersion.id.version} is present on the development runtime with Microsoft account profile main; no account credentials were read.")
     }
 }
