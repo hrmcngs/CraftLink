@@ -132,3 +132,23 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 #inventory-player .inventory-character,#bot-inventory #bot-inventory-grid,#bot-inventory #inventory-hotbar,#inventory-accessories{width:calc(var(--slot-size)*9 + 8px);max-width:100%;margin-left:auto;margin-right:auto}
 #bot-inventory #inventory-player [data-bot-slot]{touch-action:none}
 #bot-inventory #inventory-player[data-overflow=true]{overflow-y:auto}
+
+/* Curios layout: separate two-column accessory panel to the left of the inventory. */
+#bot-inventory #inventory-player{display:grid;grid-template-columns:calc(var(--slot-size)*2 + 13px) minmax(0,1fr);gap:8px;align-items:start}
+#bot-inventory #inventory-player:has(#inventory-accessories[hidden]){grid-template-columns:minmax(0,1fr)}
+#inventory-player .inventory-body{min-width:0}
+#bot-inventory #inventory-accessories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:var(--slot-size);gap:1px;width:100%;max-width:none;margin:0;padding:4px;border:2px solid #373737;background:#c6c6c6;box-shadow:inset 2px 2px #fff,inset -2px -2px #777;max-height:100%;overflow-y:auto;align-content:start;scrollbar-width:thin}
+#bot-inventory #inventory-accessories[hidden]{display:none}
+#inventory-player #inventory-accessories em{font-size:7px;line-height:1.15;white-space:normal;bottom:3px;color:#555;text-shadow:none}
+#inventory-player #inventory-accessories [data-bot-slot]:has(.has-icon) em{display:none}
+#inventory-player .inventory-character{grid-template-columns:var(--slot-size) minmax(36px,1fr) minmax(0,1fr)}
+#inventory-player #inventory-armor{grid-template-columns:var(--slot-size)}
+#inventory-player .inventory-avatar,#inventory-player .inventory-side{height:calc(var(--slot-size)*4 + 3px)}
+#inventory-player #inventory-appearance,#inventory-player #inventory-skin{height:calc(var(--slot-size)*4 - 4px)}
+
+#inventory-player .accessory-outline{position:absolute;inset:4px;display:block;color:#555;pointer-events:none}
+#inventory-player .accessory-outline svg{display:block;width:100%;height:100%}
+#inventory-player #inventory-accessories em,#inventory-player [data-accessory-slot]:has(.has-icon) .accessory-outline{display:none}
+
+#inventory-open-backpack{display:block;width:100%;min-height:28px;margin-top:4px;font-size:11px}
+#inventory-open-backpack[hidden]{display:none}

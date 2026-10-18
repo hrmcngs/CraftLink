@@ -124,6 +124,12 @@ public final class BotBlockActions {
                 WeaponSkills.attack(player,ticks>=20?Math.min(1,ticks/60f):-1);bot.swing(InteractionHand.MAIN_HAND);transferEffects(bot);bot.copyInventoryFrom(player);
             }
             case "sheathe" -> {if(!player.menuVisible){WeaponSkills.sheathe(player);bot.copyInventoryFrom(player);}}
+            case "backpack" -> {
+                if(player.menuVisible)return;
+                String error=SophisticatedBackpacks.open(bot,player);
+                bot.copyInventoryFrom(player);
+                if(error!=null){var status=new com.google.gson.JsonObject();status.addProperty("type","backpackStatus");status.addProperty("message",error);room.publishInventory(peer,status);}
+            }
             case "craft" -> {player.closeContainer();player.menuVisible=true;player.menuTitle="クラフト";}
             case "close" -> {if(action.menu()==menu.containerId){player.closeContainer();bot.copyInventoryFrom(player);}}
             case "click","quick","collect" -> {
@@ -159,7 +165,9 @@ public final class BotBlockActions {
         var result=new com.google.gson.JsonObject();result.addProperty("type","menu");result.addProperty("open",player.menuVisible);result.addProperty("id",menu.containerId);result.addProperty("title",player.menuTitle);
         var slots=new com.google.gson.JsonArray();
         if(player.menuVisible){
-            for(var slot:menu.slots){if(slots.size()>=256)break;var stack=slot.getItem();var value=new com.google.gson.JsonObject();value.addProperty("slot",slot.index);value.addProperty("x",slot.x);value.addProperty("y",slot.y);value.addProperty("name",stack.isEmpty()?"":stack.getHoverName().getString());value.addProperty("count",stack.getCount());value.addProperty("iconKey",dev.craftlink.video.ItemIcons.request(stack));slots.add(value);}
+            int left=Math.min(0,menu.slots.stream().mapToInt(slot->slot.x).min().orElse(0));
+            int top=Math.min(0,menu.slots.stream().mapToInt(slot->slot.y).min().orElse(0));
+            for(var slot:menu.slots){if(slots.size()>=256)break;var stack=slot.getItem();var value=new com.google.gson.JsonObject();value.addProperty("slot",slot.index);value.addProperty("x",slot.x-left);value.addProperty("y",slot.y-top);value.addProperty("name",stack.isEmpty()?"":stack.getHoverName().getString());value.addProperty("count",stack.getCount());value.addProperty("iconKey",dev.craftlink.video.ItemIcons.request(stack));slots.add(value);}
             var cursor=menu.getCarried();result.addProperty("carried",cursor.isEmpty()?"":cursor.getHoverName().getString()+" ×"+cursor.getCount());
             var recipes=new com.google.gson.JsonArray();
             if(menu instanceof net.minecraft.world.inventory.RecipeBookMenu<?> book){

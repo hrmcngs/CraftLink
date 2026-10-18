@@ -120,7 +120,7 @@ public final class ClassroomBot extends PathfinderMob {
         inventoryVersion++;selectSlot(selectedSlot);
     }
     public com.google.gson.JsonObject inventoryMessage(){
-        var result=new com.google.gson.JsonObject();result.addProperty("type","inventory");result.addProperty("selected",selectedSlot);
+        var result=new com.google.gson.JsonObject();result.addProperty("type","inventory");result.addProperty("backpacks",SophisticatedBackpacks.available());result.addProperty("selected",selectedSlot);
         var slots=new com.google.gson.JsonArray();
         for(int i=0;i<inventory.getContainerSize();i++){var item=inventory.getItem(i);var slot=new com.google.gson.JsonObject();slot.addProperty("slot",i);slot.addProperty("id",net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item.getItem()).toString());slot.addProperty("name",item.isEmpty()?"":item.getHoverName().getString());slot.addProperty("count",item.getCount());slots.add(slot);}
         for(int i=0;i<slots.size();i++)slots.get(i).getAsJsonObject().addProperty("iconKey",dev.craftlink.video.ItemIcons.request(inventory.getItem(i)));
@@ -226,7 +226,7 @@ public final class ClassroomBot extends PathfinderMob {
         inventoryVersion++;selectSlot(selectedSlot);
     }
     public void copyInventoryTo(Player player){
-        for(int i=0;i<41;i++)player.getInventory().setItem(i,inventory.getItem(i).copy());
+        for(int i=0;i<41;i++)if(!net.minecraft.world.item.ItemStack.matches(player.getInventory().getItem(i),inventory.getItem(i)))player.getInventory().setItem(i,inventory.getItem(i).copy());
         player.getInventory().selected=selectedSlot;
     }
     public void copyInventoryFrom(Player player){

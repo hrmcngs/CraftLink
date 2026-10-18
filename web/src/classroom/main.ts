@@ -1,3 +1,4 @@
+import { accessoryPlaceholder } from './accessory-icons';
 import {remoteMenu} from './remote-menu';
 import {renderVitals,vitalsMarkup} from './vitals';
 import './vitals.css';
@@ -158,8 +159,10 @@ function renderIcons(data:{icons?:unknown}){
  icons.set(icon.key,icon.image);while(icons.size>1024)icons.delete(icons.keys().next().value!);
  root.querySelectorAll<HTMLImageElement>('img[data-icon-key="'+icon.key+'"]').forEach(image=>{image.src=icon.image;image.parentElement!.classList.add('has-icon');});}
 }
-function renderInventory(data: {selected?:unknown;slots?:unknown;creative?:unknown;weaponSkills?:unknown}) {
+document.querySelector('#inventory-open-backpack')!.addEventListener('click',()=>{if(ready)sendUi('backpack');});
+function renderInventory(data: {selected?:unknown;slots?:unknown;creative?:unknown;weaponSkills?:unknown;backpacks?:unknown}) {
  document.querySelector<HTMLButtonElement>('#mwa-skill')!.hidden=data.weaponSkills!==true;document.querySelector<HTMLButtonElement>('#mwa-sheathe')!.hidden=data.weaponSkills!==true;
+ document.querySelector<HTMLButtonElement>('#inventory-open-backpack')!.hidden=data.backpacks!==true;
  const wasCreative=creativeAllowed;creativeAllowed=data.creative===true;
  inventoryTab(creativeAllowed,false);if(creativeAllowed&&!wasCreative&&inventoryOpen)requestCreative();document.querySelector<HTMLButtonElement>('#tab-creative')!.disabled=!creativeAllowed;
  if(!Number.isInteger(data.selected)||!Array.isArray(data.slots)||(data.slots.length<41||data.slots.length>169))return;
@@ -168,7 +171,7 @@ function renderInventory(data: {selected?:unknown;slots?:unknown;creative?:unkno
  const accessoryGrid=document.querySelector<HTMLElement>('#inventory-accessories')!;accessoryGrid.hidden=data.slots.length===41;
  equipmentTarget.querySelectorAll('option[data-accessory]').forEach(option=>option.remove());
  root.querySelectorAll('[data-accessory-slot]').forEach(button=>button.remove());
- for(const item of data.slots){if(item.slot<41)continue;const option=document.createElement('option');option.value=String(item.slot);option.textContent=item.label;option.dataset.accessory='true';equipmentTarget.append(option);const button=document.createElement('button');button.dataset.botSlot=String(item.slot);button.dataset.accessorySlot='true';button.innerHTML='<span></span><small></small>';const caption=document.createElement('em');caption.textContent=item.label;button.append(caption);accessoryGrid.append(button);bindSlot(button);}
+ for(const item of data.slots){if(item.slot<41)continue;const option=document.createElement('option');option.value=String(item.slot);option.textContent=item.label;option.dataset.accessory='true';equipmentTarget.append(option);const button=document.createElement('button');button.dataset.botSlot=String(item.slot);button.dataset.accessorySlot='true';button.innerHTML='<span></span><small></small>';const outline=document.createElement('i');outline.className='accessory-outline';outline.innerHTML=accessoryPlaceholder(item.label||'');button.append(outline);const caption=document.createElement('em');caption.textContent=item.label;button.append(caption);accessoryGrid.append(button);bindSlot(button);}
  inventoryCounts.clear();for(const item of data.slots)inventoryCounts.set(item.slot,item.count);
  selectedSlot=data.selected as number;
  for(const item of data.slots){root.querySelectorAll<HTMLButtonElement>('[data-bot-slot="'+item.slot+'"]').forEach(button=>{iconLabel(button.querySelector('span')!,item.count>0?item.iconKey:'',item.count>0?item.name:'');button.setAttribute('aria-label',item.name||'空の持ち物');button.querySelector('small')!.textContent=item.count>1?String(item.count):'';button.title=(item.label||['足','脚','胴','頭','オフハンド'][item.slot-36]||'')+' '+(item.count>0?item.name:'空');button.classList.toggle('selected',item.slot===data.selected);});}
@@ -245,6 +248,7 @@ ws.onmessage=async e=>{
   if(data.type==='menu')menu.receive(data);
   if(data.type==='chat'&&typeof data.text==='string'){const line=document.createElement('li');line.textContent=data.text;const list=chat.querySelector('ul')!;list.append(line);while(list.children.length>100)list.firstElementChild!.remove();list.scrollTop=list.scrollHeight;}
   if(data.type==='vitals'){if(inWater!==(data.inWater===true))sneakLatched=false;inWater=data.inWater===true;renderVitals(root,data);}
+  if(data.type==='backpackStatus'&&typeof data.message==='string')document.querySelector('#inventory-selection')!.textContent=data.message.slice(0,256);
   if(data.type==='appearance'&&typeof data.image==='string'&&data.image.length<=262144&&/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(data.image)){
    const preview=document.querySelector<HTMLImageElement>('#inventory-appearance')!;preview.src=data.image;preview.hidden=false;document.querySelector<HTMLCanvasElement>('#inventory-skin')!.hidden=true;
   }

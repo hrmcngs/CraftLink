@@ -17,16 +17,19 @@ export function inventoryMarkup(){return `<dialog id="bot-inventory" aria-labell
    <p id="creative-status" role="status"></p>
   </section>
   <section id="inventory-player" class="inventory-panel" aria-label="装備と持ち物">
+   <aside id="inventory-accessories" aria-label="アクセサリー" hidden></aside>
+   <div class="inventory-body">
    <div class="inventory-character">
     <div id="inventory-armor" aria-label="防具">${[39,38,37,36].map(slot).join('')}</div>
     <figure class="inventory-avatar" title="選択したアイテムをここにタップして捨てる"><img id="inventory-appearance" alt="装備を反映したBOT" hidden><canvas id="inventory-skin" width="64" height="128" aria-label="自分のスキンの正面プレビュー"></canvas><figcaption id="inventory-player-name">あなたのBOT</figcaption></figure>
     <div class="inventory-side"><div class="inventory-offhand">${slot(40)}</div><p id="inventory-selection" role="status">アイテムを選択</p></div>
    </div>
-   <div id="inventory-accessories" aria-label="アクセサリー" hidden></div>
    <div id="bot-inventory-grid" aria-label="バックパック">${Array.from({length:27},(_,i)=>slot(i+9)).join('')}</div>
    <div id="inventory-hotbar" aria-label="ホットバー">${Array.from({length:9},(_,i)=>slot(i)).join('')}</div>
+   <button id="inventory-open-backpack" type="button" hidden>バックパックを開く</button>
    <details class="inventory-more"><summary>詳細操作</summary><div id="inventory-actions"><button id="inventory-equip">手に持つ</button><select id="equipment-target" aria-label="装備先"><option value="39">頭</option><option value="38">胴</option><option value="37">脚</option><option value="36">足</option><option value="40">オフハンド</option></select><button id="inventory-wear">装備 / 外す</button><button id="inventory-drop-one">1個捨てる</button><button id="inventory-drop-stack">全部捨てる</button></div></details>
    <p class="inventory-help">アイテムをタップ → 移動先をタップ。長押しで個数を調整、2回タップで半分。防具・オフハンドも同じ操作。</p>
+   </div>
   </section>
  </div>
  </dialog>`;}

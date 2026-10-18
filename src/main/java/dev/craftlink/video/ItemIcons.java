@@ -21,7 +21,7 @@ public final class ItemIcons {
     private record Icon(String key,ItemStack stack,CompletableFuture<String> image) {}
     private static final LinkedHashMap<String,Icon> cache=new LinkedHashMap<>(128,.75f,true);
     private static final ArrayDeque<Icon> queue=new ArrayDeque<>();
-    private record Preview(int skin,Map<net.minecraft.world.entity.EquipmentSlot,ItemStack> equipment,CompletableFuture<String> image) {}
+    private record Preview(int skin,Map<net.minecraft.world.entity.EquipmentSlot,ItemStack> equipment,net.minecraft.nbt.Tag accessories,CompletableFuture<String> image) {}
     private static final LinkedHashMap<UUID,Preview> previews=new LinkedHashMap<>();
     private static long nextKey;
     private static TextureTarget target;
@@ -57,7 +57,7 @@ public final class ItemIcons {
     public static void preview(ClassroomRoom room,UUID peer,dev.craftlink.classroom.ClassroomBot bot){
         var equipment=new EnumMap<net.minecraft.world.entity.EquipmentSlot,ItemStack>(net.minecraft.world.entity.EquipmentSlot.class);
         for(var slot:net.minecraft.world.entity.EquipmentSlot.values())equipment.put(slot,bot.getItemBySlot(slot).copy());
-        var job=new Preview(bot.skinIndex(),equipment,new CompletableFuture<>());
+        var job=new Preview(bot.skinIndex(),equipment,dev.craftlink.classroom.AccessoryAppearance.capture(bot),new CompletableFuture<>());
         synchronized(ItemIcons.class){
             if(previews.size()>=8&&!previews.containsKey(peer))return;
             var old=previews.put(peer,job);if(old!=null)old.image.complete("");
@@ -77,6 +77,7 @@ public final class ItemIcons {
             try{
                 var entity=new dev.craftlink.classroom.ClassroomBot(dev.craftlink.classroom.ClassroomEntities.BOT.get(),mc.level);
                 entity.previewSkin(preview.skin);preview.equipment.forEach(entity::setItemSlot);
+                dev.craftlink.classroom.AccessoryAppearance.apply(entity,preview.accessories);
                 var dispatcher=mc.getEntityRenderDispatcher();var orientation=new org.joml.Quaternionf(dispatcher.cameraOrientation());
                 try{preview.image.complete(render(mc,64,96,128,192,graphics->net.minecraft.client.gui.screens.inventory.InventoryScreen.renderEntityInInventoryFollowsMouse(graphics,32,90,42,-12,0,entity)));}
                 finally{dispatcher.overrideCameraOrientation(orientation);dispatcher.setRenderShadow(true);}

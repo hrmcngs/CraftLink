@@ -23,6 +23,20 @@ public final class ClassroomBotRenderer extends MobRenderer<ClassroomBot, Player
         super(context, new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER), false), .5f);
         addLayer(new net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer<>(this,new net.minecraft.client.model.HumanoidModel<>(context.bakeLayer(ModelLayers.PLAYER_INNER_ARMOR)),new net.minecraft.client.model.HumanoidModel<>(context.bakeLayer(ModelLayers.PLAYER_OUTER_ARMOR)),context.getModelManager()));
         addLayer(new net.minecraft.client.renderer.entity.layers.ItemInHandLayer<>(this,context.getItemInHandRenderer()));
+        addLayer(new net.minecraft.client.renderer.entity.layers.ElytraLayer<>(this,context.getModelSet()));
+        addLayer(new net.minecraft.client.renderer.entity.layers.CustomHeadLayer<>(this,context.getModelSet(),context.getItemInHandRenderer()));
+        addAccessoryLayer();
+    }
+    @SuppressWarnings("unchecked")
+    private void addAccessoryLayer() {
+        if(!net.minecraftforge.fml.ModList.get().isLoaded("curios"))return;
+        try {
+            var type=Class.forName("top.theillusivec4.curios.client.render.CuriosLayer");
+            var layer=type.getConstructor(net.minecraft.client.renderer.entity.RenderLayerParent.class).newInstance(this);
+            addLayer((net.minecraft.client.renderer.entity.layers.RenderLayer<ClassroomBot,PlayerModel<ClassroomBot>>)layer);
+        } catch(ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot register Curios renderer for BOT",e);
+        }
     }
     @SubscribeEvent public static void register(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ClassroomEntities.BOT.get(), ClassroomBotRenderer::new);

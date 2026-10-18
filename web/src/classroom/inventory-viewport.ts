@@ -16,9 +16,14 @@ export function observeInventoryLayout(dialog:HTMLDialogElement){
    if(selector!=='#creative-items'){
     const body=dialog.querySelector<HTMLElement>('.inventory-workspace')!.clientHeight;
     const accessories=dialog.querySelector<HTMLElement>('#inventory-accessories')!;
-    const rows=6+(accessories.hidden?0:Math.ceil(accessories.children.length/9));
-    size=Math.min(size,Math.max(18,Math.floor((body-52)/rows)));
-    dialog.querySelector<HTMLElement>('#inventory-player')!.dataset.overflow=String(rows*size+52>body);
+    const player=dialog.querySelector<HTMLElement>('#inventory-player')!;
+    const playerStyle=getComputedStyle(player);
+    const available=player.clientWidth-parseFloat(playerStyle.paddingLeft)-parseFloat(playerStyle.paddingRight);
+    size=Math.max(18,Math.floor((available-(accessories.hidden?8:29))/(accessories.hidden?9:11)));
+    const rows=Math.max(8,accessories.hidden?0:Math.ceil(accessories.children.length/2));
+    const extra=52+(dialog.querySelector<HTMLButtonElement>('#inventory-open-backpack')!.hidden?0:32);
+    size=Math.min(size,Math.max(18,Math.floor((body-extra)/rows)));
+    dialog.querySelector<HTMLElement>('#inventory-player')!.dataset.overflow=String(rows*size+extra>body);
    }
    grid.style.setProperty('--slot-size',size+'px');
    if(selector==='#bot-inventory-grid')dialog.querySelector<HTMLElement>('#inventory-player')!.style.setProperty('--slot-size',size+'px');
