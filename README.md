@@ -2,6 +2,12 @@
 
 スマホのブラウザからMinecraftを操作するMOD。**Minecraft Java 1.20.1 / Forge 47.4.10（47系） / Java 17** 対応。
 
+## 自分のPCで好きなMODと遊ぶ
+
+配布ZIP `craftlink-host-forge-1.20.1-0.1.0.zip` 内のCraftLink JARを、自分のMinecraft 1.20.1 / Forge環境の `mods` へ入れます。遊びたいMODと依存MODも同じ環境に追加して、ワールド内で **F8 → みんなで参加 → 受付を開始**。スマホはQRを読み、PCで承認すれば参加できます。
+
+ソースコードや開発用の起動スクリプトは不要です。各自のPCで別々の部屋を作れます。対応範囲・導入場所・接続手順は[PC向け導入手順](docs/HOST_SETUP.md)を参照してください。
+
 ## 起動（Mac）
 
 ```sh
@@ -27,6 +33,8 @@ sh build.sh offline  # 依存取得済みならオフライン可
 ```
 
 配布用JAR：`build/libs/craftlink-forge-1.20.1-0.1.0.jar`。Forgeの `mods` に配置します。
+
+導入手順付きの配布ZIP：`build/distributions/craftlink-host-forge-1.20.1-0.1.0.zip`。通常ビルドで両方を生成します。
 
 ## 接続方法
 

@@ -126,6 +126,20 @@ shadowJar {
 reobf { shadowJar {} }
 shadowJar.finalizedBy 'reobfShadowJar'
 build.dependsOn shadowJar
+
+// A standalone host kit: no development project paths or third-party mods.
+tasks.register('hostDistribution', Zip) {
+    dependsOn 'shadowJar', 'reobfShadowJar'
+    archiveFileName = "craftlink-host-forge-1.20.1-${project.version}.zip"
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(tasks.named('shadowJar').flatMap { it.archiveFile }) { into 'mods' }
+    from('docs/HOST_SETUP.md') { rename { '導入手順.md' } }
+    from('LICENSE')
+}
+build.dependsOn tasks.named('hostDistribution')
+
 test { useJUnitPlatform() }
 
 // Run the same relocated libraries as the distribution, without production name remapping.

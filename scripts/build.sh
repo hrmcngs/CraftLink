@@ -19,3 +19,5 @@ if [[ "$mode" != online ]]; then
 fi
 bash ./gradlew "${args[@]}"
 printf '\nBuilt: %s/build/libs/craftlink-forge-1.20.1-0.1.0.jar\n' "$project_dir"
+
+printf "Host kit: %s/build/distributions/craftlink-host-forge-1.20.1-0.1.0.zip\n" "$project_dir"

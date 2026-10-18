@@ -26,4 +26,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: CraftLink-Forge-1.20.1
-          path: build/libs/craftlink-forge-1.20.1-0.1.0.jar
+          path: |
+            build/libs/craftlink-forge-1.20.1-0.1.0.jar
+            build/distributions/craftlink-host-forge-1.20.1-0.1.0.zip
