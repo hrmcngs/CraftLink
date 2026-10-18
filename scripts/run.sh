@@ -40,6 +40,18 @@ if [[ "$offline" == true ]]; then
   # Offline forbids downloads; skip only that remote preflight, retaining TLS validation.
   args+=(--offline -PwebOffline=true -Dnet.minecraftforge.gradle.check.certs=false)
 fi
+if [[ "$modpack" == true ]]; then
+  printf '自作MODをビルドしてローカルのMODセットを更新します…\n'
+  update_args=(bash "$project_dir/scripts/build-mods.sh")
+  if [[ "$offline" == true ]]; then update_args+=(--offline); fi
+  if "${update_args[@]}"; then
+    printf 'MODセットの更新が完了しました。最新版で起動準備を続けます。\n'
+  else
+    result=$?
+    printf '自作MODの更新に失敗したため、古いJARでの起動を中止しました。\n' >&2
+    exit "$result"
+  fi
+fi
 if [[ "$login" == true ]]; then
   umask 077
   mkdir -p .craftlink/dev-auth

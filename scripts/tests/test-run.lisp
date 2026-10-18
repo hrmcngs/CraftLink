@@ -29,6 +29,11 @@
 printf '%s\\n' \"$@\" > \"$RUN_ARGS_LOG\"
 exit \"${FAKE_RUN_EXIT:-0}\"
 " t)
+  (write-file "scripts/build-mods.sh" "#!/bin/sh
+if [ -f \"$RUN_ARGS_LOG\" ]; then exit 99; fi
+printf '%s\\n' \"$@\" > \"$RUN_ARGS_LOG.mods\"
+exit \"${FAKE_MOD_EXIT:-0}\"
+" t)
   (write-file "bin/adb" "#!/bin/sh
 printf '%s\\n' \"$*\" >> \"$ADB_CALLS_LOG\"
 if [ \"$1\" = '-d' ]; then printf 'test-usb-device\\n'; exit 0; fi
@@ -87,5 +92,19 @@ if [ \"$4\" = '--list' ]; then printf '%s\\n' \"${ADB_EXISTING:-}\"; fi
   (lambda ()
     (check (zerop (launch '("--no-login"))) "Guest launch failed")
     (check (not (contains "args" "-PcraftlinkLogin=true")) "Guest launch enabled login")))
+(run-test "mods are refreshed before authenticated launch"
+  (lambda ()
+    (check (zerop (launch '("--mods" "--offline"))) "MOD launch failed")
+    (check (contains "args.mods" "--offline") "Offline not forwarded to MOD build")
+    (check (contains "args" "-PcraftlinkModpack=true") "MOD runtime not selected")
+    (check (contains "args" "-PcraftlinkLogin=true") "Authentication not retained")))
+(run-test "failed MOD build prevents stale launch"
+  (lambda ()
+    (check (= 13 (launch '("--mods") "FAKE_MOD_EXIT=13")) "MOD failure exit status lost")
+    (check (not (probe-file (merge-pathnames "args" *root*))) "Started Minecraft with stale MODs")))
+(run-test "vanilla launch does not build optional MODs"
+  (lambda ()
+    (check (zerop (launch '("--no-login"))) "Vanilla launch failed")
+    (check (not (probe-file (merge-pathnames "args.mods" *root*))) "Vanilla launch built optional MODs")))
 (format t "~d passed, ~d failed~%" *passed* *failed*)
 (uiop:quit (if (zerop *failed*) 0 1))

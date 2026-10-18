@@ -126,6 +126,8 @@ sh school.sh --mods
 
 別の場所なら `sh build-mods.sh --project "/path/to/The-four-primitives-and-Weapons"` を指定します。初回で依存キャッシュがない場合は `--offline` を外してください。武器Modは非対話で `7-test` としてビルドし、ソースは変更しません。武器Modを編集したら同じビルドコマンドを再実行してください。通常の `sh run.sh` はCraftLink単体で起動します。
 
+`sh run.sh --mods` と `sh school.sh --mods` は起動のたびに自作武器MODをビルドし直し、ローカルのMODセットを更新してから最新版を読み込みます。Gradleの差分ビルドを使うため、変更がなければ再利用します。ビルドに失敗した場合は古いJARで起動せず停止します。`--offline` は自作MODのビルドにも引き継ぎます。別のソースを使うときは `CRAFTLINK_WEAPONS_PROJECT=/path/to/project sh run.sh --mods` を指定してください。
+
 Curiosのプレイヤー用スロットをBOTのアクセサリー枠に反映します。アクセサリーの効果は各Modの実装に従い、Player専用の処理はBOTでは動作しない場合があります。
 
 指定プロジェクト＋Curiosを読み込んだ隔離ワールドで、BOTの10個のアクセサリースロットと、武器Modのアイテム（darkness_book）の装着・取り外しを確認済みです。

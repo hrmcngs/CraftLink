@@ -44,7 +44,6 @@ public final class CraftLink {
             FMLJavaModLoadingContext.get().getModEventBus().addListener(Client::register);
             MinecraftForge.EVENT_BUS.register(Client.class);
             MinecraftForge.EVENT_BUS.register(dev.craftlink.gui.ControlsIntegration.class);
-            MinecraftForge.EVENT_BUS.register(dev.craftlink.gui.PlayerAccessoriesIntegration.class);
             MinecraftForge.EVENT_BUS.register(BOTS);
             MinecraftForge.EVENT_BUS.register(dev.craftlink.classroom.ClassroomCommands.class);
             Runtime.getRuntime().addShutdownHook(new Thread(SERVER::shutdown, "CraftLink shutdown"));

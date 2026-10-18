@@ -14,7 +14,7 @@ done
 mkdir -p "$project_dir/.craftlink/modpack"
 stage_dir="$project_dir/.craftlink/modpack"
 external_args=(build craftlinkStage --console=plain -Pmod_version_override=7-test -PwithExternalMods=false -I "$project_dir/scripts/modpack.init.gradle" "-PcraftlinkStageDirectory=$stage_dir")
-local_args=(modpack --console=plain -PcraftlinkModpack=true)
+local_args=(modpack --console=plain -PcraftlinkModpack=true -PcraftlinkRemote=false -PcraftlinkLogin=false)
 if [[ "$offline" == true ]]; then
   external_args+=(--offline)
   local_args+=(--offline -PwebOffline=true -Dnet.minecraftforge.gradle.check.certs=false)
