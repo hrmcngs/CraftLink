@@ -60,7 +60,7 @@ export function launchSchool(options,dependencies={}) {
       log('中継接続済み。Minecraftでワールドを開くと、参加用QRを自動表示します。');
       const args=[path.join(options.root,'run.sh'),'lan'];if(options.offline)args.push('--offline');
       if(options.mods)args.push('--mods');
-      const childEnv={...process.env,ORG_GRADLE_PROJECT_craftlinkExternalUrl:url,ORG_GRADLE_PROJECT_craftlinkSchoolMode:options.mode};
+      const childEnv={...process.env,ORG_GRADLE_PROJECT_craftlinkRemote:'true',ORG_GRADLE_PROJECT_craftlinkExternalUrl:url,ORG_GRADLE_PROJECT_craftlinkSchoolMode:options.mode};
       delete childEnv.CRAFTLINK_RELAY_SECRET;
       try{
         game=spawnGame('sh',args,{cwd:options.root,stdio:'inherit',detached:true,env:childEnv});

@@ -21,7 +21,7 @@ public final class ClassroomScreen extends Screen {
     public ClassroomScreen(Screen parent) { super(Component.literal("CraftLink みんなで参加 / 最大8台")); this.parent = parent; }
     @Override protected void init() {
         int x = width/2;
-        addRenderableWidget(Button.builder(Component.literal("別のWi-Fi"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, true))).bounds(4, 4, 100, 20).build());
+        if(dev.craftlink.network.ConnectionPolicy.remoteEnabled()) addRenderableWidget(Button.builder(Component.literal("別のWi-Fi"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, true))).bounds(4, 4, 100, 20).build());
         mode=addRenderableWidget(Button.builder(Component.literal("参加者: サバイバル"),b->{var current=Client.CLASSROOM.room();if(current!=null)current.mode(current.mode()==ClassroomRoom.Mode.SURVIVAL?ClassroomRoom.Mode.CREATIVE:ClassroomRoom.Mode.SURVIVAL);}).bounds(width-154,4,150,20).build());
         start = addRenderableWidget(Button.builder(Component.literal("受付を開始"), b -> {
             if (minecraft.getSingleplayerServer() != null && minecraft.player != null && !usbLaunch()) {

@@ -32,7 +32,7 @@ public final class ExternalConnectionScreen extends Screen {
         setInitialFocus(address); tick();
     }
     private void apply() {
-        if(running())return;
+        if(running()||!dev.craftlink.network.ConnectionPolicy.remoteEnabled())return;
         try {
             String normalized=ExternalEndpoint.normalize(address.getValue());
             (classroom?LinkConfig.CLASSROOM_EXTERNAL_URL:LinkConfig.EXTERNAL_URL).set(normalized);

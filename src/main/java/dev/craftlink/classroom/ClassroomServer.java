@@ -32,6 +32,7 @@ public final class ClassroomServer {
     public String url() { return url; }
     public void start(int requestedPort, String bind, String advertised) { start(requestedPort, bind, advertised, ""); }
     public void start(int requestedPort, String bind, String advertised, String external) {
+        if(!dev.craftlink.network.ConnectionPolicy.remoteEnabled() && !external.isEmpty()){status="この配布版はローカル接続専用です";return;}
         String normalized = ExternalEndpoint.normalize(external);
         lifecycle.execute(() -> startInternal(requestedPort, normalized.isEmpty() ? bind : "127.0.0.1", advertised, normalized));
     }
@@ -121,6 +122,7 @@ public final class ClassroomServer {
             }
         }
         private void http(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
+            if(!dev.craftlink.network.ConnectionPolicy.allows(ctx.channel().remoteAddress())){ctx.close();return;}
             if (!request.decoderResult().isSuccess() || request.method() != HttpMethod.GET) { ctx.close(); return; }
             String path = new QueryStringDecoder(request.uri()).path();
             if (path.equals("/classroom/ws")) {

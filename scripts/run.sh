@@ -7,13 +7,16 @@ offline=false
 prepare=false
 port=""
 modpack=false
-usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--mods] [--port 1024..65535] [--prepare]\n'; }
+login=true
+usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--mods] [--login|--no-login] [--port 1024..65535] [--prepare]\n'; }
 if [[ "${1:-}" == lan || "${1:-}" == usb ]]; then transport="$1"; shift; fi
 while (( $# )); do
   case "$1" in
     --offline|offline) offline=true; shift ;;
     --prepare) prepare=true; shift ;;
     --mods) modpack=true; shift ;;
+    --login) login=true; shift ;;
+    --no-login) login=false; shift ;;
     --port) if (( $# < 2 )) || [[ -z "$2" ]]; then usage >&2; exit 2; fi; port="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
@@ -36,6 +39,14 @@ if [[ "$offline" == true ]]; then
   # ForgeGradle otherwise probes its Maven certificate even with cached dependencies.
   # Offline forbids downloads; skip only that remote preflight, retaining TLS validation.
   args+=(--offline -PwebOffline=true -Dnet.minecraftforge.gradle.check.certs=false)
+fi
+if [[ "$login" == true ]]; then
+  umask 077
+  mkdir -p .craftlink/dev-auth
+  chmod 700 .craftlink/dev-auth
+  args+=(-PcraftlinkLogin=true)
+  if [[ "$prepare" == true ]]; then args+=(verifyDevLogin); fi
+  printf 'Microsoftログインで起動します。初回は表示された公式ログインページをブラウザで開いて認証してください。\n'
 fi
 created_forward=false
 serial=""

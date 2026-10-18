@@ -83,6 +83,7 @@ public final class LinkServer {
         start(port, bindAddress, advertisedHost, "");
     }
     public void start(int port, String bindAddress, String advertisedHost, String external) {
+        if(!dev.craftlink.network.ConnectionPolicy.remoteEnabled() && !external.isEmpty()){status="この配布版はローカル接続専用です";return;}
         String normalized = ExternalEndpoint.normalize(external);
         lifecycle.execute(() -> startInternal(port, normalized.isEmpty() ? bindAddress : "127.0.0.1", advertisedHost, normalized));
     }
@@ -167,6 +168,7 @@ public final class LinkServer {
             }
         }
         private void http(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
+            if(!dev.craftlink.network.ConnectionPolicy.allows(ctx.channel().remoteAddress())){ctx.close();return;}
             if (!req.decoderResult().isSuccess() || req.method() != HttpMethod.GET) { ctx.close(); return; }
             String path = new QueryStringDecoder(req.uri()).path();
             if (path.equals("/ws")) {

@@ -18,7 +18,7 @@ public final class LinkScreen extends Screen {
     @Override protected void init() {
         int x = width / 2;
         addRenderableWidget(Button.builder(Component.literal("みんなで参加"), b -> minecraft.setScreen(new ClassroomScreen(this))).bounds(4, 4, 100, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("別のWi-Fi"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, false))).bounds(width - 104, 4, 100, 20).build());
+        if(dev.craftlink.network.ConnectionPolicy.remoteEnabled()) addRenderableWidget(Button.builder(Component.literal("別のWi-Fi"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, false))).bounds(width - 104, 4, 100, 20).build());
         addRenderableWidget(Button.builder(Component.literal("接続を開始"), b -> { var settings = LinkConfig.launchSettings(); Client.SERVER.start(settings.port(), settings.bindAddress(), settings.advertisedHost(), LinkConfig.externalUrl(false)); }).bounds(x - 155, height - 76, 74, 20).build());
         addRenderableWidget(Button.builder(Component.literal("停止"), b -> Client.SERVER.stop()).bounds(x - 76, height - 76, 74, 20).build());
         addRenderableWidget(Button.builder(Component.literal("端末を切断"), b -> Client.SERVER.disconnect()).bounds(x + 82, height - 76, 73, 20).build());

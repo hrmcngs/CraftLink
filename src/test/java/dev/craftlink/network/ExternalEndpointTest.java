@@ -25,6 +25,7 @@ class ExternalEndpointTest {
         assertTrue(ExternalEndpoint.allowed(lan,"192.168.1.2:8765","http://192.168.1.2:8765",""));
     }
     @Test void normalControllerHttpsQrAndProxiedHandshakeKeepApproval() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(ConnectionPolicy.remoteEnabled());
         var server=new LinkServer();int port=freePort();
         try {
             server.start(port,"0.0.0.0","","https://controller.example/");await(server::running);
@@ -37,6 +38,7 @@ class ExternalEndpointTest {
         } finally {server.shutdown();}
     }
     @Test void classroomHttpsQrAndProxiedHandshakeAutomaticallyJoin() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(ConnectionPolicy.remoteEnabled());
         var server=new ClassroomServer();int port=freePort();
         try {
             server.start(port,"0.0.0.0","","https://classroom.example");await(server::running);

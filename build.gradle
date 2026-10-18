@@ -7,6 +7,8 @@ version = '0.1.0'
 group = 'dev.craftlink'
 base { archivesName = 'craftlink-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+def craftlinkRemote = providers.gradleProperty('craftlinkRemote').map { it.toBoolean() }.getOrElse(false)
+def craftlinkLogin = providers.gradleProperty('craftlinkLogin').map { it.toBoolean() }.getOrElse(false)
 def craftlinkTransport = providers.gradleProperty('craftlinkTransport').getOrElse('lan')
 if (!(craftlinkTransport in ['lan', 'usb'])) throw new GradleException('craftlinkTransport must be lan or usb')
 def craftlinkPort = providers.gradleProperty('craftlinkPort').orNull
@@ -28,6 +30,10 @@ minecraft {
             workingDirectory project.file(providers.gradleProperty('craftlinkRunDirectory').getOrElse('run'))
             jvmArgs '-Xmx2G'
             property 'craftlink.transport', craftlinkTransport
+            if (craftlinkLogin) {
+                property 'devauth.enabled', 'true'
+                property 'devauth.configDir', file('.craftlink/dev-auth').absolutePath
+            }
             if (providers.gradleProperty('craftlinkExternalUrl').isPresent()) property 'craftlink.externalUrl', providers.gradleProperty('craftlinkExternalUrl').get()
             if (providers.gradleProperty('craftlinkSchoolMode').isPresent()) property 'craftlink.schoolMode', providers.gradleProperty('craftlinkSchoolMode').get()
             if (craftlinkPort != null) property 'craftlink.port', craftlinkPort
@@ -35,7 +41,7 @@ minecraft {
         }
     }
 }
-repositories { mavenCentral(); maven { url = 'https://repo.spongepowered.org/repository/maven-public/' } }
+repositories { maven { url = 'https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1'; content { includeGroup 'me.djtheredstoner' } }; mavenCentral(); maven { url = 'https://repo.spongepowered.org/repository/maven-public/' } }
 def withModpack = providers.gradleProperty('craftlinkModpack').map { it.toBoolean() }.getOrElse(false)
 def modpackManifest = file('.craftlink/modpack/manifest.json')
 def weapons = null
@@ -53,6 +59,7 @@ configurations.devClientRuntimeOnly.extendsFrom(configurations.runtimeOnly)
 mixin { add sourceSets.main, 'craftlink.refmap.json'; config 'craftlink.mixins.json' }
 configurations { embedded }
 dependencies {
+    if (craftlinkLogin) runtimeOnly 'me.djtheredstoner:DevAuth-forge-latest:1.2.2'
     minecraft 'net.minecraftforge:forge:1.20.1-47.4.10'
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
     embedded 'com.google.zxing:core:3.5.3'
@@ -113,7 +120,17 @@ tasks.register('verifyOfflineWeb') {
     }
 }
 tasks.register('webBuild', Exec) { dependsOn 'webInstall', 'verifyOfflineWeb'; workingDir 'web'; commandLine 'npm', 'run', 'build'; inputs.files(fileTree('web/src'), 'web/index.html', 'web/classroom.html', 'web/vite.config.ts', 'web/tsconfig.json', 'web/package.json', 'web/package-lock.json'); outputs.dir('web/dist') }
-processResources { dependsOn 'webBuild'; from('web/dist') { into 'web' } }
+def networkPolicyDirectory = layout.buildDirectory.dir('generated/network-policy')
+tasks.register('generateNetworkPolicy') {
+    inputs.property('remoteAccess', craftlinkRemote)
+    outputs.dir(networkPolicyDirectory)
+    doLast {
+        def output = networkPolicyDirectory.get().file('craftlink-network.properties').asFile
+        output.parentFile.mkdirs()
+        output.text = "remoteAccess=${craftlinkRemote}\n"
+    }
+}
+processResources { dependsOn 'generateNetworkPolicy'; from(networkPolicyDirectory); dependsOn 'webBuild'; from('web/dist') { into 'web' } }
 jar { archiveClassifier = 'thin' }
 shadowJar {
     archiveClassifier = ''
@@ -129,6 +146,9 @@ build.dependsOn shadowJar
 
 // A standalone host kit: no development project paths or third-party mods.
 tasks.register('hostDistribution', Zip) {
+    doFirst {
+        if (craftlinkRemote) throw new GradleException('Host kits must be local-only. Build without -PcraftlinkRemote=true.')
+    }
     dependsOn 'shadowJar', 'reobfShadowJar'
     archiveFileName = "craftlink-host-forge-1.20.1-${project.version}.zip"
     destinationDirectory = layout.buildDirectory.dir('distributions')
@@ -184,3 +204,15 @@ tasks.register('prepareMacDisplay') {
     }
 }
 tasks.matching { it.name == 'runClient' }.configureEach { dependsOn 'prepareDevClient', 'prepareMacDisplay' }
+
+// Resolve authentication only on explicit developer verification; never launch the game here.
+tasks.register('verifyDevLogin') {
+    doLast {
+        if (!craftlinkLogin) throw new GradleException('Use -PcraftlinkLogin=true to verify development login.')
+        def auth = configurations.devClientRuntimeClasspath.resolvedConfiguration.resolvedArtifacts.find {
+            it.moduleVersion.id.group == 'me.djtheredstoner' && it.name == 'DevAuth-forge-latest'
+        }
+        if (auth == null || !auth.file.isFile()) throw new GradleException('DevAuth is missing from the development runtime.')
+        logger.lifecycle("CraftLink: DevAuth ${auth.moduleVersion.id.version} is present on the development runtime; no account credentials were read.")
+    }
+}

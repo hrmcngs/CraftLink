@@ -79,5 +79,13 @@ if [ \"$4\" = '--list' ]; then printf '%s\\n' \"${ADB_EXISTING:-}\"; fi
     (check (= 2 (launch '("usb" "--port" "65536"))) "Invalid port accepted")
     (check (not (probe-file (merge-pathnames "args" *root*))) "Invalid launch")
     (check (not (probe-file (merge-pathnames "adb_calls" *root*))) "Invalid adb operation")))
+(run-test "development launch enables authenticated account by default"
+  (lambda ()
+    (check (zerop (launch '("--prepare"))) "Prepare failed")
+    (check (contains "args" "-PcraftlinkLogin=true") "Missing Microsoft login integration")))
+(run-test "explicit guest launch skips authentication"
+  (lambda ()
+    (check (zerop (launch '("--no-login"))) "Guest launch failed")
+    (check (not (contains "args" "-PcraftlinkLogin=true")) "Guest launch enabled login")))
 (format t "~d passed, ~d failed~%" *passed* *failed*)
 (uiop:quit (if (zerop *failed*) 0 1))
