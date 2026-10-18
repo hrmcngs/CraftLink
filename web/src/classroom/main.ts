@@ -1,6 +1,7 @@
+import {mawUi} from './maw-ui';
 import { accessoryPlaceholder } from './accessory-icons';
 import {remoteMenu} from './remote-menu';
-import {renderVitals,vitalsMarkup} from './vitals';
+import {renderVitals,resetVitals,vitalsMarkup} from './vitals';
 import './vitals.css';
 import {stickVector,mobilePreset,holdQuantity,strongForward} from './mobile-controls';
 import {WorldGesture} from '../controller/gesture';
@@ -146,13 +147,16 @@ skillButton.onpointerdown=e=>{if(!ready)return;e.preventDefault();skillButton.se
 const endSkill=(e:PointerEvent)=>{if(!skillButton.classList.contains('pressed'))return;skillButton.classList.remove('pressed');sendUi(e.type==='pointerup'&&ready?'skillRelease':'skillCancel');};
 skillButton.onpointerup=endSkill;skillButton.onpointercancel=endSkill;skillButton.onlostpointercapture=endSkill;
 document.querySelector('#mwa-sheathe')!.addEventListener('click',()=>{if(ready)sendUi('sheathe');});
+const blockButton=document.createElement('button');blockButton.id='block-open';blockButton.textContent='機能ブロックを開く';blockButton.addEventListener('click',()=>{if(ready)sendUi('openBlock');});root.querySelector('.actions')!.append(blockButton);
+const maw=mawUi(root,sendUi,open=>{if(open){closeInventory();release();}menuOpen=open;update();});
+const mawSkillsButton=document.createElement('button');mawSkillsButton.id='maw-skills-open';mawSkillsButton.textContent='MAW 技の選択';mawSkillsButton.hidden=true;mawSkillsButton.onclick=()=>sendUi('mawSkills');root.querySelector('.inventory-side')!.append(mawSkillsButton);
 const menu=remoteMenu(root,sendUi,open=>{if(open){closeInventory();release();}menuOpen=open;update();},iconLabel);
 const chat=document.createElement('dialog');chat.id='bot-chat';chat.innerHTML='<header><h2>チャット / コマンド</h2><button aria-label="閉じる">×</button></header><ul aria-live="polite"></ul><form><input maxlength="256" aria-label="メッセージまたはコマンド" placeholder="メッセージ / コマンド"><button>送信</button></form>';root.append(chat);
 function closeChat(){chat.close();chatOpen=false;release();update();}
 chat.querySelector('header button')!.addEventListener('click',closeChat);chat.addEventListener('cancel',e=>{e.preventDefault();closeChat();});
 document.querySelector('#chat-open')!.addEventListener('click',()=>{if(!approved)return;closeInventory();release();chatOpen=true;update();chat.showModal();chat.querySelector('input')!.focus();});
 chat.querySelector('form')!.addEventListener('submit',e=>{e.preventDefault();const input=chat.querySelector('input')!;if(input.value.trim()){sendUi('chat',{text:input.value});input.value='';}});
-const craftButton=document.createElement('button');craftButton.id='inventory-craft';craftButton.textContent='クラフト';craftButton.addEventListener('click',()=>sendUi('craft'));document.querySelector('#inventory-actions')!.append(craftButton);
+const craftButton=document.createElement('button');craftButton.id='inventory-craft';craftButton.textContent='クラフト（2×2）';craftButton.addEventListener('click',()=>sendUi('craft'));document.querySelector('#inventory-actions')!.append(craftButton);
 function renderIcons(data:{icons?:unknown}){
  if(!Array.isArray(data.icons)||data.icons.length>256)return;
  for(const icon of data.icons){if(!icon||typeof icon.key!=='string'||!/^\d+$/.test(icon.key)||typeof icon.image!=='string'||icon.image.length>65536||!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(icon.image))continue;
@@ -161,7 +165,7 @@ function renderIcons(data:{icons?:unknown}){
 }
 document.querySelector('#inventory-open-backpack')!.addEventListener('click',()=>{if(ready)sendUi('backpack');});
 function renderInventory(data: {selected?:unknown;slots?:unknown;creative?:unknown;weaponSkills?:unknown;backpacks?:unknown}) {
- document.querySelector<HTMLButtonElement>('#mwa-skill')!.hidden=data.weaponSkills!==true;document.querySelector<HTMLButtonElement>('#mwa-sheathe')!.hidden=data.weaponSkills!==true;
+ mawSkillsButton.hidden=data.weaponSkills!==true;document.querySelector<HTMLButtonElement>('#mwa-skill')!.hidden=data.weaponSkills!==true;document.querySelector<HTMLButtonElement>('#mwa-sheathe')!.hidden=data.weaponSkills!==true;
  document.querySelector<HTMLButtonElement>('#inventory-open-backpack')!.hidden=data.backpacks!==true;
  const wasCreative=creativeAllowed;creativeAllowed=data.creative===true;
  inventoryTab(creativeAllowed,false);if(creativeAllowed&&!wasCreative&&inventoryOpen)requestCreative();document.querySelector<HTMLButtonElement>('#tab-creative')!.disabled=!creativeAllowed;
@@ -245,9 +249,11 @@ ws.onmessage=async e=>{
   if(data.type==='profile'){renderIdentity(data);document.querySelector('#profile-status')!.textContent='名前とスキンを変更しました';}
   if(data.type==='skins')renderSkinCatalog(data);
   if(data.type==='inventory')renderInventory(data);
+  if(data.type==='mawSkills')maw.receive(data);
   if(data.type==='menu')menu.receive(data);
+  if(data.type==='menuStatus'&&typeof data.message==='string')status.textContent=data.message;
   if(data.type==='chat'&&typeof data.text==='string'){const line=document.createElement('li');line.textContent=data.text;const list=chat.querySelector('ul')!;list.append(line);while(list.children.length>100)list.firstElementChild!.remove();list.scrollTop=list.scrollHeight;}
-  if(data.type==='vitals'){if(inWater!==(data.inWater===true))sneakLatched=false;inWater=data.inWater===true;renderVitals(root,data);}
+  if(data.type==='vitals'){if(inWater!==(data.inWater===true))sneakLatched=false;inWater=data.inWater===true;renderVitals(root,data);maw.status(data.maw);}
   if(data.type==='backpackStatus'&&typeof data.message==='string')document.querySelector('#inventory-selection')!.textContent=data.message.slice(0,256);
   if(data.type==='appearance'&&typeof data.image==='string'&&data.image.length<=262144&&/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(data.image)){
    const preview=document.querySelector<HTMLImageElement>('#inventory-appearance')!;preview.src=data.image;preview.hidden=false;document.querySelector<HTMLCanvasElement>('#inventory-skin')!.hidden=true;
@@ -259,7 +265,7 @@ ws.onmessage=async e=>{
   if(data.type==='pong'){videoError=typeof data.videoStatus==='string'?data.videoStatus:'';lastPong=performance.now();if(ready)status.textContent=`うごかせるよ · ${Math.round(lastPong-pingAt)} ms`;}
   if(data.type==='revoked'){stopped=true;resume='';try{sessionStorage.removeItem(storageKey);}catch{}release();ws.close();status.textContent='主催者がさんかをしゅうりょうしました';}
  };
- ws.onclose=()=>{document.querySelector<HTMLElement>('#survival-bars')!.hidden=true;document.querySelector('#bot-effects')!.replaceChildren();document.querySelector<HTMLImageElement>('#inventory-appearance')!.hidden=true;document.querySelector<HTMLCanvasElement>('#inventory-skin')!.hidden=false;closeSettings();closeInventory();root.querySelectorAll('[data-bot-slot] span,[data-bot-slot] small').forEach(label=>label.textContent='');document.querySelector('#identity')!.textContent='未接続';delete root.dataset.number;video.clear();ready=false;approved=false;release();update();root.dataset.enabled='false';if(!stopped){status.textContent='切断 · さいせつぞく中…';document.querySelector('footer')!.textContent='PCの学校用起動を確認してください。部屋を作り直した場合は、新しいQRを読み直します。';retry=window.setTimeout(connect,2000);}};
+ ws.onclose=()=>{resetVitals(root);maw.reset();document.querySelector<HTMLImageElement>('#inventory-appearance')!.hidden=true;document.querySelector<HTMLCanvasElement>('#inventory-skin')!.hidden=false;closeSettings();closeInventory();root.querySelectorAll('[data-bot-slot] span,[data-bot-slot] small').forEach(label=>label.textContent='');document.querySelector('#identity')!.textContent='未接続';delete root.dataset.number;video.clear();ready=false;approved=false;release();update();root.dataset.enabled='false';if(!stopped){status.textContent='切断 · さいせつぞく中…';document.querySelector('footer')!.textContent='PCの学校用起動を確認してください。部屋を作り直した場合は、新しいQRを読み直します。';retry=window.setTimeout(connect,2000);}};
  ws.onerror=()=>ws.close();
 }
 root.querySelectorAll<HTMLElement>('[data-key],[data-move]').forEach(button=>{

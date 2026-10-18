@@ -113,6 +113,7 @@ public final class BotBlockActions {
         }
         bot.copyInventoryFrom(player);
     }
+    private final MawHud mawHud=new MawHud();
     private String lastMenu="";
     public void ui(ClassroomBot bot,ClassroomRoom.UiAction action,ClassroomRoom room,java.util.UUID peer){
         var menu=player.containerMenu;
@@ -130,7 +131,22 @@ public final class BotBlockActions {
                 bot.copyInventoryFrom(player);
                 if(error!=null){var status=new com.google.gson.JsonObject();status.addProperty("type","backpackStatus");status.addProperty("message",error);room.publishInventory(peer,status);}
             }
-            case "craft" -> {player.closeContainer();player.menuVisible=true;player.menuTitle="クラフト";}
+            case "mawSkills" -> {if(!player.menuVisible)room.publishInventory(peer,mawHud.skills(player));}
+            case "mawSelect" -> {
+                if(player.menuVisible)return;
+                boolean selected=mawHud.select(player,action.slot(),action.text());bot.copyInventoryFrom(player);
+                var response=mawHud.skills(player);if(!selected)response.addProperty("error","手持ちが変わったか、この武器では選べない技です。もう一度選択してください。");room.publishInventory(peer,response);
+            }
+            case "craft" -> {player.closeContainer();player.menuVisible=true;player.menuTitle="持ち物のクラフト（2×2）";lastMenu="";}
+            case "openBlock" -> {
+                if(player.menuVisible)return;
+                var origin=bot.getEyePosition();
+                var hit=level.clip(new ClipContext(origin,origin.add(bot.getLookAngle().scale(Math.min(6,player.getBlockReach()))),ClipContext.Block.OUTLINE,ClipContext.Fluid.NONE,player));
+                if(hit.getType()==HitResult.Type.BLOCK&&level.hasChunkAt(hit.getBlockPos())&&level.getWorldBorder().isWithinBounds(hit.getBlockPos())&&level.mayInteract(player,hit.getBlockPos())&&level.getBlockState(hit.getBlockPos()).getMenuProvider(level,hit.getBlockPos())!=null){
+                    gameMode.useItemOn(player,level,player.getMainHandItem(),InteractionHand.MAIN_HAND,hit);bot.copyInventoryFrom(player);
+                }
+                if(!player.menuVisible){var message=new com.google.gson.JsonObject();message.addProperty("type","menuStatus");message.addProperty("message","作業台・チェスト・かまどなどを近くで狙ってください。開くときはスニークを解除してください。");room.publishInventory(peer,message);}
+            }
             case "close" -> {if(action.menu()==menu.containerId){player.closeContainer();bot.copyInventoryFrom(player);}}
             case "click","quick","collect" -> {
                 if(!player.menuVisible||action.menu()!=menu.containerId||!menu.stillValid(player))return;
@@ -165,6 +181,9 @@ public final class BotBlockActions {
         var result=new com.google.gson.JsonObject();result.addProperty("type","menu");result.addProperty("open",player.menuVisible);result.addProperty("id",menu.containerId);result.addProperty("title",player.menuTitle);
         var slots=new com.google.gson.JsonArray();
         if(player.menuVisible){
+            if(menu instanceof net.minecraft.world.inventory.InventoryMenu){result.addProperty("craftWidth",2);result.addProperty("craftHeight",2);}
+            else if(menu instanceof net.minecraft.world.inventory.CraftingMenu){result.addProperty("craftWidth",3);result.addProperty("craftHeight",3);}
+            if(menu instanceof net.minecraft.world.inventory.AbstractFurnaceMenu furnace){result.addProperty("burnProgress",furnace.getBurnProgress());result.addProperty("litProgress",furnace.getLitProgress());}
             int left=Math.min(0,menu.slots.stream().mapToInt(slot->slot.x).min().orElse(0));
             int top=Math.min(0,menu.slots.stream().mapToInt(slot->slot.y).min().orElse(0));
             for(var slot:menu.slots){if(slots.size()>=256)break;var stack=slot.getItem();var value=new com.google.gson.JsonObject();value.addProperty("slot",slot.index);value.addProperty("x",slot.x-left);value.addProperty("y",slot.y-top);value.addProperty("name",stack.isEmpty()?"":stack.getHoverName().getString());value.addProperty("count",stack.getCount());value.addProperty("iconKey",dev.craftlink.video.ItemIcons.request(stack));slots.add(value);}
@@ -192,6 +211,9 @@ public final class BotBlockActions {
     }
     public com.google.gson.JsonObject status(ClassroomBot bot,ClassroomRoom.Mode mode){
         var result=new com.google.gson.JsonObject();result.addProperty("type","vitals");result.addProperty("survival",mode==ClassroomRoom.Mode.SURVIVAL);result.addProperty("inWater",bot.isInWater());
+        result.addProperty("damageSequence",bot.damageSequence());result.addProperty("onFire",bot.isOnFire());
+        result.addProperty("air",bot.getAirSupply());result.addProperty("maxAir",bot.getMaxAirSupply());
+        result.addProperty("frozen",bot.getTicksFrozen());result.addProperty("freezeThreshold",bot.getTicksRequiredToFreeze());
         result.addProperty("health",bot.getHealth());result.addProperty("maxHealth",bot.getMaxHealth());result.addProperty("absorption",bot.getAbsorptionAmount());result.addProperty("armor",bot.getArmorValue());
         result.addProperty("food",player.getFoodData().getFoodLevel());result.addProperty("level",player.experienceLevel);result.addProperty("progress",player.experienceProgress);
         var effects=new com.google.gson.JsonArray();
@@ -199,7 +221,7 @@ public final class BotBlockActions {
             var json=new com.google.gson.JsonObject();json.addProperty("id",net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getKey(effect.getEffect()).toString());
             json.addProperty("name",net.minecraft.network.chat.Component.translatable(effect.getDescriptionId()).getString());json.addProperty("amplifier",effect.getAmplifier());json.addProperty("duration",effect.getDuration());json.addProperty("color",effect.getEffect().getColor());effects.add(json);
         }
-        result.add("effects",effects);return result;
+        result.add("effects",effects);MawHud.appendStatus(result,bot,player);return result;
     }
     public void tick(ClassroomBot bot,RemoteState.Snapshot input,ClassroomRoom.Mode mode,ClassroomRoom.Aim aim){
         GameType requested=mode==ClassroomRoom.Mode.CREATIVE?GameType.CREATIVE:GameType.SURVIVAL;

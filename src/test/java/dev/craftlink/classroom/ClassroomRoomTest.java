@@ -259,4 +259,21 @@ static class VideoSocket extends Socket {
  room.disconnect(id,socket);assertFalse(room.canAct(id));room.ui(id,socket,start);assertTrue(room.takeUi(id).isEmpty());
 }
 
+@Test void craftingAndBlockOpenActionsStayWithApprovedSocketAndStopOnPause(){
+ var room=new ClassroomRoom();var one=new Socket();var other=new Socket();var id=room.join(room.token(),"",one);
+ var open=new ClassroomRoom.UiAction("openBlock",0,0,0,"");
+ var craft=new ClassroomRoom.UiAction("craft",0,0,0,"");
+ room.ui(id,other,open);assertTrue(room.takeUi(id).isEmpty());
+ room.ui(id,one,open);room.ui(id,one,craft);assertEquals(java.util.List.of(open,craft),room.takeUi(id));
+ room.ui(id,one,open);room.pause(true);assertTrue(room.takeUi(id).isEmpty());
+ room.ui(id,one,craft);assertTrue(room.takeUi(id).isEmpty());
+ room.pause(false);room.ui(id,one,craft);assertEquals(java.util.List.of(craft),room.takeUi(id));
+}
+@Test void mawSelectionsStayWithTheirParticipantAndCannotRunWhilePaused(){
+ var room=new ClassroomRoom();var one=new Socket();var two=new Socket();var id=room.join(room.token(),"",one);room.join(room.token(),"",two);
+ var request=new ClassroomRoom.UiAction("mawSkills",0,0,0,"");var select=new ClassroomRoom.UiAction("mawSelect",0,5,0,"bow");
+ room.ui(id,two,select);assertTrue(room.takeUi(id).isEmpty());
+ room.ui(id,one,request);room.ui(id,one,select);assertEquals(java.util.List.of(request,select),room.takeUi(id));
+ room.ui(id,one,select);room.pause(true);assertTrue(room.takeUi(id).isEmpty());room.ui(id,one,request);assertTrue(room.takeUi(id).isEmpty());
+}
 }

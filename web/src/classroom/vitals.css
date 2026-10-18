@@ -12,3 +12,12 @@
 @media(max-height:360px){.meter-icon{height:11px}#bot-vitals{bottom:calc(max(6px,env(safe-area-inset-bottom)) + 40px)}#experience-level{font-size:12px}.effect-badge{min-height:24px;font-size:10px}}
 
 #food-meter{direction:rtl}
+
+#damage-overlay,#environment-overlay{position:absolute;inset:0;z-index:2;pointer-events:none}
+#damage-overlay{opacity:0;background:radial-gradient(ellipse,transparent 30%,#e00000 100%)}
+#environment-overlay::before,#environment-overlay::after{content:"";position:absolute;inset:0;pointer-events:none}
+#environment-overlay::before{opacity:var(--frozen,0);box-shadow:inset 0 0 70px 24px #a8deff99;border:5px solid #c6ecff88}
+#environment-overlay[data-fire]::after{background:linear-gradient(0deg,#ff6a0088,transparent 32%),radial-gradient(ellipse at bottom left,#ffb00099,transparent 48%),radial-gradient(ellipse at bottom right,#ff430099,transparent 48%)}
+#environment-status{position:absolute;z-index:3;left:50%;transform:translateX(-50%);bottom:calc(max(6px,env(safe-area-inset-bottom)) + 135px);display:flex;flex-wrap:wrap;justify-content:center;gap:5px;pointer-events:none;max-width:90%}
+.environment-badge{font-size:12px;padding:4px 8px;background:#18232ddd;border:1px solid #78c5ed;color:#d5f0ff;text-shadow:1px 1px #000}
+.environment-badge.fire{border-color:#ff9a46;color:#ffd5a1}.environment-badge.danger{border-color:#ff6666;color:#ffaaaa}

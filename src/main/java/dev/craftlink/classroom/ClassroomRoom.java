@@ -41,7 +41,7 @@ public final class ClassroomRoom {
     public synchronized void ui(UUID id,Socket socket,UiAction action){
         var peer=peers.get(id);
         if(peer==null||peer.socket!=socket||!peer.approved||paused&&!action.kind().equals("close")||expired())return;
-        if(!Set.of("click","quick","collect","close","craft","recipe","chat","skillStart","skillRelease","skillCancel","sheathe","backpack").contains(action.kind())||action.slot()< -999||action.slot()>255||action.button()<0||action.button()>1||action.text().length()>256)throw new IllegalArgumentException("Invalid menu action");
+        if(!Set.of("click","quick","collect","close","craft","openBlock","mawSkills","mawSelect","recipe","chat","skillStart","skillRelease","skillCancel","sheathe","backpack").contains(action.kind())||action.slot()< -999||action.slot()>255||action.button()<0||action.button()>1||action.text().length()>256)throw new IllegalArgumentException("Invalid menu action");
         var pending=uiActions.computeIfAbsent(id,key->new ArrayDeque<>());if(pending.size()<32)pending.add(action);
     }
     public synchronized List<UiAction> takeUi(UUID id){

@@ -20,9 +20,13 @@ import net.minecraft.world.entity.player.Player;
 
 /** Remote-controlled humanoid; all intent is applied on the integrated server thread. */
 public final class ClassroomBot extends PathfinderMob {
+    private long damageSequence;
+    public long damageSequence(){return damageSequence;}
     @Override public boolean hurt(net.minecraft.world.damagesource.DamageSource source,float amount){
         if(BotBlockActions.isOwnActor(this,source.getEntity()))return false;
-        return super.hurt(source,amount);
+        boolean damaged=super.hurt(source,amount);
+        if(damaged && amount>0)damageSequence++;
+        return damaged;
     }
     private static final ChatFormatting[] COLORS = {ChatFormatting.RED,ChatFormatting.BLUE,ChatFormatting.GREEN,ChatFormatting.YELLOW,ChatFormatting.LIGHT_PURPLE,ChatFormatting.AQUA,ChatFormatting.GOLD,ChatFormatting.WHITE};
     private static final EntityDataAccessor<Integer> NUMBER = SynchedEntityData.defineId(ClassroomBot.class, EntityDataSerializers.INT);
