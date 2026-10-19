@@ -1,4 +1,4 @@
-import {HEADER_BYTES, parseFrameHeader, videoPoint} from './protocol';
+import {HEADER_BYTES, MAX_FRAME_BYTES, parseFrameHeader, videoPoint} from './protocol';
 import type {FrameHeader} from './protocol';
 export class VideoView {
   private frame?: FrameHeader;
@@ -18,14 +18,16 @@ export class VideoView {
   }
   async receive(blob:Blob):Promise<number|undefined> {
     if (!this.enabled) return;
+    if (blob.size<=HEADER_BYTES || blob.size>MAX_FRAME_BYTES) throw new Error('Invalid video frame size');
     // A slow device must not accumulate concurrent JPEG decodes. Acknowledge
     // skipped packets so the sender can continue with a fresh frame.
-    if(this.decoding)return parseFrameHeader(await blob.slice(0,21).arrayBuffer()).id;
+    if(this.decoding)return parseFrameHeader(await blob.slice(0,HEADER_BYTES+1).arrayBuffer()).id;
     this.decoding=true;
     try {
     const generation=this.generation;
-    const bytes=await blob.arrayBuffer(), header=parseFrameHeader(bytes);
-    const url=URL.createObjectURL(new Blob([bytes.slice(HEADER_BYTES)],{type:'image/jpeg'}));
+    const header=parseFrameHeader(await blob.slice(0,HEADER_BYTES+1).arrayBuffer());
+    // Read only the header into JS; pass the JPEG Blob directly to the decoder.
+    const url=URL.createObjectURL(blob.slice(HEADER_BYTES,blob.size,'image/jpeg'));
     try {
       const image=new Image();
       await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error('JPEG decode failed'));image.src=url;});
