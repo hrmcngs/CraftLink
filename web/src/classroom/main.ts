@@ -151,6 +151,7 @@ document.querySelector('#inventory-drop-stack')!.addEventListener('click',()=>{i
 document.querySelector('#drop-item')!.addEventListener('click',()=>{if(ready)requestDrop();});
 const icons=new Map<string,string>();
 function iconLabel(label:HTMLElement,key:unknown,name:string){
+ const content=JSON.stringify([typeof key==='string'?key:'',name]);if(label.dataset.content===content&&label.hasChildNodes())return;label.dataset.content=content;
  label.replaceChildren();const text=document.createElement('span');text.className='item-name';text.textContent=name;label.append(text);label.classList.remove('has-icon');
  if(typeof key!=='string'||!/^\d+$/.test(key))return;
  const image=document.createElement('img');image.className='item-icon';image.dataset.iconKey=key;image.alt=name;image.draggable=false;
@@ -178,6 +179,7 @@ function renderIcons(data:{icons?:unknown}){
  root.querySelectorAll<HTMLImageElement>('img[data-icon-key="'+icon.key+'"]').forEach(image=>{image.src=icon.image;image.parentElement!.classList.add('has-icon');});}
 }
 document.querySelector('#inventory-open-backpack')!.addEventListener('click',()=>{if(ready)sendUi('backpack');});
+let accessoryLayout='';
 function renderInventory(data: {selected?:unknown;slots?:unknown;creative?:unknown;weaponSkills?:unknown;backpacks?:unknown}) {
  mawSkillsButton.hidden=data.weaponSkills!==true;document.querySelector<HTMLButtonElement>('#mwa-skill')!.hidden=data.weaponSkills!==true;document.querySelector<HTMLButtonElement>('#mwa-sheathe')!.hidden=data.weaponSkills!==true;
  document.querySelector<HTMLButtonElement>('#inventory-open-backpack')!.hidden=data.backpacks!==true;
@@ -187,10 +189,13 @@ function renderInventory(data: {selected?:unknown;slots?:unknown;creative?:unkno
  for(const item of data.slots){if(!item||!Number.isInteger(item.slot)||item.slot<0||item.slot>168||typeof item.name!=='string'||typeof item.count!=='number')return;}
  const equipmentTarget=document.querySelector<HTMLSelectElement>('#equipment-target')!;
  const accessoryGrid=document.querySelector<HTMLElement>('#inventory-accessories')!;accessoryGrid.hidden=data.slots.length===41;
+ const nextAccessoryLayout=JSON.stringify(data.slots.filter(item=>item.slot>=41).map(item=>[item.slot,item.label,item.backgroundKey]));
+ if(accessoryLayout!==nextAccessoryLayout){accessoryLayout=nextAccessoryLayout;
  equipmentTarget.querySelectorAll('option[data-accessory]').forEach(option=>option.remove());
  root.querySelectorAll('[data-accessory-slot]').forEach(button=>button.remove());
  for(const item of data.slots){if(item.slot<41)continue;const option=document.createElement('option');option.value=String(item.slot);option.textContent=item.label;option.dataset.accessory='true';equipmentTarget.append(option);const button=document.createElement('button');button.dataset.botSlot=String(item.slot);button.dataset.accessorySlot='true';button.innerHTML='<span></span><small></small>';const background=document.createElement('i');background.className='accessory-texture';
  if(typeof item.backgroundKey==='string'&&/^\d+$/.test(item.backgroundKey)){const image=document.createElement('img');image.alt='';image.dataset.iconKey=item.backgroundKey;const source=icons.get(item.backgroundKey);if(source){image.src=source;background.classList.add('has-icon');}background.append(image);}button.prepend(background);const caption=document.createElement('em');caption.textContent=item.label;button.append(caption);accessoryGrid.append(button);bindSlot(button);}
+ }
  inventoryCounts.clear();for(const item of data.slots)inventoryCounts.set(item.slot,item.count);
  selectedSlot=data.selected as number;
  for(const item of data.slots){root.querySelectorAll<HTMLButtonElement>('[data-bot-slot="'+item.slot+'"]').forEach(button=>{iconLabel(button.querySelector('span')!,item.count>0?item.iconKey:'',item.count>0?item.name:'');button.setAttribute('aria-label',item.name||'空の持ち物');button.querySelector('small')!.textContent=item.count>1?String(item.count):'';button.title=(item.label||['足','脚','胴','頭','オフハンド'][item.slot-36]||'')+' '+(item.count>0?item.name:'空');button.classList.toggle('selected',item.slot===data.selected);});}

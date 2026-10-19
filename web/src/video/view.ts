@@ -5,7 +5,9 @@ export class VideoView {
   private receivedAt=0;
   private generation=0;
   private enabled=true;
-  constructor(private canvas: HTMLCanvasElement, private root: HTMLElement, private contextChanged:()=>void=()=>{}) { root.dataset.streaming='true'; }
+  private decoding=false;
+  private drawing: CanvasRenderingContext2D | null;
+  constructor(private canvas: HTMLCanvasElement, private root: HTMLElement, private contextChanged:()=>void=()=>{}) { root.dataset.streaming='true'; this.drawing=canvas.getContext('2d',{alpha:false}); }
   setEnabled(enabled:boolean) { this.enabled=enabled; this.root.dataset.streaming=String(enabled); this.clear(); }
   fresh() { return this.enabled && this.frame !== undefined && performance.now()-this.receivedAt<1500; }
   context() { return this.fresh() ? this.frame!.context : 2; }
@@ -16,6 +18,11 @@ export class VideoView {
   }
   async receive(blob:Blob):Promise<number|undefined> {
     if (!this.enabled) return;
+    // A slow device must not accumulate concurrent JPEG decodes. Acknowledge
+    // skipped packets so the sender can continue with a fresh frame.
+    if(this.decoding)return parseFrameHeader(await blob.slice(0,21).arrayBuffer()).id;
+    this.decoding=true;
+    try {
     const generation=this.generation;
     const bytes=await blob.arrayBuffer(), header=parseFrameHeader(bytes);
     const url=URL.createObjectURL(new Blob([bytes.slice(HEADER_BYTES)],{type:'image/jpeg'}));
@@ -27,11 +34,12 @@ export class VideoView {
       if (this.frame && header.id<this.frame.id && !(header.id===1 && this.frame.id===2147483647)) return header.id;
       if (image.naturalWidth!==header.width || image.naturalHeight!==header.height) throw new Error('Video dimensions mismatch');
       if(this.canvas.width!==header.width || this.canvas.height!==header.height) {this.canvas.width=header.width;this.canvas.height=header.height;}
-      this.canvas.getContext('2d')!.drawImage(image,0,0);
+      this.drawing!.drawImage(image,0,0);
       if(this.frame && this.frame.context!==header.context)this.contextChanged();
       this.frame=header;this.receivedAt=performance.now();this.root.dataset.context=header.context===1?'gui':'world';
       this.refresh();return header.id;
     } finally { URL.revokeObjectURL(url); }
+    } finally { this.decoding=false; }
   }
   refresh() {
     const fresh=this.fresh(), state=fresh?'live':'waiting';
@@ -40,5 +48,5 @@ export class VideoView {
     const message=!this.enabled?'映像転送はオフです':!fresh?'Minecraftの映像を待っています':this.frame?.context===2?'直接タップ操作は一人称視点で使用してください':'';
     if(status && status.textContent!==message) status.textContent=message;
   }
-  clear() {this.generation++;this.frame=undefined;this.canvas.getContext('2d')?.clearRect(0,0,this.canvas.width,this.canvas.height);this.root.dataset.context='world';this.refresh();}
+  clear() {this.generation++;this.frame=undefined;this.drawing?.clearRect(0,0,this.canvas.width,this.canvas.height);this.root.dataset.context='world';this.refresh();}
 }
