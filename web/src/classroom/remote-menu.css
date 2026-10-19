@@ -19,4 +19,6 @@
 @media(orientation:portrait){#remote-menu .menu-body{display:block}#remote-menu details{max-height:90px}#remote-menu .menu-slots{width:100%}}
 #chat-open{left:calc(50% - 84px)}
 
-#remote-menu .menu-process{font-size:12px;margin:5px 0;display:flex;gap:12px;flex-wrap:wrap}#remote-menu .menu-process[hidden]{display:none}#remote-menu progress{width:100px;height:12px;accent-color:#67a83a}#block-open{grid-column:1/3;min-height:30px;font-size:10px}
+#remote-menu .menu-process{font-size:12px;margin:5px 0;display:flex;gap:12px;flex-wrap:wrap}#remote-menu .menu-process[hidden]{display:none}#remote-menu progress{width:100px;height:12px;accent-color:#67a83a}
+
+.native-menu-image{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;pointer-events:none}#remote-menu .native-menu [data-menu-slot]{background:transparent;box-shadow:none}#remote-menu .native-menu [data-menu-slot]>*{visibility:hidden}#remote-menu .native-menu [data-menu-slot]:focus-visible{outline:2px solid white}

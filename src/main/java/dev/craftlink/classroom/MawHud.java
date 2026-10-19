@@ -30,11 +30,6 @@ final class MawHud {
         if(!loaded())return;
         status.addProperty("soulFire",bot.isOnFire()&&bot.getPersistentData().contains("TfpwSoulFireUntil")&&bot.level().getGameTime()<=bot.getPersistentData().getLong("TfpwSoulFireUntil"));
         var hud=new JsonObject();
-        if(!FAILURES.contains("mana"))try{
-            double mana=((Number)method("mana.ManaHelper","getMana",Player.class).invoke(null,player)).doubleValue();
-            double max=((Number)method("mana.ManaHelper","maxMana",Player.class).invoke(null,player)).doubleValue();
-            if(Double.isFinite(mana)&&Double.isFinite(max)&&max>0){hud.addProperty("mana",Math.max(0,Math.min(max,mana)));hud.addProperty("maxMana",max);}
-        }catch(ReflectiveOperationException e){failed("mana",e);}
         if(!FAILURES.contains("shield"))try{
             Class<?> shield=Class.forName(PREFIX+"item.ParryShieldItem");
             if(player.isUsingItem()&&shield.isInstance(player.getUseItem().getItem())){

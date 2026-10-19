@@ -1,11 +1,14 @@
+import {ownerHeaders,readOwnerKey} from './owner-auth.mjs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {pathToFileURL} from 'node:url';
 import WebSocket from 'ws';
 import {MAX_PAYLOAD, send, assetPath, socketPath, validateSecret} from './protocol.mjs';
 
-export function connectBridge({url,secret,port,onReady=()=>{},onClose=()=>{},onRejected=()=>{}}) {
+export function connectBridge({url,secret,port,ownerKey,ownerOrigin,onReady=()=>{},onClose=()=>{},onRejected=()=>{}}) {
   validateSecret(secret);
   const endpoint = new URL(url); const peers = new Map(), requests = new Map(); let origin;
-  const ws = new WebSocket(endpoint,{headers:{Authorization:'Bearer '+secret},handshakeTimeout:15000,maxPayload:MAX_PAYLOAD,perMessageDeflate:false});
+  const ws = new WebSocket(endpoint,{headers:{Authorization:'Bearer '+secret,...(ownerKey?ownerHeaders(ownerKey,ownerOrigin??endpoint.origin.replace(/^ws:/,'http:').replace(/^wss:/,'https:')):{})},handshakeTimeout:15000,maxPayload:MAX_PAYLOAD,perMessageDeflate:false});
   ws.on('unexpected-response',(_request,response)=>{
     response.resume();
     onRejected(response.statusCode);
@@ -50,8 +53,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const origin=new URL(url);if(origin.protocol!=='https:'||origin.origin!==url||origin.username||origin.password)throw new Error('Use the root HTTPS URL');
   const port=Number(process.env.CRAFTLINK_LOCAL_PORT??(mode==='classroom'?8766:8765));
   if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid local port');
+  const ownerKey=readOwnerKey(path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'));
   let stopped=false,current,retry;
-  const connect=()=>{if(stopped)return;console.log('HTTPS中継へ接続中…');current=connectBridge({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port,onReady:()=>console.log(`中継接続済み。Minecraftの${mode==='classroom'?'みんなで参加 → ':''}「別のWi-Fi」に ${url} を保存し、開始後のQRを読みます。`),onClose:()=>{if(!stopped){console.log('中継切断。再接続します。URL・認証キー・回線を確認してください。');retry=setTimeout(connect,3000);}}});};
+  const connect=()=>{if(stopped)return;console.log('HTTPS中継へ接続中…');current=connectBridge({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port,ownerKey,onReady:()=>console.log(`中継接続済み。Minecraftの${mode==='classroom'?'みんなで参加 → ':''}「別のWi-Fi」に ${url} を保存し、開始後のQRを読みます。`),onClose:()=>{if(!stopped){console.log('中継切断。再接続します。URL・認証キー・回線を確認してください。');retry=setTimeout(connect,3000);}}});};
   for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{stopped=true;clearTimeout(retry);current?.terminate();});
   connect();
 }

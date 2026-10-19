@@ -1,3 +1,4 @@
+import {readOwnerKey} from './owner-auth.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
@@ -52,14 +53,15 @@ export function launchSchool(options,dependencies={}) {
   function reconnect(){
     if(finished)return;
     log('学校用HTTPS中継へ接続中…');
-    bridge=connect({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port:options.port,onRejected:status=>{
-      log(`中継が接続を拒否しました（HTTP ${status}）。`);
+    bridge=connect({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port:options.port,ownerKey:options.ownerKey,onRejected:status=>{
+      log(`中継が接続を拒否しました（HTTP ${status}）。主催者 hrmcngs の公開鍵登録と認証キーを確認してください。`);
       if(status===403)log('RenderのEnvironmentにあるCRAFTLINK_RELAY_SECRETと、このMacの保存済みキーを確認してください。再設定: sh school.sh --setup。別のMacで起動中なら、その中継接続を終了してください。キーはチャットに送らないでください。');
     },onReady:()=>{
       if(finished||starting)return;starting=true;clearTimeout(startup);
       log('中継接続済み。Minecraftでワールドを開くと、参加用QRを自動表示します。');
       const args=[path.join(options.root,'run.sh'),'lan'];if(options.offline)args.push('--offline');
       if(options.mods)args.push('--mods');
+      args.push(options.login==='online'?'--login':options.login==='guest'?'--no-login':'--cached-login');
       const childEnv={...process.env,ORG_GRADLE_PROJECT_craftlinkRemote:'true',ORG_GRADLE_PROJECT_craftlinkExternalUrl:url,ORG_GRADLE_PROJECT_craftlinkSchoolMode:options.mode};
       delete childEnv.CRAFTLINK_RELAY_SECRET;
       try{
@@ -74,13 +76,14 @@ export function launchSchool(options,dependencies={}) {
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  try{
   const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),args=process.argv.slice(2);
-  let mode='classroom',offline=true,setup=false,mods=false;
-  for(const arg of args){if(arg==='controller'||arg==='classroom')mode=arg;else if(arg==='--offline')offline=true;else if(arg==='--online')offline=false;else if(arg==='--setup')setup=true;else if(arg==='--mods')mods=true;else throw new Error('Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup] [--mods]');}
+  let mode='classroom',offline=true,setup=false,mods=false,login='cached';
+  for(const arg of args){if(arg==='controller'||arg==='classroom')mode=arg;else if(arg==='--offline')offline=true;else if(arg==='--online')offline=false;else if(arg==='--setup')setup=true;else if(arg==='--mods')mods=true;else if(arg==='--login')login='online';else if(arg==='--cached-login')login='cached';else if(arg==='--no-login')login='guest';else throw new Error('Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup] [--mods] [--login|--cached-login|--no-login]');}
   let config=setup?undefined:readConfig(root);
   if(!config){config=saveConfig(root,{url:process.env.CRAFTLINK_SCHOOL_URL??DEFAULT_URL,secret:process.env.CRAFTLINK_RELAY_SECRET});console.log('初回設定をこのMacに保存しました。次回からキーの入力は不要です。');}
   // Do not pass the relay credential into Minecraft/Gradle child processes.
   delete process.env.CRAFTLINK_RELAY_SECRET;
-  const running=launchSchool({...config,root,mode,offline,mods,port:localPort(root,mode)});
+  const ownerKey=readOwnerKey(root);
+  const running=launchSchool({...config,ownerKey,root,mode,offline,mods,login,port:localPort(root,mode)});
   process.once('SIGINT',()=>running.stop(130));process.once('SIGTERM',()=>running.stop(143));
   process.exitCode=await running.done;
  }catch(error){console.error(error.message);process.exitCode=1;}

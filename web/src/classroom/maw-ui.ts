@@ -1,7 +1,7 @@
 import {normalizeMawSkills,normalizeMawStatus} from './maw-state';
 import './maw.css';
 export function mawUi(root:HTMLElement,send:(action:string,fields?:Record<string,unknown>)=>void,visibility:(open:boolean)=>void){
- const hud=document.createElement('aside');hud.id='maw-hud';hud.setAttribute('aria-label','MAWのMPと盾チャージ');root.append(hud);
+ const hud=document.createElement('aside');hud.id='maw-hud';hud.setAttribute('aria-label','MAWの盾チャージ');root.append(hud);
  const dialog=document.createElement('dialog');dialog.id='maw-skills';dialog.innerHTML='<div class="maw-heading"><h2>MAW 技の選択</h2><button aria-label="技の選択を閉じる">×</button></div><p class="maw-weapon"></p><p class="maw-error" role="status"></p><p>現在メインハンドに持っている武器の技を設定します。</p><div class="maw-choices"></div>';root.append(dialog);
  const pending=new Set<number>();
  function close(){pending.clear();if(dialog.open)dialog.close();visibility(false);}
@@ -15,7 +15,6 @@ export function mawUi(root:HTMLElement,send:(action:string,fields?:Record<string
    if(threshold!==undefined){const mark=document.createElement('b');mark.style.left=(threshold*100)+'%';track.append(mark);}
    label.append(track);hud.append(label);
   };
-  if(data.mana!==undefined&&data.maxMana!==undefined)bar(`MP ${Math.floor(data.mana)} / ${Math.floor(data.maxMana)}`,data.mana,data.maxMana,'mana');
   if(data.shieldCharge!==undefined)bar(`盾チャージ ${Math.round(data.shieldCharge*100)}%`,data.shieldCharge,1,'shield',data.shieldThreshold);
   if(data.text){const text=document.createElement('p');text.textContent=data.text;hud.append(text);}
  }

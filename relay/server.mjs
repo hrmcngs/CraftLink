@@ -1,3 +1,4 @@
+import {ownerVerifier} from './owner-auth.mjs';
 import http from 'node:http';
 import {timingSafeEqual, randomUUID} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
@@ -5,9 +6,10 @@ import {WebSocketServer} from 'ws';
 import {MAX_PAYLOAD, send, assetPath, socketPath, validateSecret} from './protocol.mjs';
 
 /** One private Mac bridge per deployment. No arbitrary upstream URLs or persistent data. */
-export function createRelay({secret, origin, timeout = 10000}) {
+export function createRelay({secret, origin, ownerPublicKey, timeout = 10000}) {
   validateSecret(secret);
   const parsed = new URL(origin); if (parsed.origin !== origin) throw new Error('Use a root public origin');
+  const verifyOwner=ownerVerifier(ownerPublicKey,origin);
   let bridge; const pending = new Map(), peers = new Map();
   const fail = response => { if (!response.writableEnded) { response.writeHead(503, {'Cache-Control':'no-store'}); response.end('CraftLink: Mac is not connected to the relay.'); } };
   function dropBridge(ws) {
@@ -29,7 +31,7 @@ export function createRelay({secret, origin, timeout = 10000}) {
     const path = request.url;
     if (path === '/_bridge') {
       const supplied = Buffer.from(request.headers.authorization ?? ''), expected = Buffer.from('Bearer '+secret);
-      if (supplied.length !== expected.length || !timingSafeEqual(supplied,expected) || bridge) { network.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return; }
+      if (supplied.length !== expected.length || !timingSafeEqual(supplied,expected) || bridge || !verifyOwner(request.headers)) { network.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return; }
       sockets.handleUpgrade(request,network,head,ws => {
         bridge = ws; ws.alive = true;
         ws.on('pong',()=>ws.alive=true);
@@ -74,7 +76,7 @@ export function createRelay({secret, origin, timeout = 10000}) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const origin = process.env.RENDER_EXTERNAL_URL ?? process.env.CRAFTLINK_RELAY_ORIGIN;
   if (!origin?.startsWith('https://')) throw new Error('Set CRAFTLINK_RELAY_ORIGIN to the public HTTPS origin');
-  const relay = createRelay({secret:process.env.CRAFTLINK_RELAY_SECRET,origin});
+  const relay = createRelay({secret:process.env.CRAFTLINK_RELAY_SECRET,origin,ownerPublicKey:process.env.CRAFTLINK_OWNER_PUBLIC_KEY});
   relay.server.listen(Number(process.env.PORT ?? 3000),'0.0.0.0',()=>console.log('CraftLink relay ready'));
   for (const signal of ['SIGINT','SIGTERM']) process.on(signal,()=>relay.close().then(()=>process.exit(0)));
 }

@@ -23,6 +23,13 @@ function meter(element:HTMLElement,value:number,count:number,path:string,color:s
   const icon=document.createElement('span');icon.className='meter-icon';icon.setAttribute('aria-hidden','true');
   icon.innerHTML=`<svg viewBox="0 0 12 13"><path d="${path}"/></svg><span class="meter-fill"><svg viewBox="0 0 12 13"><path d="${path}"/></svg></span>`;
   (icon.lastElementChild as HTMLElement).style.clipPath=`inset(0 ${100-Math.max(0,Math.min(1,value/2-i))*100}% 0 0)`;
+  const sprite=(x:number,y:number)=>{const part=document.createElement('i');part.className='native-meter-sprite';part.style.backgroundPosition=`${x/247*100}% ${y/247*100}%`;return part;};
+  const isHeart=path===heart,isArmor=path===shield;
+  const row=isHeart?0:isArmor?9:27;
+  const full=isHeart?(color==='#779d32'?88:color==='#63535d'?124:color==='#f8d64c'?160:52):isArmor?34:52;
+  icon.append(sprite(16,row));
+  const amount=Math.max(0,Math.min(1,value/2-i));
+  if(amount>0)icon.append(sprite(amount<1?(isArmor?25:full+9):full,row));
   element.append(icon);
  }
 }

@@ -115,6 +115,7 @@ public final class BotBlockActions {
     }
     private final MawHud mawHud=new MawHud();
     private String lastMenu="";
+    private long menuRevision;
     public void ui(ClassroomBot bot,ClassroomRoom.UiAction action,ClassroomRoom room,java.util.UUID peer){
         var menu=player.containerMenu;
         switch(action.kind()){
@@ -200,7 +201,7 @@ public final class BotBlockActions {
             result.add("recipes",recipes);
         }
         result.add("slots",slots);String serialized=result.toString();
-        if(!serialized.equals(lastMenu)){lastMenu=serialized;dev.craftlink.video.ItemIcons.send(room,peer,result);}
+        if(!serialized.equals(lastMenu)){lastMenu=serialized;result.addProperty("revision",++menuRevision);dev.craftlink.video.ItemIcons.send(room,peer,result);if(player.menuVisible)dev.craftlink.video.NativeMenuImages.request(room,peer,menu,player.menuTitle,menuRevision);}
     }
     private void transferEffects(ClassroomBot bot){
         for(var effect:java.util.List.copyOf(bot.getActiveEffects()))if(!player.hasEffect(effect.getEffect()))bot.removeEffect(effect.getEffect());
@@ -235,11 +236,12 @@ public final class BotBlockActions {
         player.setPos(bot.getX(),bot.getY(),bot.getZ());player.setYRot(bot.getYRot());player.setXRot(bot.getXRot());
         player.setShiftKeyDown(bot.isShiftKeyDown());player.setPose(bot.getPose());player.setOnGround(bot.onGround());
         bot.copyInventoryTo(player);syncWeaponAttributes();
-        if(player.isUsingItem()){
+        if(player.isUsingItem()&&!tapped){
             cancel();
             player.advanceUse(useHeld);transferEffects(bot);
             bot.copyInventoryFrom(player);return;
         }
+        if(tapped&&player.isUsingItem())player.stopUsingItem();
         Vec3 origin=bot.getEyePosition();
         Vec3 direction=bot.getLookAngle();
         if(aim!=null){
@@ -255,6 +257,17 @@ public final class BotBlockActions {
             entity->entity!=bot && entity.isAlive() && entity.isPickable() && !entity.isSpectator()
                 && (!(entity instanceof net.minecraft.world.entity.player.Player target)||player.canHarmPlayer(target)),
             hit.getType()==HitResult.Type.BLOCK?Math.min(reach*reach,origin.distanceToSqr(hit.getLocation())):reach*reach);
+        // A direct tap on an interactive block opens its native menu before weapon skills.
+        // Keep normal sneak-use behavior for deliberately placing blocks against containers.
+        if(tapped&&valid&&entityHit==null&&!player.isShiftKeyDown()&&level.getBlockState(hit.getBlockPos()).getMenuProvider(level,hit.getBlockPos())!=null){
+            cancel();cancelSkill();
+            if(cooldown==0)for(var hand:InteractionHand.values()){
+                var result=gameMode.useItemOn(player,level,player.getItemInHand(hand),hand,hit);
+                if(player.menuVisible||result.consumesAction()){bot.swing(hand);break;}
+                if(result==net.minecraft.world.InteractionResult.FAIL)break;
+            }
+            cooldown=4;transferEffects(bot);bot.copyInventoryFrom(player);return;
+        }
         boolean weapon=WeaponSkills.supports(player.getMainHandItem())&&!chargeHeld;
         if(weaponAttackStarted>=0&&!net.minecraft.world.item.ItemStack.isSameItemSameTags(chargingWeapon,player.getMainHandItem())){weaponAttackStarted=-1;chargingWeapon=net.minecraft.world.item.ItemStack.EMPTY;}
         if(weaponAttackStarted>=0&&!input.held().contains("attack")){

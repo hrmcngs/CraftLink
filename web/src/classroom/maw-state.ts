@@ -1,11 +1,7 @@
-export interface MawStatus {mana?:number;maxMana?:number;shieldCharge?:number;shieldThreshold?:number;text?:string}
+export interface MawStatus {shieldCharge?:number;shieldThreshold?:number;text?:string}
 export function normalizeMawStatus(value:unknown):MawStatus|undefined{
  if(!value||typeof value!=='object')return;
  const d=value as Record<string,unknown>,result:MawStatus={};
- if(d.mana!==undefined||d.maxMana!==undefined){
-  if(typeof d.mana!=='number'||!Number.isFinite(d.mana)||typeof d.maxMana!=='number'||!Number.isFinite(d.maxMana)||d.maxMana<=0)return;
-  result.maxMana=d.maxMana;result.mana=Math.max(0,Math.min(d.maxMana,d.mana));
- }
  if(d.shieldCharge!==undefined){
   if(typeof d.shieldCharge!=='number'||!Number.isFinite(d.shieldCharge)||typeof d.shieldThreshold!=='number'||!Number.isFinite(d.shieldThreshold))return;
   result.shieldCharge=Math.max(0,Math.min(1,d.shieldCharge));result.shieldThreshold=Math.max(0,Math.min(1,d.shieldThreshold));

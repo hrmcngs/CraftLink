@@ -9,6 +9,15 @@ base { archivesName = 'craftlink-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 def craftlinkRemote = providers.gradleProperty('craftlinkRemote').map { it.toBoolean() }.getOrElse(false)
 def craftlinkLogin = providers.gradleProperty('craftlinkLogin').map { it.toBoolean() }.getOrElse(false)
+def craftlinkCachedLogin = providers.gradleProperty('craftlinkCachedLogin').map { it.toBoolean() }.getOrElse(false)
+if (craftlinkLogin && craftlinkCachedLogin) throw new GradleException('Choose online login or cached identity, not both.')
+def cachedIdentity = null
+if (craftlinkCachedLogin) {
+    def identityFile = file('.craftlink/identity.json')
+    if (!identityFile.isFile() || java.nio.file.Files.isSymbolicLink(identityFile.toPath()) || identityFile.length() > 1024) throw new GradleException('保存済みの本人情報がありません。自宅などで sh run.sh --login を実行し、タイトル画面まで起動してください。--prepareだけでは保存されません。')
+    cachedIdentity = new groovy.json.JsonSlurper().parse(identityFile)
+    if (!(cachedIdentity.name instanceof String) || !(cachedIdentity.name ==~ /[A-Za-z0-9_]{1,16}/) || !(cachedIdentity.uuid instanceof String) || !(cachedIdentity.uuid ==~ /[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}/)) throw new GradleException('保存済みの本人情報が不正です。自宅で sh run.sh --login を実行し直してください。')
+}
 def craftlinkTransport = providers.gradleProperty('craftlinkTransport').getOrElse('lan')
 if (!(craftlinkTransport in ['lan', 'usb'])) throw new GradleException('craftlinkTransport must be lan or usb')
 def craftlinkPort = providers.gradleProperty('craftlinkPort').orNull
@@ -34,7 +43,9 @@ minecraft {
                 property 'devauth.enabled', 'true'
                 property 'devauth.account', 'main'
                 property 'devauth.configDir', file('.craftlink/dev-auth').absolutePath
+                property 'craftlink.identityCache', file('.craftlink/identity.json').absolutePath
             }
+            if (craftlinkCachedLogin) args '--username', cachedIdentity.name, '--uuid', cachedIdentity.uuid, '--accessToken', '0', '--userType', 'legacy'
             if (providers.gradleProperty('craftlinkExternalUrl').isPresent()) property 'craftlink.externalUrl', providers.gradleProperty('craftlinkExternalUrl').get()
             if (providers.gradleProperty('craftlinkSchoolMode').isPresent()) property 'craftlink.schoolMode', providers.gradleProperty('craftlinkSchoolMode').get()
             if (craftlinkPort != null) property 'craftlink.port', craftlinkPort

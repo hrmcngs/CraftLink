@@ -8,15 +8,17 @@ prepare=false
 port=""
 modpack=false
 login=true
-usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--mods] [--login|--no-login] [--port 1024..65535] [--prepare]\n'; }
+cached_login=false
+usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--mods] [--login|--cached-login|--no-login] [--port 1024..65535] [--prepare]\n'; }
 if [[ "${1:-}" == lan || "${1:-}" == usb ]]; then transport="$1"; shift; fi
 while (( $# )); do
   case "$1" in
     --offline|offline) offline=true; shift ;;
     --prepare) prepare=true; shift ;;
     --mods) modpack=true; shift ;;
-    --login) login=true; shift ;;
-    --no-login) login=false; shift ;;
+    --login) login=true; cached_login=false; shift ;;
+    --no-login) login=false; cached_login=false; shift ;;
+    --cached-login) login=false; cached_login=true; shift ;;
     --port) if (( $# < 2 )) || [[ -z "$2" ]]; then usage >&2; exit 2; fi; port="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
@@ -40,6 +42,14 @@ if [[ "$offline" == true ]]; then
   # Offline forbids downloads; skip only that remote preflight, retaining TLS validation.
   args+=(--offline -PwebOffline=true -Dnet.minecraftforge.gradle.check.certs=false)
 fi
+if [[ "$cached_login" == true ]]; then
+  if [[ ! -f .craftlink/identity.json || -L .craftlink/identity.json ]]; then
+    printf '保存済みの本人情報がありません。自宅などで sh run.sh --login を実行し、タイトル画面まで起動してください（--prepareだけでは保存されません）。\n' >&2
+    exit 1
+  fi
+  args+=(-PcraftlinkLogin=false -PcraftlinkCachedLogin=true)
+  printf '前回認証した名前・UUIDでオフライン起動します。Microsoftへの再接続は行いません。オンライン認証が必要なサーバーには参加できません。\n'
+fi
 if [[ "$modpack" == true ]]; then
   printf '自作MODをビルドしてローカルのMODセットを更新します…\n'
   update_args=(bash "$project_dir/scripts/build-mods.sh")
@@ -59,6 +69,8 @@ if [[ "$login" == true ]]; then
   args+=(-PcraftlinkLogin=true)
   if [[ "$prepare" == true ]]; then args+=(verifyDevLogin); fi
   printf 'Microsoftログインで起動します。初回は表示された公式ログインページをブラウザで開いて認証してください。\n'
+else
+  args+=(-PcraftlinkLogin=false)
 fi
 created_forward=false
 serial=""

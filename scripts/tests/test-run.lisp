@@ -106,5 +106,17 @@ if [ \"$4\" = '--list' ]; then printf '%s\\n' \"${ADB_EXISTING:-}\"; fi
   (lambda ()
     (check (zerop (launch '("--no-login"))) "Vanilla launch failed")
     (check (not (probe-file (merge-pathnames "args.mods" *root*))) "Vanilla launch built optional MODs")))
+(run-test "cached identity skips DevAuth and keeps offline dependency mode"
+  (lambda ()
+    (write-file ".craftlink/identity.json" "{}")
+    (check (zerop (launch '("--offline" "--cached-login"))) "Cached launch failed")
+    (check (contains "args" "-PcraftlinkCachedLogin=true") "Cached identity not selected")
+    (check (contains "args" "-PcraftlinkLogin=false") "DevAuth not explicitly disabled")
+    (check (not (contains "args" "-PcraftlinkLogin=true")) "Cached launch enabled DevAuth")))
+(run-test "missing cached identity stops before optional MOD rebuild"
+  (lambda ()
+    (check (= 1 (launch '("--mods" "--cached-login"))) "Missing identity was accepted")
+    (check (not (probe-file (merge-pathnames "args.mods" *root*))) "Unnecessary MOD build")
+    (check (not (probe-file (merge-pathnames "args" *root*))) "Guest launch silently substituted")))
 (format t "~d passed, ~d failed~%" *passed* *failed*)
 (uiop:quit (if (zerop *failed*) 0 1))

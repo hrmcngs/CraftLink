@@ -1,1 +1,1 @@
-{"name":"craftlink-relay","version":"0.1.0","private":true,"type":"module","engines":{"node":">=22"},"scripts":{"start":"node server.mjs","bridge":"node bridge.mjs","test":"node --test test.mjs school.test.mjs"},"dependencies":{"ws":"8.22.0"}}
+{"name":"craftlink-relay","version":"0.1.0","private":true,"type":"module","engines":{"node":">=22"},"scripts":{"start":"node server.mjs","bridge":"node bridge.mjs","test":"node --test test.mjs school.test.mjs owner-auth.test.mjs"},"dependencies":{"ws":"8.22.0"}}

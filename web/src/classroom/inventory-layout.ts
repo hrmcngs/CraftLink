@@ -21,7 +21,7 @@ export function inventoryMarkup(){return `<dialog id="bot-inventory" aria-labell
    <div class="inventory-body">
    <div class="inventory-character">
     <div id="inventory-armor" aria-label="防具">${[39,38,37,36].map(slot).join('')}</div>
-    <figure class="inventory-avatar" title="選択したアイテムをここにタップして捨てる"><img id="inventory-appearance" alt="装備を反映したBOT" hidden><canvas id="inventory-skin" width="64" height="128" aria-label="自分のスキンの正面プレビュー"></canvas><figcaption id="inventory-player-name">あなたのBOT</figcaption></figure>
+    <figure class="inventory-avatar" title="自分のBOTの装備プレビュー"><img id="inventory-appearance" alt="装備を反映したBOT" hidden><canvas id="inventory-skin" width="64" height="128" aria-label="自分のスキンの正面プレビュー"></canvas><figcaption id="inventory-player-name">あなたのBOT</figcaption></figure>
     <div class="inventory-side"><div class="inventory-offhand">${slot(40)}</div><p id="inventory-selection" role="status">アイテムを選択</p></div>
    </div>
    <div id="bot-inventory-grid" aria-label="バックパック">${Array.from({length:27},(_,i)=>slot(i+9)).join('')}</div>

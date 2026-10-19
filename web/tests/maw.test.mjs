@@ -1,15 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeMawStatus,normalizeMawSkills} from '../src/classroom/maw-state.ts';
-test('MAW HUD retains participant resources and clears released shield charge',()=>{
- assert.deepEqual(normalizeMawStatus({mana:23.5,maxMana:140,shieldCharge:.6,shieldThreshold:.125,text:'技'}),{mana:23.5,maxMana:140,shieldCharge:.6,shieldThreshold:.125,text:'技'});
- assert.deepEqual(normalizeMawStatus({mana:23.5,maxMana:140}),{mana:23.5,maxMana:140});
+test('MAW HUD has no MP and clears released shield charge',()=>{
+ assert.deepEqual(normalizeMawStatus({mana:23.5,maxMana:140,shieldCharge:.6,shieldThreshold:.125,text:'技'}),{shieldCharge:.6,shieldThreshold:.125,text:'技'});
+ assert.deepEqual(normalizeMawStatus({mana:23.5,maxMana:140}),{});
  assert.equal(normalizeMawStatus(undefined),undefined);
- assert.equal(normalizeMawStatus({mana:Infinity,maxMana:100}),undefined);
- assert.equal(normalizeMawStatus({mana:1,maxMana:0}),undefined);
  assert.equal(normalizeMawStatus({shieldCharge:'1',shieldThreshold:0}),undefined);
  assert.equal(normalizeMawStatus({text:'x'.repeat(161)}),undefined);
- assert.deepEqual(normalizeMawStatus({mana:999,maxMana:100,shieldCharge:-1,shieldThreshold:5}),{mana:100,maxMana:100,shieldCharge:0,shieldThreshold:1});
+ assert.deepEqual(normalizeMawStatus({shieldCharge:-1,shieldThreshold:5}),{shieldCharge:0,shieldThreshold:1});
 });
 test('weapon and bow selections accept server choices and reject malformed or duplicate slots',()=>{
  const slot={slot:5,name:'右クリック',selected:'bow',choices:[{id:'bow',name:'弓の技',description:'説明'}]};

@@ -18,7 +18,7 @@ import org.lwjgl.opengl.*;
 
 /** Bounded icon work queue. Network/server threads only enqueue copies; GPU work is client-only. */
 public final class ItemIcons {
-    private record Icon(String key,ItemStack stack,CompletableFuture<String> image) {}
+    private record Icon(String key,ItemStack stack,net.minecraft.resources.ResourceLocation slotSprite,boolean accessory,CompletableFuture<String> image) {}
     private static final LinkedHashMap<String,Icon> cache=new LinkedHashMap<>(128,.75f,true);
     private static final ArrayDeque<Icon> queue=new ArrayDeque<>();
     private record Preview(int skin,Map<net.minecraft.world.entity.EquipmentSlot,ItemStack> equipment,net.minecraft.nbt.Tag accessories,CompletableFuture<String> image) {}
@@ -33,26 +33,45 @@ public final class ItemIcons {
         Icon icon=cache.get(identity);
         if(icon==null){
             if(queue.size()>=256)return "";
-            icon=new Icon(Long.toString(++nextKey),copy,new CompletableFuture<>());cache.put(identity,icon);queue.add(icon);
+            icon=new Icon(Long.toString(++nextKey),copy,null,false,new CompletableFuture<>());cache.put(identity,icon);queue.add(icon);
+            while(cache.size()>1024)cache.remove(cache.keySet().iterator().next());
+        }
+        return icon.key;
+    }
+    public static synchronized String requestAccessorySlot(net.minecraft.resources.ResourceLocation sprite){
+        String identity="accessory-slot:"+(sprite==null?"frame":sprite.toString());
+        Icon icon=cache.get(identity);
+        if(icon==null){
+            if(queue.size()>=256)return "";
+            icon=new Icon(Long.toString(++nextKey),ItemStack.EMPTY,sprite,true,new CompletableFuture<>());
+            cache.put(identity,icon);queue.add(icon);
             while(cache.size()>1024)cache.remove(cache.keySet().iterator().next());
         }
         return icon.key;
     }
     public static void send(ClassroomRoom room,UUID peer,JsonObject message){
+        NativeMenuImages.hud(room,peer);
         room.publishInventory(peer,message);
         var icons=new ArrayList<Icon>();
         synchronized(ItemIcons.class){
             JsonArray entries=message.has("slots")?message.getAsJsonArray("slots"):message.getAsJsonArray("items");
             if(entries==null)return;
-            var keys=new HashSet<String>();for(JsonElement entry:entries)if(entry.getAsJsonObject().has("iconKey"))keys.add(entry.getAsJsonObject().get("iconKey").getAsString());
+            var keys=new HashSet<String>();for(JsonElement entry:entries)for(String field:List.of("iconKey","backgroundKey"))if(entry.getAsJsonObject().has(field))keys.add(entry.getAsJsonObject().get(field).getAsString());
             for(Icon icon:cache.values())if(keys.contains(icon.key))icons.add(icon);
         }
         if(icons.isEmpty())return;
         CompletableFuture.allOf(icons.stream().map(Icon::image).toArray(CompletableFuture[]::new)).thenRun(()->{
-            var result=new JsonObject();result.addProperty("type","itemIcons");var images=new JsonArray();
-            for(Icon icon:icons){String image=icon.image.getNow("");if(image.isEmpty())continue;var item=new JsonObject();item.addProperty("key",icon.key);item.addProperty("image",image);images.add(item);}
-            result.add("icons",images);room.publishInventory(peer,result);
+            var images=new JsonArray();
+            for(Icon icon:icons){
+                String image=icon.image.getNow("");if(image.isEmpty())continue;
+                var item=new JsonObject();item.addProperty("key",icon.key);item.addProperty("image",image);images.add(item);
+                if(images.size()==256){publishImages(room,peer,images);images=new JsonArray();}
+            }
+            if(!images.isEmpty())publishImages(room,peer,images);
         });
+    }
+    private static void publishImages(ClassroomRoom room,UUID peer,JsonArray images){
+        var result=new JsonObject();result.addProperty("type","itemIcons");result.add("icons",images);room.publishInventory(peer,result);
     }
     public static void preview(ClassroomRoom room,UUID peer,dev.craftlink.classroom.ClassroomBot bot){
         var equipment=new EnumMap<net.minecraft.world.entity.EquipmentSlot,ItemStack>(net.minecraft.world.entity.EquipmentSlot.class);
@@ -66,9 +85,16 @@ public final class ItemIcons {
     }
     public static void renderQueued(Minecraft mc){
         if(mc.level==null||mc.player==null||mc.getOverlay()!=null)return;
+        NativeMenuImages.renderQueued(mc);
         for(int i=0;i<3;i++){
             Icon icon;synchronized(ItemIcons.class){icon=queue.poll();}if(icon==null)break;
-            try{icon.image.complete(render(mc,16,16,64,64,graphics->graphics.renderItem(icon.stack,0,0)));}
+            try{
+                if(icon.accessory)icon.image.complete(renderImage(mc,18,18,72,72,graphics->{
+                    graphics.blit(new net.minecraft.resources.ResourceLocation("curios","textures/gui/inventory.png"),0,0,6,6,18,18);
+                    if(icon.slotSprite!=null){var sprite=mc.getTextureAtlas(net.minecraft.world.inventory.InventoryMenu.BLOCK_ATLAS).apply(icon.slotSprite);graphics.blit(1,1,0,16,16,sprite);}
+                }));
+                else icon.image.complete(renderImage(mc,16,16,64,64,graphics->graphics.renderItem(icon.stack,0,0)));
+            }
             catch(Exception|LinkageError failure){iconBuffers=null;icon.image.complete("");com.mojang.logging.LogUtils.getLogger().warn("CraftLink item icon render failed",failure);}
         }
         Preview preview=null;
@@ -79,12 +105,12 @@ public final class ItemIcons {
                 entity.previewSkin(preview.skin);preview.equipment.forEach(entity::setItemSlot);
                 dev.craftlink.classroom.AccessoryAppearance.apply(entity,preview.accessories);
                 var dispatcher=mc.getEntityRenderDispatcher();var orientation=new org.joml.Quaternionf(dispatcher.cameraOrientation());
-                try{preview.image.complete(render(mc,64,96,128,192,graphics->net.minecraft.client.gui.screens.inventory.InventoryScreen.renderEntityInInventoryFollowsMouse(graphics,32,90,42,-12,0,entity)));}
+                try{preview.image.complete(renderImage(mc,64,96,128,192,graphics->net.minecraft.client.gui.screens.inventory.InventoryScreen.renderEntityInInventoryFollowsMouse(graphics,32,90,42,-12,0,entity)));}
                 finally{dispatcher.overrideCameraOrientation(orientation);dispatcher.setRenderShadow(true);}
             }catch(Exception|LinkageError failure){iconBuffers=null;preview.image.complete("");com.mojang.logging.LogUtils.getLogger().warn("CraftLink equipment preview failed",failure);}
         }
     }
-    private static String render(Minecraft mc,int logicalWidth,int logicalHeight,int width,int height,java.util.function.Consumer<GuiGraphics> paint)throws java.io.IOException{
+    public static String renderImage(Minecraft mc,int logicalWidth,int logicalHeight,int width,int height,java.util.function.Consumer<GuiGraphics> paint)throws java.io.IOException{
         var state=new VideoRenderState();var original=mc.getMainRenderTarget();
         var projection=new Matrix4f(RenderSystem.getProjectionMatrix());var sorting=RenderSystem.getVertexSorting();
         var poses=RenderSystem.getModelViewStack();var saved=new PoseStackSnapshot(((PoseStackAccessor)poses).craftlink$poses());
@@ -121,5 +147,5 @@ public final class ItemIcons {
             RenderSystem.depthMask(mask);RenderSystem.setShaderColor(color[0],color[1],color[2],color[3]);RenderSystem.clearColor(clear[0],clear[1],clear[2],clear[3]);
         }
     }
-    public static synchronized void close(){for(Icon icon:queue)icon.image.complete("");queue.clear();cache.clear();for(var preview:previews.values())preview.image.complete("");previews.clear();iconBuffers=null;if(target!=null){target.destroyBuffers();target=null;}}
+    public static synchronized void close(){NativeMenuImages.clear();for(Icon icon:queue)icon.image.complete("");queue.clear();cache.clear();for(var preview:previews.values())preview.image.complete("");previews.clear();iconBuffers=null;if(target!=null){target.destroyBuffers();target=null;}}
 }

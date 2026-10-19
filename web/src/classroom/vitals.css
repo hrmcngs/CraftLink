@@ -21,3 +21,7 @@
 #environment-status{position:absolute;z-index:3;left:50%;transform:translateX(-50%);bottom:calc(max(6px,env(safe-area-inset-bottom)) + 135px);display:flex;flex-wrap:wrap;justify-content:center;gap:5px;pointer-events:none;max-width:90%}
 .environment-badge{font-size:12px;padding:4px 8px;background:#18232ddd;border:1px solid #78c5ed;color:#d5f0ff;text-shadow:1px 1px #000}
 .environment-badge.fire{border-color:#ff9a46;color:#ffd5a1}.environment-badge.danger{border-color:#ff6666;color:#ffaaaa}
+
+.native-meter-sprite{display:none;position:absolute;inset:0;background-image:var(--native-hud);background-size:2844.4444% 2844.4444%;image-rendering:pixelated}#classroom[data-native-hud=true] .native-meter-sprite{display:block}#classroom[data-native-hud=true] .meter-icon>svg,#classroom[data-native-hud=true] .meter-fill{visibility:hidden}
+
+#classroom[data-native-hud=true] #environment-overlay[data-fire]::after{background-image:var(--native-fire);background-size:50% 55%;background-position:left bottom,right bottom;background-repeat:repeat-x;opacity:.85}#classroom[data-native-hud=true] #environment-overlay[data-fire][data-soul-fire]::after{background-image:var(--native-soul-fire)}#classroom[data-native-hud=true] #environment-overlay::before{background:var(--native-frost) center/100% 100%;box-shadow:none;border:0}

@@ -1,3 +1,5 @@
+import {generateKeyPairSync} from 'node:crypto';
+import {ownerHeaders} from './owner-auth.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -6,15 +8,16 @@ import WebSocket,{WebSocketServer} from 'ws';
 import {createRelay} from './server.mjs';
 import {validateSecret} from './protocol.mjs';
 import {connectBridge} from './bridge.mjs';
+const owner=generateKeyPairSync('ed25519'),ownerPublicKey=owner.publicKey.export({format:'der',type:'spki'}).toString('base64');
 const secret='a'.repeat(43),origin='https://craftlink.example';
 const listen=async server=>{server.listen(0,'127.0.0.1');await once(server,'listening');return server.address().port;};
 async function fixture(withBridge=true,ownerSecret=secret){
  const local=http.createServer((req,res)=>{res.writeHead(200,{'Content-Type':'text/html','Content-Security-Policy':"connect-src 'self' wss:"});res.end('<p>CraftLink</p>');});
  const localSockets=new WebSocketServer({server:local});let lastOrigin;
  localSockets.on('connection',(ws,req)=>{lastOrigin=req.headers.origin;ws.on('message',bytes=>{ws.send(bytes,{binary:false});ws.send(Buffer.from([0,255,42]),{binary:true});});});
- const localPort=await listen(local),relay=createRelay({secret:ownerSecret,origin,timeout:1000}),relayPort=await listen(relay.server);
+ const localPort=await listen(local),relay=createRelay({secret:ownerSecret,origin,ownerPublicKey,timeout:1000}),relayPort=await listen(relay.server);
  let bridge;
- if(withBridge)await new Promise(resolve=>bridge=connectBridge({url:`ws://127.0.0.1:${relayPort}/_bridge`,secret:ownerSecret,port:localPort,onReady:resolve}));
+ if(withBridge)await new Promise(resolve=>bridge=connectBridge({url:`ws://127.0.0.1:${relayPort}/_bridge`,secret:ownerSecret,port:localPort,ownerKey:owner.privateKey,ownerOrigin:origin,onReady:resolve}));
  return {base:`http://127.0.0.1:${relayPort}`,ws:`ws://127.0.0.1:${relayPort}`,bridge,relay,lastOrigin:()=>lastOrigin,
   close:async()=>{bridge?.terminate();await relay.close();for(const ws of localSockets.clients)ws.terminate();await new Promise(r=>local.close(r));}};
 }
@@ -54,4 +57,11 @@ test('Render standard Base64 secret authenticates without modification',async()=
 test('missing, short, oversized and header-unsafe secrets are rejected',()=>{
  for(const value of [undefined,'','short','a'.repeat(129),'a'.repeat(32)+'\r\nInjected: value','a'.repeat(32)+' '])assert.throws(()=>validateSecret(value),/CRAFTLINK_RELAY_SECRET/);
  assert.doesNotThrow(()=>validateSecret('a'.repeat(43)));
+});
+
+test('knowing the relay secret and claiming hrmcngs is insufficient without the registered key',async()=>{
+ const f=await fixture(false);try{
+  await rejected(f.ws+'/_bridge',{Authorization:'Bearer '+secret,'x-craftlink-owner':'hrmcngs'});
+  const stranger=generateKeyPairSync('ed25519');await rejected(f.ws+'/_bridge',{Authorization:'Bearer '+secret,...ownerHeaders(stranger.privateKey,origin)});
+ }finally{await f.close();}
 });

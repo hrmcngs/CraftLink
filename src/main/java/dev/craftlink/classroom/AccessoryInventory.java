@@ -6,7 +6,7 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 
 /** Optional Curios bridge: no class loading dependency when Curios is absent. */
 final class AccessoryInventory {
-    record Slot(String name,IItemHandlerModifiable inventory,int index) {}
+    record Slot(String name,net.minecraft.resources.ResourceLocation icon,IItemHandlerModifiable inventory,int index) {}
     static List<Slot> slots(LivingEntity entity){
         if(!net.minecraftforge.fml.ModList.get().isLoaded("curios"))return List.of();
         try {
@@ -29,10 +29,15 @@ final class AccessoryInventory {
                 }
                 type.getMethod("setCurios",Map.class).invoke(handler,initialized);map=initialized;
             }
+            var definitions=(Map<?,?>)api.getMethod("getPlayerSlots",net.minecraft.world.level.Level.class).invoke(null,entity.level());
+            var slotType=Class.forName("top.theillusivec4.curios.api.type.ISlotType");
             var result=new ArrayList<Slot>();
             for(var entry:map.entrySet()){
                 var stacks=(IItemHandlerModifiable)stacksType.getMethod("getStacks").invoke(entry.getValue());
-                for(int i=0;i<stacks.getSlots()&&result.size()<128;i++)result.add(new Slot(entry.getKey()+" "+(i+1),stacks,i));
+                Object definition=definitions.get(entry.getKey());
+                var icon=definition==null?null:(net.minecraft.resources.ResourceLocation)slotType.getMethod("getIcon").invoke(definition);
+                String translated=net.minecraft.network.chat.Component.translatable("curios.identifier."+entry.getKey()).getString();
+                for(int i=0;i<stacks.getSlots()&&result.size()<128;i++)result.add(new Slot(translated+" "+(i+1),icon,stacks,i));
             }
             return List.copyOf(result);
         }catch(ReflectiveOperationException|ClassCastException e){

@@ -42,6 +42,13 @@ public final class CraftLink {
         private static final dev.craftlink.input.WorldStartGate WORLD_START=new dev.craftlink.input.WorldStartGate();
         private static void init() {
             FMLJavaModLoadingContext.get().getModEventBus().addListener(Client::register);
+            FMLJavaModLoadingContext.get().getModEventBus().addListener((net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent event)->event.enqueueWork(()->{
+                String cache=System.getProperty("craftlink.identityCache");if(cache==null)return;
+                var user=Minecraft.getInstance().getUser();
+                if(user.getType()!=net.minecraft.client.User.Type.MSA||user.getAccessToken().equals("0")||user.getAccessToken().isBlank())return;
+                try{dev.craftlink.config.DevIdentity.save(java.nio.file.Path.of(cache),user.getName(),user.getGameProfile().getId());}
+                catch(java.io.IOException failure){com.mojang.logging.LogUtils.getLogger().warn("CraftLink could not save the offline identity cache",failure);}
+            }));
             MinecraftForge.EVENT_BUS.register(Client.class);
             MinecraftForge.EVENT_BUS.register(dev.craftlink.gui.ControlsIntegration.class);
             MinecraftForge.EVENT_BUS.register(BOTS);

@@ -146,9 +146,11 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 #inventory-player .inventory-avatar,#inventory-player .inventory-side{height:calc(var(--slot-size)*4 + 3px)}
 #inventory-player #inventory-appearance,#inventory-player #inventory-skin{height:calc(var(--slot-size)*4 - 4px)}
 
-#inventory-player .accessory-outline{position:absolute;inset:4px;display:block;color:#555;pointer-events:none}
-#inventory-player .accessory-outline svg{display:block;width:100%;height:100%}
-#inventory-player #inventory-accessories em,#inventory-player [data-accessory-slot]:has(.has-icon) .accessory-outline{display:none}
 
 #inventory-open-backpack{display:block;width:100%;min-height:28px;margin-top:4px;font-size:11px}
 #inventory-open-backpack[hidden]{display:none}
+
+#inventory-player .accessory-texture{position:absolute;inset:0;pointer-events:none;display:block}
+#inventory-player .accessory-texture img{width:100%;height:100%;image-rendering:pixelated;display:block}
+#inventory-player [data-accessory-slot]:has(.accessory-texture.has-icon){background:none;box-shadow:none}
+#inventory-player [data-accessory-slot]>span{inset:5.5556%;z-index:1}

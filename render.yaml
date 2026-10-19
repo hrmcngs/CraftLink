@@ -12,3 +12,5 @@ services:
         value: "22"
       - key: CRAFTLINK_RELAY_SECRET
         generateValue: true
+      - key: CRAFTLINK_OWNER_PUBLIC_KEY
+        sync: false
