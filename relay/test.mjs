@@ -65,3 +65,12 @@ test('knowing the relay secret and claiming hrmcngs is insufficient without the 
   const stranger=generateKeyPairSync('ed25519');await rejected(f.ws+'/_bridge',{Authorization:'Bearer '+secret,...ownerHeaders(stranger.privateKey,origin)});
  }finally{await f.close();}
 });
+
+test('approved skin upload payloads larger than ordinary input survive the bridge',async()=>{
+ const f=await fixture();let client;try{
+  client=new WebSocket(f.ws+'/classroom/ws',{origin});const messages=[];client.on('message',(data,binary)=>{if(!binary)messages.push(data.toString());});await once(client,'open');client.send('{"type":"hello"}');
+  const until=Date.now()+3000;while(messages.length<1&&Date.now()<until)await new Promise(resolve=>setTimeout(resolve,10));assert.equal(messages.length,1);
+  const payload=JSON.stringify({type:'skinUpload',image:'data:image/png;base64,'+'A'.repeat(22000)});client.send(payload);
+  while(messages.length<2&&Date.now()<until)await new Promise(resolve=>setTimeout(resolve,10));assert.equal(messages[1],payload);
+ }finally{client?.terminate();await f.close();}
+});

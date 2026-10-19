@@ -276,4 +276,13 @@ static class VideoSocket extends Socket {
  room.ui(id,one,request);room.ui(id,one,select);assertEquals(java.util.List.of(request,select),room.takeUi(id));
  room.ui(id,one,select);room.pause(true);assertTrue(room.takeUi(id).isEmpty());room.ui(id,one,request);assertTrue(room.takeUi(id).isEmpty());
 }
+@Test void skinUploadIsOwnedByJoinedSocketAndLimitedWithoutChangingOtherProfiles(@org.junit.jupiter.api.io.TempDir java.nio.file.Path directory)throws Exception{
+ long[] now={1};var repository=new dev.craftlink.skin.SkinRepository(directory);var room=new ClassroomRoom(()->now[0],repository);var one=new Socket();var two=new Socket();var a=room.join(room.token(),"",one);var b=room.join(room.token(),"",two);
+ var bytes=new java.io.ByteArrayOutputStream();javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(64,64,java.awt.image.BufferedImage.TYPE_INT_ARGB),"png",bytes);String data="data:image/png;base64,"+java.util.Base64.getEncoder().encodeToString(bytes.toByteArray());
+ room.uploadSkin(a,two,data,true);assertEquals("auto",room.takeInputs().get(a).profile().skin());
+ room.uploadSkin(java.util.UUID.randomUUID(),two,data,true);assertEquals("auto",room.takeInputs().get(b).profile().skin());
+ room.approve(a);room.uploadSkin(a,one,data,true);String selected=room.takeInputs().get(a).profile().skin();assertTrue(selected.startsWith("custom:"));assertTrue(repository.load(selected).slim());assertEquals("auto",room.takeInputs().get(b).profile().skin());
+ room.uploadSkin(a,one,data,false);assertEquals(selected,room.takeInputs().get(a).profile().skin());assertTrue(one.messages.get(one.messages.size()-1).contains("skinUploadError"));
+ now[0]+=6_000_000_000L;room.uploadSkin(a,one,data,false);assertNotEquals(selected,room.takeInputs().get(a).profile().skin());
+}
 }

@@ -19,7 +19,8 @@
     "BotEntityVisibilityMixin",
     "PoseStackAccessor",
     "BlockActionAccessor",
-    "NativeMenuAccess"
+    "NativeMenuAccess",
+    "LocalSkinMixin"
   ],
   "injectors": {
     "defaultRequire": 1

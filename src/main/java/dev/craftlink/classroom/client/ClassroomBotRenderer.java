@@ -19,8 +19,10 @@ import net.minecraftforge.fml.common.Mod;
 public final class ClassroomBotRenderer extends MobRenderer<ClassroomBot, PlayerModel<ClassroomBot>> {
     private static final ResourceLocation[] TEXTURES = dev.craftlink.classroom.ParticipantProfile.SKINS.stream()
         .map(name -> new ResourceLocation("minecraft", "textures/entity/player/wide/" + name + ".png")).toArray(ResourceLocation[]::new);
+    private final PlayerModel<ClassroomBot> wide,slim;
     public ClassroomBotRenderer(EntityRendererProvider.Context context) {
         super(context, new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER), false), .5f);
+        wide=model;slim=new PlayerModel<>(context.bakeLayer(ModelLayers.PLAYER_SLIM),true);
         addLayer(new net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer<>(this,new net.minecraft.client.model.HumanoidModel<>(context.bakeLayer(ModelLayers.PLAYER_INNER_ARMOR)),new net.minecraft.client.model.HumanoidModel<>(context.bakeLayer(ModelLayers.PLAYER_OUTER_ARMOR)),context.getModelManager()));
         addLayer(new net.minecraft.client.renderer.entity.layers.ItemInHandLayer<>(this,context.getItemInHandRenderer()));
         addLayer(new net.minecraft.client.renderer.entity.layers.ElytraLayer<>(this,context.getModelSet()));
@@ -42,9 +44,11 @@ public final class ClassroomBotRenderer extends MobRenderer<ClassroomBot, Player
         event.registerEntityRenderer(ClassroomEntities.BOT.get(), ClassroomBotRenderer::new);
     }
     @Override public ResourceLocation getTextureLocation(ClassroomBot bot) {
+        var custom=UploadedSkins.location(bot.customSkin());if(custom!=null)return custom;
         return TEXTURES[Math.floorMod(bot.skinIndex(), TEXTURES.length)];
     }
     @Override public void render(ClassroomBot bot, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+        model=UploadedSkins.slim(bot.customSkin())?slim:wide;
         model.crouching = bot.isCrouching();
         super.render(bot, yaw, partialTick, pose, buffers, light);
     }

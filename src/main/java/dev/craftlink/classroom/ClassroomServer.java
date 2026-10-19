@@ -91,6 +91,7 @@ public final class ClassroomServer {
             if (++messages > 60) { ctx.close(); return; }
             JsonObject data = JsonParser.parseString(frame.text()).getAsJsonObject();
             String type = data.get("type").getAsString();
+            if(frame.content().readableBytes()>2048&&!type.equals("skinUpload")){ctx.close();return;}
             if (peer == null) {
                 if (!type.equals("hello")) { ctx.close(); return; }
                 socket = new PeerSocket(ctx.channel());
@@ -98,6 +99,7 @@ public final class ClassroomServer {
             }
             switch (type) {
                 case "ui" -> room.ui(peer,socket,new ClassroomRoom.UiAction(data.get("action").getAsString(),data.has("menu")?data.get("menu").getAsInt():-1,data.has("slot")?data.get("slot").getAsInt():-1,data.has("button")?data.get("button").getAsInt():0,data.has("text")?data.get("text").getAsString():""));
+                case "skinUpload" -> room.uploadSkin(peer,socket,data.get("image").getAsString(),data.has("slim")&&data.get("slim").getAsBoolean());
                 case "profile" -> room.profile(peer,socket,data.get("name").getAsString(),data.get("skin").getAsString());
                 case "ping" -> {
                     var pong = new JsonObject(); pong.addProperty("type", "pong"); pong.addProperty("videoStatus", room.videoStatus()); socket.send(pong.toString());
@@ -128,7 +130,7 @@ public final class ClassroomServer {
             if (path.equals("/classroom/ws")) {
                 String host = request.headers().get(HttpHeaderNames.HOST), origin = request.headers().get(HttpHeaderNames.ORIGIN);
                 if (!ExternalEndpoint.allowed(ctx.channel().remoteAddress(),host,origin,external) || room.expired()) { ctx.close(); return; }
-                var handshaker = new WebSocketServerHandshakerFactory((external.isEmpty() ? "ws://"+host : external.replaceFirst("^https:","wss:"))+path,null,false,2048).newHandshaker(request);
+                var handshaker = new WebSocketServerHandshakerFactory((external.isEmpty() ? "ws://"+host : external.replaceFirst("^https:","wss:"))+path,null,false,98304).newHandshaker(request);
                 if (handshaker == null) { ctx.close(); return; }
                 handshaker.handshake(ctx.channel(),request); upgraded = true; return;
             }

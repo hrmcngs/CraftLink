@@ -10,3 +10,5 @@ test('saved profiles recover safely and expose only automatic or nine bundled sk
  assert.deepEqual(normalizeProfile({name:'<bad>',skin:'https://elsewhere/skin.png'}),{name:'',skin:'auto'});
  for(const [skin] of skinChoices)assert.deepEqual(normalizeProfile({name:'名前',skin}),{name:'名前',skin});
 });
+
+test('uploaded local skin IDs survive saved profiles without accepting URLs',()=>{const skin='custom:'+'a'.repeat(64);assert.equal(normalizeProfile({name:'Bot',skin}).skin,skin);assert.equal(normalizeProfile({skin:'custom:../skin.png'}).skin,'auto');});

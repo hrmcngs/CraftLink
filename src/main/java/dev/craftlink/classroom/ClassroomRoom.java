@@ -63,6 +63,7 @@ public final class ClassroomRoom {
     private final Session invitation = new Session();
     private final Map<UUID, Peer> peers = new LinkedHashMap<>();
     private final LongSupplier clock;
+    private final dev.craftlink.skin.SkinRepository skinRepository;
     private boolean paused, closed;
     private volatile String videoStatus = "";
     private String skinCatalog;
@@ -75,6 +76,7 @@ public final class ClassroomRoom {
         final Session resume = new Session();
         final RemoteState input = new RemoteState();
         ParticipantProfile profile=ParticipantProfile.DEFAULT;
+        long lastSkinUpload;
         Socket socket;
         boolean approved, video, inventoryRequested;
         int selectedSlot;
@@ -92,7 +94,8 @@ public final class ClassroomRoom {
         Peer(int number, Socket socket) { this.number = number; this.socket = socket; }
     }
     public ClassroomRoom() { this(System::nanoTime); }
-    public ClassroomRoom(LongSupplier clock) { this.clock = clock; }
+    public ClassroomRoom(LongSupplier clock) { this(clock,null); }
+    ClassroomRoom(LongSupplier clock,dev.craftlink.skin.SkinRepository skins) { this.clock=clock;this.skinRepository=skins; }
     public String token() { return invitation.token(); }
     public synchronized boolean expired() { return closed || invitation.expired(); }
     public synchronized boolean paused() { return paused; }
@@ -123,6 +126,14 @@ public final class ClassroomRoom {
         welcome.addProperty("name",peer.profile.displayName(peer.number));welcome.addProperty("skin",peer.profile.skin());
         welcome.addProperty("resume", peer.resume.token()); socket.send(welcome.toString()); sendState(peer);if(skinCatalog!=null)socket.send(skinCatalog);
         return peer.id;
+    }
+    public synchronized void uploadSkin(UUID id,Socket socket,String image,boolean slim){
+        var peer=peers.get(id);if(peer==null||peer.socket!=socket||!peer.approved||expired())return;
+        long now=clock.getAsLong();if(peer.lastSkinUpload!=0&&now-peer.lastSkinUpload<5_000_000_000L){var error=new JsonObject();error.addProperty("type","skinUploadError");error.addProperty("message","次のスキン送信まで5秒待ってください。");socket.send(error.toString());return;}peer.lastSkinUpload=now;
+        try{
+            var skin=dev.craftlink.skin.SkinPng.fromData(image,slim);(skinRepository==null?dev.craftlink.skin.SkinRepository.global():skinRepository).store(skin);
+            peer.profile=new ParticipantProfile(peer.profile.name(),skin.id());var message=new JsonObject();message.addProperty("type","skinUploaded");message.addProperty("number",peer.number);message.addProperty("name",peer.profile.displayName(peer.number));message.addProperty("skin",skin.id());message.addProperty("image",skin.data());message.addProperty("slim",skin.slim());socket.send(message.toString());
+        }catch(java.io.IOException failure){var error=new JsonObject();error.addProperty("type","skinUploadError");error.addProperty("message","保存できませんでした。64×64のPNG（64KB以内）と、PCの保存先の空きを確認してください。");socket.send(error.toString());}
     }
     public synchronized void profile(UUID id,Socket socket,String name,String skin){
         var incoming=new ParticipantProfile(name,skin);Peer peer=peers.get(id);

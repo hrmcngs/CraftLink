@@ -37,7 +37,7 @@ export function connectBridge({url,secret,port,ownerKey,ownerOrigin,onReady=()=>
         local.on('error',()=>{});local.on('close',()=>{peers.delete(packet.id);send(ws,{type:'close',id:packet.id});});
       } else if (packet.type === 'frame') {
         const state=peers.get(packet.id);if(!state)return;
-        const body=Buffer.from(packet.body,'base64');if(packet.binary || body.length>8192)throw new Error('Invalid controller input');
+        const body=Buffer.from(packet.body,'base64');if(packet.binary || body.length>98304 || body.length>8192&&JSON.parse(body.toString('utf8')).type!=='skinUpload')throw new Error('Invalid controller input');
         if(state.local.readyState===1){if(state.local.bufferedAmount>MAX_PAYLOAD)state.local.close();else state.local.send(body,{binary:false});}
         else if(state.local.readyState===0){state.size+=body.length;if(state.size>16384)throw new Error('Input queue full');state.queue.push(body);}
       } else if (packet.type === 'close') peers.get(packet.id)?.local.close();

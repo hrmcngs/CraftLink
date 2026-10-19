@@ -32,11 +32,15 @@ public final class ClassroomBot extends PathfinderMob {
     private static final EntityDataAccessor<Integer> NUMBER = SynchedEntityData.defineId(ClassroomBot.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> FLYING=SynchedEntityData.defineId(ClassroomBot.class,EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> SKIN=SynchedEntityData.defineId(ClassroomBot.class,EntityDataSerializers.INT);
+    private static final EntityDataAccessor<String> CUSTOM_SKIN=SynchedEntityData.defineId(ClassroomBot.class,EntityDataSerializers.STRING);
+    public String customSkin(){return entityData.get(CUSTOM_SKIN);}
+    public void previewCustomSkin(String skin){entityData.set(CUSTOM_SKIN,skin);}
     public int skinIndex(){return entityData.get(SKIN);}
     public void previewSkin(int index){entityData.set(SKIN,index);}
     public void profile(ParticipantProfile profile){
         String text=profile.displayName(participantNumber());
         if(getCustomName()==null||!text.equals(getCustomName().getString())){setCustomName(Component.literal(text).withStyle(COLORS[participantNumber()-1]));inventoryVersion++;}
+        String custom=dev.craftlink.skin.SkinPng.custom(profile.skin())?profile.skin():"";if(!customSkin().equals(custom)){entityData.set(CUSTOM_SKIN,custom);inventoryVersion++;}
         int skin=profile.skinIndex(participantNumber());if(skinIndex()!=skin){entityData.set(SKIN,skin);inventoryVersion++;}
     }
     private Set<String> held = Set.of();
@@ -172,7 +176,7 @@ public final class ClassroomBot extends PathfinderMob {
         setInvulnerable(true); setCanPickUpLoot(true);
         addTag("craftlink_bot_"+number);setCustomNameVisible(true);
     }
-    @Override protected void defineSynchedData() { super.defineSynchedData(); entityData.define(NUMBER, 1);entityData.define(FLYING,false);entityData.define(SKIN,0); }
+    @Override protected void defineSynchedData() { super.defineSynchedData(); entityData.define(NUMBER, 1);entityData.define(FLYING,false);entityData.define(SKIN,0);entityData.define(CUSTOM_SKIN,""); }
     @Override public float getStandingEyeHeight(Pose pose,net.minecraft.world.entity.EntityDimensions dimensions){return pose==Pose.SWIMMING?.4f:pose==Pose.CROUCHING?1.27f:1.62f;}
     @Override public net.minecraft.world.entity.EntityDimensions getDimensions(Pose pose){return pose==Pose.SWIMMING?net.minecraft.world.entity.EntityDimensions.scalable(.6f,.6f):pose==Pose.CROUCHING?net.minecraft.world.entity.EntityDimensions.scalable(.6f,1.5f):super.getDimensions(pose);}
     public int participantNumber() { return entityData.get(NUMBER); }

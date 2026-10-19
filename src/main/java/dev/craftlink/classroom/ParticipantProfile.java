@@ -13,8 +13,8 @@ public record ParticipantProfile(String name,String skin) {
         name=Normalizer.normalize(name.strip(),Normalizer.Form.NFC);
         if(name.codePointCount(0,name.length())>16 || !name.codePoints().allMatch(c->Character.isLetterOrDigit(c)||c==' '||c=='_'||c=='-'))throw new IllegalArgumentException("Invalid display name");
         if(skin==null)skin="auto";
-        if(!skin.equals("auto")&&!SKINS.contains(skin))throw new IllegalArgumentException("Unknown skin");
+        if(!skin.equals("auto")&&!SKINS.contains(skin)&&!dev.craftlink.skin.SkinPng.custom(skin))throw new IllegalArgumentException("Unknown skin");
     }
     public String displayName(int number){return name.isEmpty()?"Bot"+number:name;}
-    public int skinIndex(int number){return skin.equals("auto")?Math.floorMod(number-1,SKINS.size()):SKINS.indexOf(skin);}
+    public int skinIndex(int number){return skin.equals("auto")||dev.craftlink.skin.SkinPng.custom(skin)?Math.floorMod(number-1,SKINS.size()):SKINS.indexOf(skin);}
 }

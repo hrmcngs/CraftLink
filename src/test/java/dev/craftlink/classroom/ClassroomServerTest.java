@@ -40,6 +40,15 @@ class ClassroomServerTest {
             assertTrue(server.room().views().isEmpty());
         }finally{server.shutdown();}
     }
+    @Test void largerSkinUploadReachesValidationInsteadOfDisconnecting()throws Exception{
+        var server=new ClassroomServer();Phone phone=null;try{
+            server.start(0,"127.0.0.1","");await(server::running);URI uri=URI.create(server.url());phone=connect("http://"+uri.getAuthority());
+            phone.socket.sendText("{\"type\":\"hello\",\"token\":\""+uri.getFragment()+"\"}",true).join();phone.messages.poll(3,TimeUnit.SECONDS);phone.messages.poll(3,TimeUnit.SECONDS);
+            var id=server.room().views().get(0).id();server.room().approve(id);phone.messages.clear();
+            phone.socket.sendText("{\"type\":\"skinUpload\",\"image\":\"data:image/png;base64,"+"A".repeat(12000)+"\"}",true).join();
+            String response=null;long deadline=System.nanoTime()+3_000_000_000L;while(System.nanoTime()<deadline){String next=phone.messages.poll(100,TimeUnit.MILLISECONDS);if(next!=null&&next.contains("skinUploadError")){response=next;break;}}assertNotNull(response);
+        }finally{if(phone!=null)phone.socket.abort();server.shutdown();}
+    }
     private static Phone connect(String origin) throws Exception {
         var messages=new LinkedBlockingQueue<String>();
         var socket=HttpClient.newHttpClient().newWebSocketBuilder().header("Origin",origin).buildAsync(URI.create(origin.replace("http://","ws://")+"/classroom/ws"),new WebSocket.Listener(){
