@@ -38,6 +38,8 @@ public final class BotBlockActions {
         attributeHand=current.copy();
     }
     public void cancelSkill(){chargeStarted=-1;weaponAttackStarted=-1;chargingWeapon=net.minecraft.world.item.ItemStack.EMPTY;}
+    /** Revocation cancels item use; releasing it could fire a charged bow. */
+    public void cancelActions(){player.stopUsingItem();cancel();cancelSkill();}
     static boolean isOwnActor(ClassroomBot bot,net.minecraft.world.entity.Entity entity){return entity instanceof ActionPlayer actor&&actor.wearer==bot;}
     private static final class ActionPlayer extends FakePlayer {
         int attackTicks=20;
@@ -174,7 +176,7 @@ public final class BotBlockActions {
             }
         }
     }
-    public void close(ClassroomBot bot){cancel();bot.copyInventoryTo(player);player.closeContainer();bot.copyInventoryFrom(player);}
+    public void close(ClassroomBot bot){cancelActions();bot.copyInventoryTo(player);player.closeContainer();bot.copyInventoryFrom(player);}
     public void publishMenu(ClassroomRoom room,java.util.UUID peer){
         if(level.getGameTime()%5!=0)return;
         var menu=player.containerMenu;

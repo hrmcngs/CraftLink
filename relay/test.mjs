@@ -74,3 +74,24 @@ test('approved skin upload payloads larger than ordinary input survive the bridg
   while(messages.length<2&&Date.now()<until)await new Promise(resolve=>setTimeout(resolve,10));assert.equal(messages[1],payload);
  }finally{client?.terminate();await f.close();}
 });
+
+for(const [label,payload] of [
+ ['oversized input','A'.repeat(98305)],
+ ['malformed large JSON','A'.repeat(8193)],
+ ['large non-skin input',JSON.stringify({type:'input',padding:'A'.repeat(8192)})]
+])test('invalid peer input preserves the owner bridge and other participants: '+label,{timeout:5000},async()=>{
+ const f=await fixture();let healthy,invalid;
+ const event=(socket,name)=>once(socket,name,{signal:AbortSignal.timeout(3000)});
+ try{
+  healthy=new WebSocket(f.ws+'/classroom/ws',{origin});const messages=[];
+  healthy.on('message',(data,binary)=>{if(!binary)messages.push(data.toString());});
+  const echoed=async text=>{const until=Date.now()+3000;while(!messages.includes(text)&&Date.now()<until)await new Promise(resolve=>setTimeout(resolve,10));assert.ok(messages.includes(text),'healthy peer still receives '+text);};
+  await event(healthy,'open');healthy.send('{"type":"hello"}');await echoed('{"type":"hello"}');
+  // The offending peer has no room hello or invitation.
+  invalid=new WebSocket(f.ws+'/classroom/ws',{origin});await event(invalid,'open');
+  const closed=event(invalid,'close');invalid.send(payload);const [code]=await closed;
+  assert.equal(code,1012);assert.equal(f.bridge.readyState,WebSocket.OPEN);assert.equal(healthy.readyState,WebSocket.OPEN);
+  healthy.send('{"type":"ping"}');await echoed('{"type":"ping"}');
+  assert.equal((await fetch(f.base+'/',{signal:AbortSignal.timeout(3000)})).status,200);
+ }finally{invalid?.terminate();healthy?.terminate();await f.close();}
+});

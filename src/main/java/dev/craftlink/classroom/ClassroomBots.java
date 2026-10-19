@@ -73,10 +73,11 @@ public final class ClassroomBots {
             else if(entry.getValue().swapSlot()>=1000){int encoded=entry.getValue().swapSlot()-1000;bot.equip(encoded/169,encoded%169);}
             else if(entry.getValue().swapSlot()>=9)bot.swapToHand(entry.getValue().swapSlot());
             if(entry.getValue().drop()!=null)bot.dropItem(entry.getValue().drop().slot(),entry.getValue().drop().all(),entry.getValue().drop().count());
+            if(!room.canAct(entry.getKey()))actions.get(entry.getKey()).cancelActions();
             actions.get(entry.getKey()).tickStatus(bot,entry.getValue().mode());
-            if(!room.canAct(entry.getKey()))actions.get(entry.getKey()).cancelSkill();
             for(var action:room.takeUi(entry.getKey()))actions.get(entry.getKey()).ui(bot,action,room,entry.getKey());
-            actions.get(entry.getKey()).tick(bot,entry.getValue().input(),entry.getValue().mode(),entry.getValue().aim());
+            if(room.canAct(entry.getKey()))actions.get(entry.getKey()).tick(bot,entry.getValue().input(),entry.getValue().mode(),entry.getValue().aim());
+            else actions.get(entry.getKey()).cancelActions();
             actions.get(entry.getKey()).publishMenu(room,entry.getKey());
             if(entry.getValue().inventoryRequested() || !Objects.equals(inventoryVersions.get(entry.getKey()),bot.inventoryVersion())) {
                 var inventory=bot.inventoryMessage();inventory.addProperty("weaponSkills",WeaponSkills.available());inventory.addProperty("creative",creativeAllowed);inventory.addProperty("mode",entry.getValue().mode().name().toLowerCase(java.util.Locale.ROOT));dev.craftlink.video.ItemIcons.send(room,entry.getKey(),inventory);inventoryVersions.put(entry.getKey(),bot.inventoryVersion());
