@@ -11,7 +11,13 @@ export function connectBridge({url,secret,port,ownerKey,ownerOrigin,onReady=()=>
   const ws = new WebSocket(endpoint,{headers:{Authorization:'Bearer '+secret,...(ownerKey?ownerHeaders(ownerKey,ownerOrigin??endpoint.origin.replace(/^ws:/,'http:').replace(/^wss:/,'https:')):{})},handshakeTimeout:15000,maxPayload:MAX_PAYLOAD,perMessageDeflate:false});
   ws.on('unexpected-response',(_request,response)=>{
     response.resume();
-    onRejected(response.statusCode);
+    const reason=response.headers['x-craftlink-rejection'];
+    const fingerprint=response.headers['x-craftlink-owner-fingerprint'];
+    onRejected(response.statusCode,{
+      reason:['relay-key','owner-proof','already-connected'].includes(reason)?reason:undefined,
+      ownerFingerprint:typeof fingerprint==='string'&&/^[0-9a-f]{64}$/.test(fingerprint)?fingerprint:undefined,
+      origin:typeof response.headers['x-craftlink-origin']==='string'?response.headers['x-craftlink-origin']:undefined
+    });
     ws.terminate();
   });
   ws.on('message',async bytes=>{

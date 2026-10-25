@@ -1,7 +1,7 @@
 import {readOwnerKey} from './owner-auth.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash,createPublicKey} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {connectBridge} from './bridge.mjs';
@@ -53,10 +53,18 @@ export function launchSchool(options,dependencies={}) {
   function reconnect(){
     if(finished)return;
     log('学校用HTTPS中継へ接続中…');
-    bridge=connect({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port:options.port,ownerKey:options.ownerKey,onRejected:status=>{
+    bridge=connect({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port:options.port,ownerKey:options.ownerKey,onRejected:(status,details={})=>{
       log(`中継が接続を拒否しました（HTTP ${status}）。主催者 hrmcngs の公開鍵登録と認証キーを確認してください。`);
       if(status===401||status===403){
         log('認証拒否のため自動再接続を停止します。Minecraftのログインとは別の、中継の主催者認証です。');
+        if(details.reason==='relay-key')log('原因: 保存済みの中継キーがRenderと一致しません。メニューの「3 → 6」でCRAFTLINK_RELAY_SECRETを入力し直してください。');
+        else if(details.reason==='already-connected')log('原因: 同じ中継に別の主催者接続があります。接続中の別ターミナル・Macを終了してから再実行してください。');
+        else if(details.reason==='owner-proof'){
+          const fingerprint=options.ownerKey?createHash('sha256').update(createPublicKey(options.ownerKey).export({format:'der',type:'spki'})).digest('hex'):undefined;
+          if(details.ownerFingerprint&&fingerprint&&details.ownerFingerprint!==fingerprint)log('原因: Renderに登録された公開鍵がこのMacの公開鍵と一致しません。「3 → 5」の公開鍵をCRAFTLINK_OWNER_PUBLIC_KEYに登録し、再デプロイしてください。');
+          else if(details.origin&&details.origin!==url)log('原因: 中継の公開URL設定がMacの接続先と一致しません。Renderの公開URLと接続先設定を確認してください。');
+          else log('原因: 主催者署名が受理されませんでした。公開鍵とMacの日時を確認してください。');
+        }else log('中継が詳細診断に未対応です。Renderで最新コミットをデプロイすると原因を個別表示できます。');
         log('メニューの「3 → 5」で公開鍵を表示し、RenderのCRAFTLINK_OWNER_PUBLIC_KEYと照合してください。「3 → 6」で中継キーを再設定できます。');
         log('同じ中継へ接続中の別ターミナル・別Macがあれば終了し、Macの日時も確認してください。キーはチャットに送らないでください。');
         stop(77);

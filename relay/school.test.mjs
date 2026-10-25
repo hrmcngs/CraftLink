@@ -63,3 +63,18 @@ test('authentication rejection after a connection loss stops the owned game',asy
   assert.equal(await f.running.done,77);assert.equal(f.terminated(),1);
  }finally{f.running.stop();}
 });
+
+test('relay key mismatch gives a targeted recovery message',async()=>{
+ const messages=[],f=lifecycle({log:message=>messages.push(message)});
+ try{f.connections[0].options.onRejected(403,{reason:'relay-key'});assert.equal(await f.running.done,77);assert(messages.some(line=>line.includes('原因: 保存済みの中継キー')));}finally{f.running.stop();}
+});
+test('an occupied relay is reported without retrying',async()=>{
+ const messages=[],f=lifecycle({log:message=>messages.push(message)});
+ try{f.connections[0].options.onRejected(403,{reason:'already-connected'});assert.equal(await f.running.done,77);assert(messages.some(line=>line.includes('原因: 同じ中継に別の主催者接続')));}finally{f.running.stop();}
+});
+
+import {generateKeyPairSync} from 'node:crypto';
+test('different registered public key is identified from its fingerprint',async()=>{
+ const messages=[],{privateKey}=generateKeyPairSync('ed25519'),f=lifecycle({log:message=>messages.push(message)},{ownerKey:privateKey});
+ try{f.connections[0].options.onRejected(403,{reason:'owner-proof',ownerFingerprint:'0'.repeat(64)});assert.equal(await f.running.done,77);assert(messages.some(line=>line.includes('Renderに登録された公開鍵がこのMacの公開鍵と一致しません')));}finally{f.running.stop();}
+});

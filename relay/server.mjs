@@ -1,6 +1,6 @@
 import {ownerVerifier} from './owner-auth.mjs';
 import http from 'node:http';
-import {timingSafeEqual, randomUUID} from 'node:crypto';
+import {timingSafeEqual, randomUUID, createHash, createPublicKey} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {WebSocketServer} from 'ws';
 import {MAX_PAYLOAD, send, assetPath, socketPath, validateSecret} from './protocol.mjs';
@@ -10,6 +10,7 @@ export function createRelay({secret, origin, ownerPublicKey, timeout = 10000}) {
   validateSecret(secret);
   const parsed = new URL(origin); if (parsed.origin !== origin) throw new Error('Use a root public origin');
   const verifyOwner=ownerVerifier(ownerPublicKey,origin);
+  const ownerFingerprint=createHash('sha256').update(createPublicKey({key:Buffer.from(ownerPublicKey,'base64'),format:'der',type:'spki'}).export({format:'der',type:'spki'})).digest('hex');
   let bridge; const pending = new Map(), peers = new Map();
   const fail = response => { if (!response.writableEnded) { response.writeHead(503, {'Cache-Control':'no-store'}); response.end('CraftLink: Mac is not connected to the relay.'); } };
   function dropBridge(ws) {
@@ -31,7 +32,10 @@ export function createRelay({secret, origin, ownerPublicKey, timeout = 10000}) {
     const path = request.url;
     if (path === '/_bridge') {
       const supplied = Buffer.from(request.headers.authorization ?? ''), expected = Buffer.from('Bearer '+secret);
-      if (supplied.length !== expected.length || !timingSafeEqual(supplied,expected) || bridge || !verifyOwner(request.headers)) { network.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return; }
+      const reject=(reason,ownerDetails=false)=>network.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nCache-Control: no-store\r\nX-CraftLink-Rejection: '+reason+'\r\n'+(ownerDetails?'X-CraftLink-Owner-Fingerprint: '+ownerFingerprint+'\r\nX-CraftLink-Origin: '+origin+'\r\n':'')+'\r\n');
+      if (supplied.length !== expected.length || !timingSafeEqual(supplied,expected)) { reject('relay-key'); return; }
+      if (!verifyOwner(request.headers)) { reject('owner-proof',true); return; }
+      if (bridge) { reject('already-connected'); return; }
       sockets.handleUpgrade(request,network,head,ws => {
         bridge = ws; ws.alive = true;
         ws.on('pong',()=>ws.alive=true);

@@ -95,3 +95,19 @@ for(const [label,payload] of [
   assert.equal((await fetch(f.base+'/',{signal:AbortSignal.timeout(3000)})).status,200);
  }finally{invalid?.terminate();healthy?.terminate();await f.close();}
 });
+
+test('owner rejection details distinguish secret, signature and occupied relay without exposing credentials',async()=>{
+ for(const reason of ['relay-key','owner-proof','already-connected']){
+  const f=await fixture(reason==='already-connected');
+  try{
+   const headers={Authorization:'Bearer '+(reason==='relay-key'?'wrong-key':secret),...(reason==='already-connected'?ownerHeaders(owner.privateKey,origin):{})};
+   const result=await new Promise(resolve=>{
+    const socket=new WebSocket(f.ws+'/_bridge',{headers});socket.on('error',()=>{});
+    socket.on('unexpected-response',(_request,response)=>{response.resume();resolve({status:response.statusCode,headers:response.headers});socket.terminate();});
+   });
+   assert.equal(result.status,403);assert.equal(result.headers['x-craftlink-rejection'],reason);
+   assert(!JSON.stringify(result.headers).includes(secret));assert(!JSON.stringify(result.headers).includes(ownerPublicKey));
+   assert.equal(typeof result.headers['x-craftlink-owner-fingerprint'],reason==='owner-proof'?'string':'undefined');
+  }finally{await f.close();}
+ }
+});
