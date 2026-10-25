@@ -8,9 +8,9 @@ for arg in "$@"; do
     --setup) setup=true ;;
     --offline) offline=true ;;
     --online) offline=false ;;
-    --mods|--login|--cached-login|--no-login) ;;
+    --mods|--login|--cached-login|--dev|--no-login) ;;
     classroom|controller) ;;
-    --help|-h) printf 'Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup] [--mods] [--login|--cached-login|--no-login]\n標準はBOT参加・取得済み依存と前回認証した名前・UUIDでオフライン起動。自宅で一度 sh run.sh --login をタイトル画面まで起動してください。--loginはオンラインで再認証。--modsでCurios・武器Modを読み込みます。初回のみRenderの認証キーを入力。\n'; exit 0 ;;
+    --help|-h) printf 'Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup] [--mods] [--login|--cached-login|--dev|--no-login]\n標準はBOT参加・取得済み依存と前回認証した名前・UUIDでオフライン起動。自宅で一度 sh run.sh --login をタイトル画面まで起動してください。--loginはオンラインで再認証。--modsでCurios・武器Modを読み込みます。初回のみRenderの認証キーを入力。\n'; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$arg" >&2; exit 2 ;;
   esac
 done

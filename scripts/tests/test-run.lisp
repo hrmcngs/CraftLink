@@ -118,5 +118,15 @@ if [ \"$4\" = '--list' ]; then printf '%s\\n' \"${ADB_EXISTING:-}\"; fi
     (check (= 1 (launch '("--mods" "--cached-login"))) "Missing identity was accepted")
     (check (not (probe-file (merge-pathnames "args.mods" *root*))) "Unnecessary MOD build")
     (check (not (probe-file (merge-pathnames "args" *root*))) "Guest launch silently substituted")))
+(run-test "dev alias disables Microsoft authentication"
+  (lambda ()
+    (check (zerop (launch '("--offline" "--dev"))) "Dev launch failed")
+    (check (contains "args" "-PcraftlinkLogin=false") "DevAuth not disabled")
+    (check (not (contains "args" "-PcraftlinkLogin=true")) "Dev launch authenticated")
+    (check (not (contains "args" "-PcraftlinkCachedLogin=true")) "Dev launch reused identity")))
+(run-test "explicit login overrides dev mode"
+  (lambda ()
+    (check (zerop (launch '("--dev" "--login"))) "Login selection failed")
+    (check (contains "args" "-PcraftlinkLogin=true") "Login selection ignored")))
 (format t "~d passed, ~d failed~%" *passed* *failed*)
 (uiop:quit (if (zerop *failed*) 0 1))

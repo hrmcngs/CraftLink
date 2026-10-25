@@ -8,6 +8,18 @@
 
 ソースコードや開発用の起動スクリプトは不要です。各自のPCで別々の部屋を作れます。対応範囲・導入場所・接続手順は[PC向け導入手順](docs/HOST_SETUP.md)を参照してください。
 
+## 起動時のログイン状態を選ぶ
+
+VS Codeの **⌘ShiftB** で選択、または **`sh menu.sh` → 11** で切り替えます。
+
+| 指定 | 状態 |
+| --- | --- |
+| `sh run.sh --dev` | 開発用ゲスト（認証なし） |
+| `sh run.sh --login` | Microsoftで認証したアカウント |
+| `sh run.sh --cached-login --offline` | 保存済みの名前・UUID。ローカル用、再認証なし |
+
+`sh school.sh` にも同じ指定を付けられます。中継の主催者認証は別途必要です。
+
 ## 開発シェルから自分のアカウントで起動
 
 通常の `sh run.sh` は[DevAuth](https://github.com/DJtheRedstoner/DevAuth)を使うMicrosoft認証を有効にします。初回は `sh run.sh --prepare` で依存を取得し、`sh run.sh` を実行してコンソールに表示された認証リンクをブラウザで開いてください。Minecraft Java版を所有するアカウントで認証すると、次回から保存済みの認証で起動します。表示名だけの変更ではありません。

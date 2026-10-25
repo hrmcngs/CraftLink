@@ -9,7 +9,7 @@ port=""
 modpack=false
 login=true
 cached_login=false
-usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--mods] [--login|--cached-login|--no-login] [--port 1024..65535] [--prepare]\n'; }
+usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--mods] [--login|--cached-login|--dev|--no-login] [--port 1024..65535] [--prepare]\n'; }
 if [[ "${1:-}" == lan || "${1:-}" == usb ]]; then transport="$1"; shift; fi
 while (( $# )); do
   case "$1" in
@@ -17,7 +17,7 @@ while (( $# )); do
     --prepare) prepare=true; shift ;;
     --mods) modpack=true; shift ;;
     --login) login=true; cached_login=false; shift ;;
-    --no-login) login=false; cached_login=false; shift ;;
+    --dev|--no-login) login=false; cached_login=false; shift ;;
     --cached-login) login=false; cached_login=true; shift ;;
     --port) if (( $# < 2 )) || [[ -z "$2" ]]; then usage >&2; exit 2; fi; port="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
@@ -71,6 +71,7 @@ if [[ "$login" == true ]]; then
   printf 'Microsoftログインで起動します。初回は表示された公式ログインページをブラウザで開いて認証してください。\n'
 else
   args+=(-PcraftlinkLogin=false)
+  if [[ "$cached_login" == false ]]; then printf 'devモード：開発用ゲストで起動します（Microsoftログインなし）。\n'; fi
 fi
 created_forward=false
 serial=""

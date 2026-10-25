@@ -1,4 +1,6 @@
 #!/bin/sh
+# 起動時の状態を選択: --dev（ゲスト） / --login（Microsoft認証） / --cached-login（保存済み本人情報）
+# 例: sh run.sh --dev / sh run.sh --login
 # CraftLink 開発用Minecraft起動（このファイルのあるフォルダーで実行）
 # sh run.sh                      # 初回・通常起動（LAN / Wi-Fi）
 # sh run.sh --offline            # 取得済み依存だけで起動

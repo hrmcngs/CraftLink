@@ -1,4 +1,6 @@
 #!/bin/sh
+# 起動時の状態を選択: --dev（ゲスト） / --login（Microsoft認証） / --cached-login（保存済み本人情報）
+# 例: sh school.sh --dev / sh school.sh --login
 # CraftLink インターネット中継付き起動（このファイルのあるフォルダーで実行）
 # sh school.sh             # 保存済み設定でMinecraftと中継をまとめて起動
 # sh school.sh --online    # 初回・依存キャッシュ不足時（依存取得を許可）

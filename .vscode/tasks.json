@@ -2,7 +2,9 @@
   "version": "2.0.0",
   "options": {
     "cwd": "${workspaceFolder}",
-    "env": { "PATH": "/opt/homebrew/bin:/usr/local/bin:${env:PATH}" }
+    "env": {
+      "PATH": "/opt/homebrew/bin:/usr/local/bin:${env:PATH}"
+    }
   },
   "presentation": {
     "reveal": "always",
@@ -15,50 +17,119 @@
       "label": "CraftLink: 学校で起動（BOT参加）",
       "type": "process",
       "command": "sh",
-      "args": ["${workspaceFolder}/school.sh"],
-      "group": { "kind": "build", "isDefault": true },
+      "args": [
+        "${workspaceFolder}/school.sh",
+        "${input:craftlinkLogin}"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "problemMatcher": [],
-      "runOptions": { "instanceLimit": 1 }
+      "runOptions": {
+        "instanceLimit": 1
+      }
     },
     {
       "label": "CraftLink: 初回準備・起動（依存ダウンロードあり）",
       "type": "process",
       "command": "sh",
-      "args": ["${workspaceFolder}/school.sh", "--online"],
+      "args": [
+        "${workspaceFolder}/school.sh",
+        "--online",
+        "${input:craftlinkLogin}"
+      ],
       "problemMatcher": [],
-      "runOptions": { "instanceLimit": 1 }
+      "runOptions": {
+        "instanceLimit": 1
+      }
     },
     {
       "label": "CraftLink: 認証キーを再設定して起動",
       "type": "process",
       "command": "sh",
-      "args": ["${workspaceFolder}/school.sh", "--setup"],
+      "args": [
+        "${workspaceFolder}/school.sh",
+        "--setup",
+        "${input:craftlinkLogin}"
+      ],
       "problemMatcher": [],
-      "runOptions": { "instanceLimit": 1 }
+      "runOptions": {
+        "instanceLimit": 1
+      }
     },
     {
       "label": "CraftLink: 学校で起動（自分のプレイヤー）",
       "type": "process",
       "command": "sh",
-      "args": ["${workspaceFolder}/school.sh", "controller"],
+      "args": [
+        "${workspaceFolder}/school.sh",
+        "controller",
+        "${input:craftlinkLogin}"
+      ],
       "problemMatcher": [],
-      "runOptions": { "instanceLimit": 1 }
+      "runOptions": {
+        "instanceLimit": 1
+      }
     },
     {
       "label": "CraftLink: MODをビルド",
       "type": "process",
       "command": "sh",
-      "args": ["${workspaceFolder}/build.sh"],
+      "args": [
+        "${workspaceFolder}/build.sh"
+      ],
       "problemMatcher": [],
-      "runOptions": { "instanceLimit": 1 }
+      "runOptions": {
+        "instanceLimit": 1
+      }
     },
     {
       "label": "CraftLink: 対話式メニュー",
       "type": "process",
       "command": "sh",
-      "args": ["${workspaceFolder}/menu.sh"],
+      "args": [
+        "${workspaceFolder}/menu.sh"
+      ],
       "problemMatcher": [],
-      "runOptions": { "instanceLimit": 1 }
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
+      "label": "CraftLink: 通常起動（ログイン状態を選択）",
+      "type": "process",
+      "command": "sh",
+      "args": [
+        "${workspaceFolder}/run.sh",
+        "${input:craftlinkLogin}"
+      ],
+      "problemMatcher": [],
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "craftlinkLogin",
+      "type": "pickString",
+      "description": "起動時のログイン状態（devはゲスト、cached-loginは再認証なし）",
+      "options": [
+        {
+          "label": "ログイン済みアカウント（Microsoft認証）",
+          "value": "--login"
+        },
+        {
+          "label": "dev（開発用ゲスト）",
+          "value": "--dev"
+        },
+        {
+          "label": "前回の名前・UUIDでローカル起動",
+          "value": "--cached-login"
+        }
+      ],
+      "default": "--cached-login"
     }
   ]
 }
