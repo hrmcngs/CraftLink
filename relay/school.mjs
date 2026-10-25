@@ -55,7 +55,12 @@ export function launchSchool(options,dependencies={}) {
     log('学校用HTTPS中継へ接続中…');
     bridge=connect({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port:options.port,ownerKey:options.ownerKey,onRejected:status=>{
       log(`中継が接続を拒否しました（HTTP ${status}）。主催者 hrmcngs の公開鍵登録と認証キーを確認してください。`);
-      if(status===403)log('RenderのEnvironmentにあるCRAFTLINK_RELAY_SECRETと、このMacの保存済みキーを確認してください。再設定: sh school.sh --setup。別のMacで起動中なら、その中継接続を終了してください。キーはチャットに送らないでください。');
+      if(status===401||status===403){
+        log('認証拒否のため自動再接続を停止します。Minecraftのログインとは別の、中継の主催者認証です。');
+        log('メニューの「3 → 5」で公開鍵を表示し、RenderのCRAFTLINK_OWNER_PUBLIC_KEYと照合してください。「3 → 6」で中継キーを再設定できます。');
+        log('同じ中継へ接続中の別ターミナル・別Macがあれば終了し、Macの日時も確認してください。キーはチャットに送らないでください。');
+        stop(77);
+      }
     },onReady:()=>{
       if(finished||starting)return;starting=true;clearTimeout(startup);
       log('中継接続済み。Minecraftでワールドを開くと、参加用QRを自動表示します。');

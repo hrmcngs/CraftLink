@@ -48,9 +48,9 @@ while :; do
         esac
         continue ;;
       3)
-        printf '\n【設定】\n  1) ログイン状態を変更\n  2) 追加MODあり / なし（現在: %s）\n  3) 依存ダウンロード（現在: %s）\n  4) LAN・USBポート\n  0) 戻る\n選択 > ' "$mods_label" "$download_label"
+        printf '\n【設定】\n  1) ログイン状態を変更\n  2) 追加MODあり / なし（現在: %s）\n  3) 依存ダウンロード（現在: %s）\n  4) LAN・USBポート\n  5) 中継の公開鍵を表示（403エラーの確認）\n  6) 中継の認証キーを再設定して起動\n  0) 戻る\n選択 > ' "$mods_label" "$download_label"
         IFS= read -r selection || exit 0
-        case "$selection" in 1) choice=11 ;; 2) choice=14 ;; 3) choice=5 ;; 4) choice=6 ;; 0) continue ;; *) printf '0〜4を選んでください。\n'; continue ;; esac ;;
+        case "$selection" in 1) choice=11 ;; 2) choice=14 ;; 3) choice=5 ;; 4) choice=6 ;; 5) choice=17 ;; 6) choice=13 ;; 0) continue ;; *) printf '0〜6を選んでください。\n'; continue ;; esac ;;
       4) screen=advanced; continue ;;
       5) printf '\n1 またはEnterでMinecraftを起動します。ワールドを開き、スマホでQRを読んでください。\n起動方法は2、ログイン設定は3で変更できます。\n学校用は登録済み中継が必要です。初回準備は詳細メニューの4、認証キー再設定は13です。\n'; continue ;;
       0|q|quit) exit 0 ;;
@@ -120,6 +120,7 @@ while :; do
       if [ "$choice" = 12 ]; then set -- "$@" controller; fi
       if [ "$choice" = 13 ]; then set -- "$@" --setup; fi
       if [ "$mode" = online ]; then set -- "$@" --online; else set -- "$@" --offline; fi ;;
+    17) set -- node "$project_dir/relay/owner-auth.mjs" --setup ;;
     15)
       set -- bash "$project_dir/scripts/build-mods.sh"
       if [ "$mode" = offline ]; then set -- "$@" --offline; fi ;;
@@ -157,6 +158,10 @@ while :; do
     printf '\n処理が完了しました。\n'
   else
     result=$?
-    printf '\n処理に失敗しました（終了コード: %s）。上のエラーを確認して再実行できます。\n' "$result" >&2
+    if [ "$result" = 77 ]; then
+      printf '\n中継の認証を確認してください。最初の画面の3 → 5で公開鍵、3 → 6で中継キーを再設定できます。\n' >&2
+    else
+      printf '\n処理に失敗しました（終了コード: %s）。上のエラーを確認して再実行できます。\n' "$result" >&2
+    fi
   fi
 done

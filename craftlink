@@ -20,6 +20,7 @@ CraftLink — ターミナルガイド
   sh craftlink mods              追加MODセットを更新
   sh craftlink tunnel            Cloudflare中継を単独起動
   sh craftlink relay             公開済み中継へ単独接続
+  sh craftlink owner             登録用の主催者公開鍵を表示
 
 詳しい説明: sh craftlink help school
 説明項目: school / play / usb / build / prepare / mods / tunnel / relay / login / terminal
@@ -104,6 +105,7 @@ HELP
 fi
 case "$action" in
   menu) exec sh "$project_dir/menu.sh" "$@" ;;
+  owner) exec node "$project_dir/relay/owner-auth.mjs" --setup "$@" ;;
   school) exec bash "$project_dir/scripts/school.sh" "$@" ;;
   play|run) exec bash "$project_dir/scripts/run.sh" "$@" ;;
   usb) exec bash "$project_dir/scripts/run.sh" usb "$@" ;;

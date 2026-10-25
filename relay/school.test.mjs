@@ -42,3 +42,24 @@ test('unreachable relay times out without starting Minecraft',async()=>{
 test('online login is explicit and independent of Gradle offline mode',async()=>{
  const f=lifecycle({}, {login:'online'});try{f.connections[0].options.onReady();assert.deepEqual(f.games[0][1],['/tmp/project with spaces/run.sh','lan','--offline','--login']);f.game.emit('exit',0);assert.equal(await f.running.done,0);}finally{f.running.stop();}
 });
+
+for(const status of [401,403])test('authentication rejection '+status+' stops instead of reconnecting',async()=>{
+ const f=lifecycle();
+ try{
+  f.connections[0].options.onRejected(status);
+  f.connections[0].options.onClose();
+  assert.equal(await f.running.done,77);
+  await new Promise(resolve=>setTimeout(resolve,20));
+  assert.equal(f.connections.length,1);
+  assert.equal(f.games.length,0);
+  assert.equal(f.connections[0].bridge.closed,true);
+ }finally{f.running.stop();}
+});
+test('authentication rejection after a connection loss stops the owned game',async()=>{
+ const f=lifecycle();try{
+  f.connections[0].options.onReady();f.connections[0].options.onClose();
+  await new Promise(resolve=>setTimeout(resolve,20));
+  f.connections[1].options.onRejected(403);f.connections[1].options.onClose();
+  assert.equal(await f.running.done,77);assert.equal(f.terminated(),1);
+ }finally{f.running.stop();}
+});

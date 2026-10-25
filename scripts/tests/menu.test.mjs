@@ -75,3 +75,12 @@ test('first screen presents launch first and hides developer commands',()=>{
  assert.match(r.stdout,/1\) ▶ Minecraftを起動/);
  assert.doesNotMatch(r.stdout,/1\) MODをビルド|公開済み中継のHTTPS URL|実行するshell/);
 });
+
+test('auth rejection returns to the main menu with recovery instructions',()=>{
+ const r=menu('0\n1\n0\n',{MENU_EXIT:'77'});
+ assert.equal(r.status,0);assert.match(r.stderr,/3 → 5/);
+ assert.equal((r.calls.match(/CALL school.sh/g)||[]).length,1);
+});
+test('main settings can reset the relay credential without using the advanced menu',()=>{
+ const r=menu('0\n3\n6\n0\n');assert.equal(r.status,0);assert.match(r.calls,/CALL school.sh\n--setup/);
+});

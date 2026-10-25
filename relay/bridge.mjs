@@ -61,7 +61,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid local port');
   const ownerKey=readOwnerKey(path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'));
   let stopped=false,current,retry;
-  const connect=()=>{if(stopped)return;console.log('HTTPS中継へ接続中…');current=connectBridge({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port,ownerKey,onReady:()=>console.log(`中継接続済み。Minecraftの${mode==='classroom'?'みんなで参加 → ':''}「別のWi-Fi」に ${url} を保存し、開始後のQRを読みます。`),onClose:()=>{if(!stopped){console.log('中継切断。再接続します。URL・認証キー・回線を確認してください。');retry=setTimeout(connect,3000);}}});};
+  const connect=()=>{if(stopped)return;console.log('HTTPS中継へ接続中…');current=connectBridge({url:url.replace(/^https:/,'wss:')+'/_bridge',secret,port,ownerKey,onRejected:status=>{if(status===401||status===403){stopped=true;clearTimeout(retry);process.exitCode=77;console.error(`中継の主催者認証が拒否されました（HTTP ${status}）。自動再接続を停止します。sh craftlink owner で公開鍵を確認し、Renderの登録と中継キーを照合してください。`);}},onReady:()=>console.log(`中継接続済み。Minecraftの${mode==='classroom'?'みんなで参加 → ':''}「別のWi-Fi」に ${url} を保存し、開始後のQRを読みます。`),onClose:()=>{if(!stopped){console.log('中継切断。再接続します。URL・認証キー・回線を確認してください。');retry=setTimeout(connect,3000);}}});};
   for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{stopped=true;clearTimeout(retry);current?.terminate();});
   connect();
 }
