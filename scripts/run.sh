@@ -9,16 +9,18 @@ port=""
 modpack=false
 login=true
 cached_login=false
-usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--mods] [--login|--cached-login|--dev|--no-login] [--port 1024..65535] [--prepare]\n'; }
+login_mode=
+usage() { printf 'Usage: sh run.sh [lan|usb] [--offline] [--mods] [--previous|--login|--cached-login|--dev|--no-login] [--port 1024..65535] [--prepare]\n'; }
 if [[ "${1:-}" == lan || "${1:-}" == usb ]]; then transport="$1"; shift; fi
 while (( $# )); do
   case "$1" in
     --offline|offline) offline=true; shift ;;
     --prepare) prepare=true; shift ;;
     --mods) modpack=true; shift ;;
-    --login) login=true; cached_login=false; shift ;;
-    --dev|--no-login) login=false; cached_login=false; shift ;;
-    --cached-login) login=false; cached_login=true; shift ;;
+    --login) login_mode=online; shift ;;
+    --dev|--no-login) login_mode=guest; shift ;;
+    --cached-login) login_mode=cached; shift ;;
+    --previous) login_mode=; shift ;;
     --port) if (( $# < 2 )) || [[ -z "$2" ]]; then usage >&2; exit 2; fi; port="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
@@ -32,6 +34,11 @@ if [[ "$transport" == usb && -z "$port" ]]; then port=8765; fi
 for tool in java node npm; do
   if ! command -v "$tool" >/dev/null 2>&1; then printf 'Required tool missing: %s (JDK 17 / Node.js 22 / npm)\n' "$tool" >&2; exit 1; fi
 done
+source "$project_dir/scripts/login-mode.sh"
+craftlink_login_mode "${CRAFTLINK_LOGIN_PROFILE:-run}" "$login_mode" online
+login=false
+cached_login=false
+case "$login_mode" in online) login=true ;; cached) cached_login=true ;; esac
 args=(runClient --console=plain "-PcraftlinkTransport=$transport")
 if [[ "$prepare" == true ]]; then args=(classes prepareRunClient --console=plain "-PcraftlinkTransport=$transport"); fi
 if [[ "$modpack" == true ]]; then args+=(-PcraftlinkModpack=true); fi

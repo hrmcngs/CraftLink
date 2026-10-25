@@ -1,4 +1,5 @@
 #!/bin/sh
+# 指定を省略すると前回の選択を復元（通常起動・学校用起動は別々に保存）。--previous も同じ。
 # 起動時の状態を選択: --dev（ゲスト） / --login（Microsoft認証） / --cached-login（保存済み本人情報）
 # 例: sh school.sh --dev / sh school.sh --login
 # CraftLink インターネット中継付き起動（このファイルのあるフォルダーで実行）

@@ -13,7 +13,7 @@ esac
 mode=online
 port=
 auth_flag=
-auth_label=標準
+auth_label=前回の状態（未設定なら標準）
 trap 'exit 130' INT
 trap 'exit 143' TERM
 while :; do

@@ -117,6 +117,10 @@
       "description": "起動時のログイン状態（devはゲスト、cached-loginは再認証なし）",
       "options": [
         {
+          "label": "前回の状態を使う（通常・学校別に保存）",
+          "value": "--previous"
+        },
+        {
           "label": "ログイン済みアカウント（Microsoft認証）",
           "value": "--login"
         },
@@ -129,7 +133,7 @@
           "value": "--cached-login"
         }
       ],
-      "default": "--cached-login"
+      "default": "--previous"
     }
   ]
 }

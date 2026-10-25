@@ -12,3 +12,5 @@
 起動状態はVS Codeの **⌘ShiftB**、または `sh menu.sh` の **11** で選べます。`--dev` はゲスト、`--login` はMicrosoft認証、`--cached-login` は保存済みの名前・UUIDによるローカル起動です。初回の主催者登録には手順1の `--login` が必要です。devを選んでも中継の主催者登録・署名は省略しません。
 
 この方式が中継側で証明するのは、管理者がhrmcngs用として登録したMacの秘密鍵を持つことです。毎回Microsoftに照会して現在のアカウントを証明する仕組みではありません。学校ではMicrosoftへの再認証なしで署名できます。Renderの登録権限を持つ本人が初回登録してください。Macを交換したときや秘密鍵を失ったときは、別の鍵を生成してRenderの公開鍵を更新します。
+
+通常起動・学校用起動のログイン状態は別々に保持します。一度 `sh school.sh --dev` または `sh school.sh --login` で選ぶと、次から `sh school.sh` だけで同じ状態を使います。学校で認証APIへ接続できない場合は `sh school.sh --cached-login` を選んでください。保存する選択は `.craftlink/login-school`（通常は `login-run`）で、認証トークンはここには保存しません。Microsoftログインの期限切れ・失効時は再認証が必要です。Minecraft Education版に対応する変更ではありません。
