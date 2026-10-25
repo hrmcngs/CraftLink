@@ -1,0 +1,116 @@
+#!/bin/sh
+# CraftLink共通入口: sh craftlink / sh craftlink help / sh craftlink help school
+set -eu
+project_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+action=${1:-menu}
+if [ "$#" -gt 0 ]; then shift; fi
+if [ "$action" = help ] || [ "$action" = --help ] || [ "$action" = -h ]; then
+  topic=${1:-overview}
+  case "$topic" in
+    overview)
+      cat <<'HELP'
+CraftLink — ターミナルガイド
+
+  sh craftlink                  番号で操作するメニュー
+  sh craftlink school           中継＋Minecraftをまとめて起動（BOT参加）
+  sh craftlink play             LANでMinecraftを起動
+  sh craftlink usb              Android USBで起動
+  sh craftlink build             配布用MODをビルド
+  sh craftlink prepare           Minecraftの起動準備だけ
+  sh craftlink mods              追加MODセットを更新
+  sh craftlink tunnel            Cloudflare中継を単独起動
+  sh craftlink relay             公開済み中継へ単独接続
+
+詳しい説明: sh craftlink help school
+説明項目: school / play / usb / build / prepare / mods / tunnel / relay / login / terminal
+普段はこの入口だけ使えます。scripts/内は各処理の実装です。
+HELP
+      ;;
+    school)
+      cat <<'HELP'
+【学校用・離れた回線】MinecraftとHTTPS中継をまとめて起動
+実行先: scripts/school.sh → relay/school.mjs → scripts/run.sh
+  sh craftlink school                       保存した設定でBOT参加
+  sh craftlink school --online              初回の依存取得も許可
+  sh craftlink school controller            自分のプレイヤーを操作
+  sh craftlink school --login               Microsoftログインを選択・保存
+  sh craftlink school --cached-login        保存済み本人情報でローカル起動
+  sh craftlink school --dev                 開発用ゲストを選択・保存
+  sh craftlink school --mods                追加MODを更新して起動
+  sh craftlink school --setup               中継キーを非表示入力で再設定
+前提: 主催者登録、HTTPS中継、Mac・スマホ両方のネット接続。
+終了: Minecraft終了で中継も停止。学校側の通信制限によっては接続できません。
+HELP
+      ;;
+    play|usb|prepare)
+      cat <<'HELP'
+【Minecraft起動】実行先: scripts/run.sh
+  sh craftlink play --offline               依存取得済みならLAN起動
+  sh craftlink usb --offline                Android USB起動（adbとUSBデバッグ許可）
+  sh craftlink prepare                      依存を取得・準備だけ行う
+  sh craftlink play --login                 Microsoftログイン
+  sh craftlink play --dev                   開発用ゲスト
+  sh craftlink play --mods --port 9876      追加MOD・LAN/USBポート指定
+起動後: F8から接続開始、スマホでQRを読みます。
+--offlineは依存取得の設定です。Microsoft認証の通信とは別です。
+iPhoneはAndroid USBモード非対応。Ctrl+Cで処理を中断できます。
+HELP
+      ;;
+    build|mods)
+      cat <<'HELP'
+【ビルド】実行先: scripts/build.sh / scripts/build-mods.sh
+  sh craftlink build                       CraftLinkの配布用JARを作る
+  sh craftlink build offline               取得済み依存だけでビルド
+  sh craftlink mods --offline              追加MODセットだけを更新
+  sh craftlink mods --project /path/to/mod  追加MODのソースを指定
+必要: Java 17・Node.js 22・npm。追加MODには対象プロジェクトが必要です。
+配布用JAR: build/libs/craftlink-forge-1.20.1-0.1.0.jar
+HELP
+      ;;
+    tunnel|relay)
+      cat <<'HELP'
+【中継だけ起動】別ターミナルのMinecraftと併用
+実行先: scripts/tunnel.sh / scripts/relay.sh
+  sh craftlink tunnel classroom            CloudflareでBOT参加を中継
+  sh craftlink tunnel controller           通常コントローラーを中継
+  sh craftlink relay classroom https://実際の中継ホスト
+Cloudflareはcloudflaredが必要。表示URLをMinecraftの「別のWi-Fi」へ設定します。
+公開済み中継は登録済みの主催者鍵・中継キーが必要です。
+キーは非表示入力します。URLやコマンドへキーを書かないでください。
+まとめて起動したい場合は sh craftlink school を使います。Ctrl+Cで中継を停止。
+HELP
+      ;;
+    login)
+      cat <<'HELP'
+【ログイン】play / usb / school / prepare に付けるオプション
+  --login          Microsoft認証。認証情報を保存して次回再利用
+  --dev            開発用ゲスト。Microsoftログインなし
+  --cached-login   前回認証した名前・UUIDだけでローカル起動
+  --previous       前回選んだ起動状態（指定を省略しても同じ）
+通常起動と学校用の選択は別々に保存し、Microsoft認証情報は共通で再利用します。
+保存先: .craftlink/（Git対象外）。認証情報を共有しないでください。
+認証の失効時は再ログインが必要です。cached-loginはオンライン認証ではありません。
+HELP
+      ;;
+    terminal)
+      printf '【zshの補完・短縮コマンド】このターミナルで次を実行します。\n'
+      printf 'source "%s/scripts/terminal.zsh"\n' "$project_dir"
+      printf '\n以後は craftlink と入力してメニューを開けます。craftlink の後にTabで候補を表示。\n'
+      printf '設定は現在のターミナルだけに適用し、.zshrcは自動変更しません。\n'
+      ;;
+    *) printf '説明項目がありません: %s\nsh craftlink help で一覧を確認してください。\n' "$topic" >&2; exit 2 ;;
+  esac
+  exit 0
+fi
+case "$action" in
+  menu) exec sh "$project_dir/menu.sh" "$@" ;;
+  school) exec bash "$project_dir/scripts/school.sh" "$@" ;;
+  play|run) exec bash "$project_dir/scripts/run.sh" "$@" ;;
+  usb) exec bash "$project_dir/scripts/run.sh" usb "$@" ;;
+  prepare) exec bash "$project_dir/scripts/run.sh" --prepare "$@" ;;
+  build) exec bash "$project_dir/scripts/build.sh" "$@" ;;
+  mods) exec bash "$project_dir/scripts/build-mods.sh" "$@" ;;
+  tunnel) exec bash "$project_dir/scripts/tunnel.sh" "$@" ;;
+  relay) exec bash "$project_dir/scripts/relay.sh" "$@" ;;
+  *) printf '不明なコマンド: %s\nsh craftlink help で一覧を表示します。\n' "$action" >&2; exit 2 ;;
+esac

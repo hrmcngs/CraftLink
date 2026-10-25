@@ -22,10 +22,15 @@ while :; do
   printf '\nCraftLink — Minecraft 1.20.1 Forge\n'
   printf 'ログイン状態: %s（11で変更）\n' "$auth_label"
   printf '依存取得: %s / LAN・USBポート: %s / 追加MOD: %s\n' "$mode" "${port:-標準}" "$mods"
-  printf '  1) MODをビルド\n  2) Minecraftを起動（LAN / Wi-Fi）\n  3) Minecraftを起動（Android USB / Wi-Fi不要）\n  4) 起動用データを準備（起動しない・スマホ不要）\n  5) オンライン / オフライン切り替え\n  6) 起動ポートを変更\n  7) 接続方法を表示\n  8) 別のWi-Fi用HTTPS中継を起動\n  9) 外部中継サーバーに接続（HTTPS・443番）\n  10) 学校用まとめて起動（初回のみ設定）\n  11) dev / ログイン状態を選択\n  12) 学校用まとめて起動（自分のプレイヤー）\n  13) 学校用の中継認証キーを再設定して起動\n  14) 追加MODあり / なしを切り替え\n  15) 追加MODセットだけをビルド\n  0) 終了\n選択 > '
+  printf '  1) MODをビルド\n  2) Minecraftを起動（LAN / Wi-Fi）\n  3) Minecraftを起動（Android USB / Wi-Fi不要）\n  4) 起動用データを準備（起動しない・スマホ不要）\n  5) オンライン / オフライン切り替え\n  6) 起動ポートを変更\n  7) 接続方法を表示\n  8) 別のWi-Fi用HTTPS中継を起動\n  9) 外部中継サーバーに接続（HTTPS・443番）\n  10) 学校用まとめて起動（初回のみ設定）\n  11) dev / ログイン状態を選択\n  12) 学校用まとめて起動（自分のプレイヤー）\n  13) 学校用の中継認証キーを再設定して起動\n  14) 追加MODあり / なしを切り替え\n  15) 追加MODセットだけをビルド\n  16) コマンド・shellの詳しい説明\n  0) 終了\n選択 > '
   IFS= read -r choice || { printf '\n'; exit 0; }
   case "$choice" in
     0|q|quit) exit 0 ;;
+    16|help|'?')
+      printf '\n説明する項目: school / play / usb / build / prepare / mods / tunnel / relay / login / terminal\n空欄で全体の説明 > '
+      IFS= read -r topic || exit 0
+      sh "$project_dir/craftlink" help "${topic:-overview}"
+      continue ;;
     11)
       printf '1) dev（ゲスト）  2) Microsoftログイン  3) 前回の名前・UUID（再認証なし）  4) 保存した起動状態を復元  0) 戻る > '
       IFS= read -r auth_choice || exit 0
@@ -102,7 +107,8 @@ while :; do
       if [ -n "$auth_flag" ]; then set -- "$@" "$auth_flag"; fi
       if [ "$mods" = true ]; then set -- "$@" --mods; fi ;;
   esac
-  printf '\n選択した処理を実行します。Minecraft終了後はこのメニューへ戻ります。\n'
+  printf '\n実行するshell: %s\n' "$2"
+  printf '処理終了後はメニューへ戻ります。中断はCtrl+Cです。\n'
   if "$@"; then
     printf '\n処理が完了しました。\n'
   else

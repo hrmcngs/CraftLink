@@ -1,5 +1,13 @@
 # CraftLink
 
+**開発操作の入口は `sh craftlink` に統一しました。VS Codeは ⌘ShiftB で説明付きメニューを開きます。**
+
+```sh
+sh craftlink               # 対話式メニュー
+sh craftlink help          # 全コマンドの説明
+sh craftlink help terminal # zshの短縮コマンド・Tab補完の使い方
+```
+
 スマホのブラウザからMinecraftを操作するMOD。**Minecraft Java 1.20.1 / Forge 47.4.10（47系） / Java 17** 対応。
 
 ## 自分のPCで好きなMODと遊ぶ

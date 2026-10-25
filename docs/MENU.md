@@ -3,8 +3,10 @@
 リポジトリのフォルダーで実行します。
 
 ```sh
-sh menu.sh
+sh craftlink
 ```
+
+VS Codeは **⌘ShiftB → 操作メニュー（説明付き）** からも開けます。
 
 番号を入力してEnterで決定します。起動したMinecraftや中継を終了するとメニューへ戻ります。`0` で終了、Ctrl+Cで中断します。
 
@@ -25,6 +27,7 @@ sh menu.sh
 | 13 | 学校用の中継認証キーを再設定して起動 |
 | 14 | 追加MODあり／なしを切り替え |
 | 15 | 追加MODセットだけをビルド |
+| 16 / ? | 各コマンドの目的・実行先・使い方を表示 |
 | 0 | メニューを終了 |
 
 ## よく使う流れ
@@ -41,3 +44,25 @@ sh menu.sh
 学校用中継の主催者認証・登録を省略する機能ではありません。[主催者登録](../relay/OWNER_SETUP.md)・[詳細ガイド](USER_GUIDE.md)も参照してください。
 
 [READMEへ戻る](../README.md)
+
+## コマンドの説明とzsh拡張
+
+普段の入口は `craftlink` です。
+
+```sh
+sh craftlink help school  # 学校用起動が何を実行するか確認
+sh craftlink help login   # 認証・保存先・各ログイン状態の説明
+sh craftlink help terminal
+```
+
+現在のzshに短縮コマンドとTab補完を追加する場合、プロジェクト内で実行します。
+
+```zsh
+source scripts/terminal.zsh
+craftlink             # 以後は sh やファイルの場所を省略できる
+craftlink help school
+```
+
+別のフォルダーへ移動した後も使えます。`craftlink ` の後にTabで操作候補、`craftlink school ` の後にTabでオプション候補を表示します。現在のターミナルへ追加する方式で、グローバルインストールや `.zshrc` の自動変更は行いません。新しいターミナルでは再度sourceしてください。
+
+既存の `run.sh` などは既存タスク・起動手順との互換用です。`scripts/` は内部処理の実装、`craftlink` は利用者が操作を選ぶ共通入口です。

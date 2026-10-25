@@ -10,6 +10,7 @@ function menu(input,extra={}){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'craftlink menu '));
  try{
   fs.copyFileSync(source,path.join(root,'menu.sh'));
+  fs.copyFileSync(path.join(path.dirname(source),'craftlink'),path.join(root,'craftlink'));
   fs.mkdirSync(path.join(root,'scripts'));
   for(const name of ['run.sh','school.sh','build.sh','tunnel.sh','relay.sh','scripts/build-mods.sh']){
    fs.writeFileSync(path.join(root,name),'#!/bin/sh\nprintf "CALL %s\\n" "'+name+'" >> "$MENU_LOG"\nprintf "%s\\n" "$@" >> "$MENU_LOG"\nexit "${MENU_EXIT:-0}"\n');
@@ -52,4 +53,8 @@ test('tunnel and relay modes remain selectable',()=>{
 });
 test('a failed child reports its status and returns to the menu',()=>{
  const r=menu('1\n0\n',{MENU_EXIT:'7'});assert.equal(r.status,0);assert.match(r.stderr,/終了コード: 7/);
+});
+
+test('help explains a script without launching it',()=>{
+ const r=menu('16\nschool\n0\n');assert.equal(r.status,0);assert.equal(r.calls,'');assert.match(r.stdout,/scripts\/school.sh/);
 });

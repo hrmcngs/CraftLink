@@ -21,10 +21,6 @@
         "${workspaceFolder}/school.sh",
         "${input:craftlinkLogin}"
       ],
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
       "problemMatcher": [],
       "runOptions": {
         "instanceLimit": 1
@@ -85,15 +81,19 @@
       }
     },
     {
-      "label": "CraftLink: 対話式メニュー",
+      "label": "CraftLink: 操作メニュー（説明付き）",
       "type": "process",
       "command": "sh",
       "args": [
-        "${workspaceFolder}/menu.sh"
+        "${workspaceFolder}/craftlink"
       ],
       "problemMatcher": [],
       "runOptions": {
         "instanceLimit": 1
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
       }
     },
     {
