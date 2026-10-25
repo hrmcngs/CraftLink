@@ -18,7 +18,7 @@ sh craftlink help terminal # zshの短縮コマンド・Tab補完の使い方
 
 ## 起動時のログイン状態を選ぶ
 
-VS Codeの **⌘ShiftB** で選択、または **`sh menu.sh` → 11** で切り替えます。
+VS Codeの **⌘ShiftB** で選択、または **`sh craftlink` → 3 → 1** で切り替えます。
 
 通常起動・学校用起動それぞれで選択を保存します。次回は指定なし、または **前回の状態を使う** で復元します。Microsoft認証情報も既存のDevAuth保存領域を再利用します（期限切れ・失効時は再認証が必要）。
 

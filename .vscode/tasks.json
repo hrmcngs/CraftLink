@@ -81,7 +81,7 @@
       }
     },
     {
-      "label": "CraftLink: 操作メニュー（説明付き）",
+      "label": "CraftLink: Minecraftを起動",
       "type": "process",
       "command": "sh",
       "args": [

@@ -16,7 +16,7 @@ function menu(input,extra={}){
    fs.writeFileSync(path.join(root,name),'#!/bin/sh\nprintf "CALL %s\\n" "'+name+'" >> "$MENU_LOG"\nprintf "%s\\n" "$@" >> "$MENU_LOG"\nexit "${MENU_EXIT:-0}"\n');
   }
   const log=path.join(root,'calls');
-  const result=spawnSync('sh',[path.join(root,'menu.sh')],{input,encoding:'utf8',cwd:os.tmpdir(),env:{...process.env,MENU_LOG:log,...extra}});
+  const result=spawnSync('sh',[path.join(root,'menu.sh')],{input:'4\n'+input,encoding:'utf8',cwd:os.tmpdir(),env:{...process.env,MENU_LOG:log,...extra}});
   return {...result,calls:fs.existsSync(log)?fs.readFileSync(log,'utf8'):''};
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 }
@@ -57,4 +57,21 @@ test('a failed child reports its status and returns to the menu',()=>{
 
 test('help explains a script without launching it',()=>{
  const r=menu('16\nschool\n0\n');assert.equal(r.status,0);assert.equal(r.calls,'');assert.match(r.stdout,/scripts\/school.sh/);
+});
+
+test('main screen makes Enter start Minecraft using the school profile',()=>{
+ const r=menu('0\n\n0\n');assert.equal(r.status,0);assert.match(r.calls,/CALL school.sh/);assert.match(r.stdout,/Minecraftを起動しています/);
+});
+test('switching launch method waits for launch selection',()=>{
+ const r=menu('0\n2\n2\n1\n0\n');assert.equal(r.status,0);assert.match(r.calls,/CALL run.sh\nlan/);assert.doesNotMatch(r.calls,/school.sh/);
+});
+test('simple settings preserve selected login mode',()=>{
+ const r=menu('0\n3\n1\n1\n1\n0\n');assert.equal(r.status,0);assert.match(r.calls,/CALL school.sh[\s\S]*--dev/);
+});
+
+test('first screen presents launch first and hides developer commands',()=>{
+ const r=spawnSync('sh',[source],{input:'0\n',encoding:'utf8'});
+ assert.equal(r.status,0);
+ assert.match(r.stdout,/1\) ▶ Minecraftを起動/);
+ assert.doesNotMatch(r.stdout,/1\) MODをビルド|公開済み中継のHTTPS URL|実行するshell/);
 });
