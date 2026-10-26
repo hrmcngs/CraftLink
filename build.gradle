@@ -181,6 +181,35 @@ tasks.register('hostDistribution', Zip) {
 }
 build.dependsOn tasks.named('hostDistribution')
 
+// Keep a Git-trackable distribution outside ignored build/ and run/ folders.
+tasks.register('stageRelease') {
+    dependsOn 'shadowJar', 'reobfShadowJar'
+    doLast {
+        if (craftlinkRemote) throw new GradleException('Only the local-network distribution may be committed to releases/.')
+        def artifact = tasks.named('shadowJar').get().archiveFile.get().asFile
+        new java.util.zip.ZipFile(artifact).withCloseable { archive ->
+            def policy = archive.getEntry('craftlink-network.properties')
+            if (policy == null) throw new GradleException('Missing distribution network policy.')
+            def values = new Properties()
+            archive.getInputStream(policy).withCloseable { values.load(it) }
+            if (values.getProperty('remoteAccess') != 'false') throw new GradleException('Remote-enabled JAR cannot be staged for distribution.')
+            if (archive.entries().any { it.name.startsWith('.craftlink/') || it.name.startsWith('me/djtheredstoner/devauth/') }) {
+                throw new GradleException('Development authentication data or dependency found in distribution.')
+            }
+            if (archive.getEntry('META-INF/mods.toml') == null || archive.getEntry('web/classroom.html') == null) {
+                throw new GradleException('Distribution is missing its MOD metadata or web controller.')
+            }
+        }
+        def destination = file("releases/${artifact.name}")
+        destination.parentFile.mkdirs()
+        java.nio.file.Files.copy(artifact.toPath(), destination.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        def digest = java.security.MessageDigest.getInstance('SHA-256').digest(destination.bytes).encodeHex().toString()
+        file("releases/${artifact.name}.sha256").setText("${digest}  ${artifact.name}\n", 'UTF-8')
+        logger.lifecycle("GitHub配布用JAR: releases/${artifact.name}")
+    }
+}
+build.dependsOn tasks.named('stageRelease')
+
 test { useJUnitPlatform() }
 
 // Run the same relocated libraries as the distribution, without production name remapping.
