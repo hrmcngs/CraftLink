@@ -142,5 +142,14 @@ if [ \"$4\" = '--list' ]; then printf '%s\\n' \"${ADB_EXISTING:-}\"; fi
     (check (contains "args" "-PcraftlinkLogin=false") "School changed regular profile")
     (check (zerop (launch '() "CRAFTLINK_LOGIN_PROFILE=school")) "School restore failed")
     (check (contains "args" "-PcraftlinkLogin=true") "School login choice lost")))
+(run-test "dev forces local policy and clears inherited relay properties"
+  (lambda ()
+    (check (zerop (launch '("--dev") "ORG_GRADLE_PROJECT_craftlinkRemote=true" "ORG_GRADLE_PROJECT_craftlinkExternalUrl=https://relay.example")) "Dev launch failed")
+    (dolist (arg '("-PcraftlinkDevLocal=true" "-PcraftlinkRemote=false" "-PcraftlinkExternalUrl=" "-PcraftlinkSchoolMode="))
+      (check (contains "args" arg) arg))))
+(run-test "dev USB stops before starting Minecraft"
+  (lambda ()
+    (check (= 2 (launch '("usb" "--dev"))) "Dev USB was accepted")
+    (check (not (probe-file (merge-pathnames "args" *root*))) "Dev USB started Minecraft")))
 (format t "~d passed, ~d failed~%" *passed* *failed*)
 (uiop:quit (if (zerop *failed*) 0 1))

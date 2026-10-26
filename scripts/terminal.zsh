@@ -12,8 +12,9 @@ _craftlink() {
     compadd -- "${topics[@]}"
   else
     case "$words[2]" in
-      school) compadd -- controller classroom --online --offline --login --dev --cached-login --previous --mods --setup ;;
-      play|usb|prepare) compadd -- --offline --login --dev --cached-login --previous --mods --port ;;
+      school) compadd -- controller classroom --online --offline --login --cached-login --previous --mods --setup ;;
+      usb) compadd -- --offline --login --cached-login --previous --mods --port ;;
+      play|prepare) compadd -- --offline --login --dev --cached-login --previous --mods --port ;;
       build) compadd -- online offline ;;
       mods) compadd -- --offline --project ;;
       tunnel|relay) compadd -- controller classroom ;;

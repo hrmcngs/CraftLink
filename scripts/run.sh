@@ -39,8 +39,15 @@ craftlink_login_mode "${CRAFTLINK_LOGIN_PROFILE:-run}" "$login_mode" online
 login=false
 cached_login=false
 case "$login_mode" in online) login=true ;; cached) cached_login=true ;; esac
+if [[ "$login_mode" == guest && "$transport" != lan ]]; then
+  printf 'devは同じWi-Fi・LANのローカル起動専用です。sh craftlink play --dev を使ってください。\n' >&2
+  exit 2
+fi
 args=(runClient --console=plain "-PcraftlinkTransport=$transport")
 if [[ "$prepare" == true ]]; then args=(classes prepareRunClient --console=plain "-PcraftlinkTransport=$transport"); fi
+if [[ "$login_mode" == guest ]]; then
+  args+=(-PcraftlinkDevLocal=true -PcraftlinkRemote=false -PcraftlinkExternalUrl= -PcraftlinkSchoolMode= -PcraftlinkCachedLogin=false)
+fi
 if [[ "$modpack" == true ]]; then args+=(-PcraftlinkModpack=true); fi
 if [[ -n "$port" ]]; then args+=("-PcraftlinkPort=$port"); fi
 if [[ "$offline" == true ]]; then

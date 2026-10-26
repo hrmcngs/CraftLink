@@ -125,7 +125,7 @@
           "value": "--login"
         },
         {
-          "label": "dev（開発用ゲスト）",
+          "label": "dev（同じWi-Fi・LAN専用）",
           "value": "--dev"
         },
         {

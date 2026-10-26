@@ -17,7 +17,7 @@ function fixture(run){
   run(root,launch);
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 }
-for(const [flag,mode]of [['--dev','guest'],['--login','online'],['--cached-login','cached']]){
+for(const [flag,mode]of [['--login','online'],['--cached-login','cached']]){
  test('school preserves '+mode+' across launches without changing regular choice',()=>fixture((root,launch)=>{
   fs.writeFileSync(path.join(root,'.craftlink/login-run'),'guest\n');
   assert.equal(launch([flag]).status,0);
@@ -32,11 +32,16 @@ for(const [flag,mode]of [['--dev','guest'],['--login','online'],['--cached-login
 test('school rejects invalid saved mode and permits explicit reselection',()=>fixture((root,launch)=>{
  fs.writeFileSync(path.join(root,'.craftlink/login-school'),'invalid\n');
  assert.notEqual(launch().status,0);
- assert.equal(launch(['--dev']).status,0);
+ assert.equal(launch(['--login']).status,0);
 }));
 test('school rejects a symlink instead of overwriting its target',()=>fixture((root,launch)=>{
  const target=path.join(root,'keep');fs.writeFileSync(target,'unchanged');
  fs.symlinkSync(target,path.join(root,'.craftlink/login-school'));
  assert.notEqual(launch(['--dev']).status,0);
  assert.equal(fs.readFileSync(target,'utf8'),'unchanged');
+}));
+
+test('school rejects dev before executing Node or changing saved login',()=>fixture((root,launch)=>{
+ fs.writeFileSync(path.join(root,'.craftlink/login-school'),'cached\n');
+ const result=launch(['--dev']);assert.equal(result.status,2);assert.equal(result.stdout,'');assert.match(result.stderr,/ローカル起動専用/);assert.equal(fs.readFileSync(path.join(root,'.craftlink/login-school'),'utf8'),'cached\n');
 }));

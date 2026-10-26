@@ -17,6 +17,10 @@ craftlink_login_mode() {
     fi
   fi
   case "$selected" in online|cached|guest) ;; *) return 2 ;; esac
+  if [[ "$profile" == school && "$selected" == guest ]]; then
+    printf 'devは同じWi-Fi・LANのローカル起動専用です。sh craftlink play --dev を使ってください。学校用中継では --login または --cached-login を選んでください。\n' >&2
+    return 2
+  fi
   mkdir -p "$directory"
   temporary=$(mktemp "$directory/login-mode.XXXXXX") || return 1
   chmod 600 "$temporary"

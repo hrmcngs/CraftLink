@@ -1,6 +1,6 @@
 #!/bin/sh
 # 指定を省略すると前回の選択を復元（通常起動・学校用起動は別々に保存）。--previous も同じ。
-# 起動時の状態を選択: --dev（ゲスト） / --login（Microsoft認証） / --cached-login（保存済み本人情報）
+# 起動時の状態を選択: --dev（同じWi-Fi・LAN専用） / --login（Microsoft認証） / --cached-login（保存済み本人情報）
 # 例: sh run.sh --dev / sh run.sh --login
 # CraftLink 開発用Minecraft起動（このファイルのあるフォルダーで実行）
 # sh run.sh                      # 初回・通常起動（LAN / Wi-Fi）

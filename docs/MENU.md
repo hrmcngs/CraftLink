@@ -86,3 +86,7 @@ craftlink help school
 ## 中継がHTTP 403で接続を拒否する場合
 
 自動再接続を停止してメニューへ戻ります。**3 → 5**で公開鍵を表示し、Renderの登録値と照合してください。**3 → 6**で保存済みの中継キーを再設定できます。[詳しい確認手順](../relay/OWNER_SETUP.md#http-403で起動できない場合)を参照してください。Minecraftのログイン設定とは別です。
+
+## devは同じWi-Fi・LAN専用
+
+devを選択すると起動方法も自動でローカルLANに変わります。Render・Cloudflareなどの外部中継とUSBはdevでは起動できません。直接コマンドは `sh craftlink play --dev --offline` です。以前のHTTPS URLが保存されていてもdevでは使用しません。学校用はMicrosoftログインまたは保存済み本人情報を選択してください。同じWi-Fiでも端末間通信が遮断されている場合は接続できません。

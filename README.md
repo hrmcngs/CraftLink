@@ -24,11 +24,11 @@ VS Codeの **⌘ShiftB** で選択、または **`sh craftlink` → 3 → 1** �
 
 | 指定 | 状態 |
 | --- | --- |
-| `sh run.sh --dev` | 開発用ゲスト（認証なし） |
+| `sh run.sh --dev` | 開発用ゲスト（同じWi-Fi・LAN専用） |
 | `sh run.sh --login` | Microsoftで認証したアカウント |
 | `sh run.sh --cached-login --offline` | 保存済みの名前・UUID。ローカル用、再認証なし |
 
-`sh school.sh` にも同じ指定を付けられます。中継の主催者認証は別途必要です。
+学校用は `--login` または `--cached-login` を使います。devは中継・USB起動に使えません。中継の主催者認証は別途必要です。
 
 ## 開発シェルから自分のアカウントで起動
 

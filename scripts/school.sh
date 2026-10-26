@@ -15,7 +15,7 @@ for arg in "$@"; do
     --dev|--no-login) login_mode=guest ;;
     --previous) login_mode= ;;
     classroom|controller) ;;
-    --help|-h) printf 'Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup] [--mods] [--previous|--login|--cached-login|--dev|--no-login]\n前回選んだログイン状態を復元します（未設定時はBOT参加・取得済み依存と前回認証した名前・UUIDで起動）。自宅で一度 sh run.sh --login をタイトル画面まで起動してください。--loginはオンラインで再認証。--modsでCurios・武器Modを読み込みます。初回のみRenderの認証キーを入力。\n'; exit 0 ;;
+    --help|-h) printf 'Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup] [--mods] [--previous|--login|--cached-login]\n前回選んだログイン状態を復元します（未設定時はBOT参加・取得済み依存と前回認証した名前・UUIDで起動）。自宅で一度 sh run.sh --login をタイトル画面まで起動してください。--loginはオンラインで再認証。--modsでCurios・武器Modを読み込みます。初回のみRenderの認証キーを入力。\n'; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$arg" >&2; exit 2 ;;
   esac
 done

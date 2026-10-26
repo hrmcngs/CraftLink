@@ -8,6 +8,7 @@ group = 'dev.craftlink'
 base { archivesName = 'craftlink-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 def craftlinkRemote = providers.gradleProperty('craftlinkRemote').map { it.toBoolean() }.getOrElse(false)
+def craftlinkDevLocal = providers.gradleProperty('craftlinkDevLocal').map { it.toBoolean() }.getOrElse(false)
 def craftlinkLogin = providers.gradleProperty('craftlinkLogin').map { it.toBoolean() }.getOrElse(false)
 def craftlinkCachedLogin = providers.gradleProperty('craftlinkCachedLogin').map { it.toBoolean() }.getOrElse(false)
 if (craftlinkLogin && craftlinkCachedLogin) throw new GradleException('Choose online login or cached identity, not both.')
@@ -20,6 +21,9 @@ if (craftlinkCachedLogin) {
 }
 def craftlinkTransport = providers.gradleProperty('craftlinkTransport').getOrElse('lan')
 if (!(craftlinkTransport in ['lan', 'usb'])) throw new GradleException('craftlinkTransport must be lan or usb')
+if (craftlinkDevLocal && (craftlinkRemote || craftlinkLogin || craftlinkCachedLogin || craftlinkTransport != 'lan')) {
+    throw new GradleException('dev is local LAN only; disable remote access, login and USB.')
+}
 def craftlinkPort = providers.gradleProperty('craftlinkPort').orNull
 if (craftlinkPort != null && (!(craftlinkPort ==~ /[0-9]{1,5}/) || craftlinkPort.toInteger() < 1024 || craftlinkPort.toInteger() > 65535)) {
     throw new GradleException('craftlinkPort must be 1024..65535')
@@ -46,8 +50,13 @@ minecraft {
                 property 'craftlink.identityCache', file('.craftlink/identity.json').absolutePath
             }
             if (craftlinkCachedLogin) args '--username', cachedIdentity.name, '--uuid', cachedIdentity.uuid, '--accessToken', '0', '--userType', 'legacy'
-            if (providers.gradleProperty('craftlinkExternalUrl').isPresent()) property 'craftlink.externalUrl', providers.gradleProperty('craftlinkExternalUrl').get()
-            if (providers.gradleProperty('craftlinkSchoolMode').isPresent()) property 'craftlink.schoolMode', providers.gradleProperty('craftlinkSchoolMode').get()
+            if (craftlinkDevLocal) {
+                property 'craftlink.externalUrl', ''
+                property 'craftlink.schoolMode', ''
+            } else {
+                if (providers.gradleProperty('craftlinkExternalUrl').isPresent()) property 'craftlink.externalUrl', providers.gradleProperty('craftlinkExternalUrl').get()
+                if (providers.gradleProperty('craftlinkSchoolMode').isPresent()) property 'craftlink.schoolMode', providers.gradleProperty('craftlinkSchoolMode').get()
+            }
             if (craftlinkPort != null) property 'craftlink.port', craftlinkPort
             mods { craftlink { source sourceSets.devClient } }
         }

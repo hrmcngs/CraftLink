@@ -23,11 +23,11 @@ function menu(input,extra={}){
 test('exit and invalid input never start a child',()=>{
  const r=menu('invalid\n0\n');assert.equal(r.status,0);assert.equal(r.calls,'');assert.match(r.stdout,/メニューの番号/);
 });
-test('normal and USB launches use selected port, dependency and MOD options',()=>{
+test('dev LAN launch uses selected options and refuses USB',()=>{
  const r=menu('5\n6\n09876\n14\n11\n1\n2\n3\n0\n');
  assert.equal(r.status,0,r.stderr);
  assert.match(r.calls,/CALL run.sh\nlan\n--offline\n--port\n9876\n--dev\n--mods\n/);
- assert.match(r.calls,/CALL run.sh\nusb\n--offline\n--port\n9876\n--dev\n--mods\n/);
+ assert.doesNotMatch(r.calls,/CALL run.sh\nusb/);
 });
 for(const [number,argument]of [['10',''],['12','controller\n'],['13','--setup\n']]){
  test('school action '+number+' forwards login and MOD selections',()=>{
@@ -66,7 +66,7 @@ test('switching launch method waits for launch selection',()=>{
  const r=menu('0\n2\n2\n1\n0\n');assert.equal(r.status,0);assert.match(r.calls,/CALL run.sh\nlan/);assert.doesNotMatch(r.calls,/school.sh/);
 });
 test('simple settings preserve selected login mode',()=>{
- const r=menu('0\n3\n1\n1\n1\n0\n');assert.equal(r.status,0);assert.match(r.calls,/CALL school.sh[\s\S]*--dev/);
+ const r=menu('0\n3\n1\n1\n1\n0\n');assert.equal(r.status,0);assert.match(r.calls,/CALL run.sh\nlan[\s\S]*--dev/);
 });
 
 test('first screen presents launch first and hides developer commands',()=>{
@@ -83,4 +83,11 @@ test('auth rejection returns to the main menu with recovery instructions',()=>{
 });
 test('main settings can reset the relay credential without using the advanced menu',()=>{
  const r=menu('0\n3\n6\n0\n');assert.equal(r.status,0);assert.match(r.calls,/CALL school.sh\n--setup/);
+});
+
+test('dev selection blocks school and tunnel commands in the advanced menu',()=>{
+ const r=menu('11\n1\n10\n12\n8\n0\n0\n');assert.equal(r.status,0);assert.equal(r.calls,'');assert.match(r.stdout,/devは同じWi-Fi・LAN専用/);
+});
+test('authenticated USB launch remains available',()=>{
+ const r=menu('11\n2\n3\n0\n');assert.equal(r.status,0);assert.match(r.calls,/CALL run.sh\nusb[\s\S]*--login/);
 });

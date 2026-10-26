@@ -36,7 +36,6 @@ HELP
   sh craftlink school controller            自分のプレイヤーを操作
   sh craftlink school --login               Microsoftログインを選択・保存
   sh craftlink school --cached-login        保存済み本人情報でローカル起動
-  sh craftlink school --dev                 開発用ゲストを選択・保存
   sh craftlink school --mods                追加MODを更新して起動
   sh craftlink school --setup               中継キーを非表示入力で再設定
 前提: 主催者登録、HTTPS中継、Mac・スマホ両方のネット接続。
@@ -50,7 +49,7 @@ HELP
   sh craftlink usb --offline                Android USB起動（adbとUSBデバッグ許可）
   sh craftlink prepare                      依存を取得・準備だけ行う
   sh craftlink play --login                 Microsoftログイン
-  sh craftlink play --dev                   開発用ゲスト
+  sh craftlink play --dev                   開発用ゲスト（同じWi-Fi・LAN専用）
   sh craftlink play --mods --port 9876      追加MOD・LAN/USBポート指定
 起動後: F8から接続開始、スマホでQRを読みます。
 --offlineは依存取得の設定です。Microsoft認証の通信とは別です。
@@ -83,9 +82,9 @@ HELP
       ;;
     login)
       cat <<'HELP'
-【ログイン】play / usb / school / prepare に付けるオプション
+【ログイン】通常・学校・USB起動のオプション（devはplay / prepare専用）
   --login          Microsoft認証。認証情報を保存して次回再利用
-  --dev            開発用ゲスト。Microsoftログインなし
+  --dev            同じWi-Fi・LAN専用。中継・USBは使用不可
   --cached-login   前回認証した名前・UUIDだけでローカル起動
   --previous       前回選んだ起動状態（指定を省略しても同じ）
 通常起動と学校用の選択は別々に保存し、Microsoft認証情報は共通で再利用します。

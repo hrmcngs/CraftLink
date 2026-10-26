@@ -19,6 +19,10 @@ mods=false
 port=
 auth_flag=
 auth_label=前回の状態（未設定なら標準）
+if [ -f "$project_dir/.craftlink/login-run" ] && [ ! -L "$project_dir/.craftlink/login-run" ] && [ ! -L "$project_dir/.craftlink" ]; then
+  IFS= read -r saved_run_mode < "$project_dir/.craftlink/login-run" || saved_run_mode=
+  if [ "$saved_run_mode" = guest ]; then auth_flag=--dev; auth_label=dev（ローカル専用）; launch_choice=2; launch_label=dev・同じWi-Fi・LAN専用; fi
+fi
 trap 'exit 130' INT
 trap 'exit 143' TERM
 while :; do
@@ -38,6 +42,10 @@ while :; do
       2)
         printf '\n【起動方法】\n  1) 学校用：スマホでBOTを操作（中継付き）\n  2) 同じWi-Fi / LANで遊ぶ\n  3) AndroidをUSBケーブルで接続\n  4) 学校用：自分のプレイヤーを操作（中継付き）\n  0) 戻る\n選択 > '
         IFS= read -r selection || exit 0
+        if [ "$auth_flag" = --dev ] && [ "$selection" != 2 ] && [ "$selection" != 0 ]; then
+          printf 'devは同じWi-Fi・LAN専用です。学校用・USBはログイン状態を変更してから選んでください。\n'
+          continue
+        fi
         case "$selection" in
           1) launch_choice=10; launch_label=学校用・スマホでBOTを操作 ;;
           2) launch_choice=2; launch_label=同じWi-Fi・LAN ;;
@@ -64,6 +72,9 @@ while :; do
   IFS= read -r choice || { printf '\n'; exit 0; }
     if [ "$choice" = 0 ]; then screen=main; continue; fi
   fi
+  if [ "$auth_flag" = --dev ]; then
+    case "$choice" in 3|8|9|10|12|13) printf 'devは同じWi-Fi・LAN専用です。学校用・USB・中継は起動できません。\n'; continue ;; esac
+  fi
   case "$choice" in
     0|q|quit) exit 0 ;;
     16|help|'?')
@@ -75,7 +86,7 @@ while :; do
       printf '1) dev（ゲスト）  2) Microsoftログイン  3) 前回の名前・UUID（再認証なし）  4) 保存した起動状態を復元  0) 戻る > '
       IFS= read -r auth_choice || exit 0
       case "$auth_choice" in
-        1) auth_flag=--dev; auth_label=dev（ゲスト） ;;
+        1) auth_flag=--dev; auth_label=dev（ローカル専用）; launch_choice=2; launch_label=dev・同じWi-Fi・LAN専用; printf 'devを選んだため、起動方法を同じWi-Fi・LANへ切り替えました。\n' ;;
         2) auth_flag=--login; auth_label=Microsoftログイン ;;
         3) auth_flag=--cached-login; auth_label=保存済み本人情報 ;;
         4) auth_flag=--previous; auth_label=前回の状態（未設定なら標準） ;;

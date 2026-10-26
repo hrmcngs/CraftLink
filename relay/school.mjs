@@ -40,6 +40,7 @@ export function localPort(root,mode) {
   return value;
 }
 export function launchSchool(options,dependencies={}) {
+  if(options.login==='guest')throw new Error('devは同じWi-Fi・LANのローカル起動専用です。sh craftlink play --dev を使ってください。');
   const {url,secret}=validateConfig(options);
   if(!['controller','classroom'].includes(options.mode))throw new Error('接続モードが不正です。');
   const connect=dependencies.connect??connectBridge,spawnGame=dependencies.spawnGame??spawn,log=dependencies.log??console.log;
@@ -91,6 +92,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),args=process.argv.slice(2);
   let mode='classroom',offline=true,setup=false,mods=false,login='cached';
   for(const arg of args){if(arg==='controller'||arg==='classroom')mode=arg;else if(arg==='--offline')offline=true;else if(arg==='--online')offline=false;else if(arg==='--setup')setup=true;else if(arg==='--mods')mods=true;else if(arg==='--login')login='online';else if(arg==='--cached-login')login='cached';else if(arg==='--previous'){}else if(arg==='--dev'||arg==='--no-login')login='guest';else throw new Error('Usage: sh school.sh [classroom|controller] [--offline|--online] [--setup] [--mods] [--login|--cached-login|--dev|--no-login]');}
+  if(login==='guest')throw new Error('devは同じWi-Fi・LANのローカル起動専用です。sh craftlink play --dev を使ってください。');
   let config=setup?undefined:readConfig(root);
   if(!config){config=saveConfig(root,{url:process.env.CRAFTLINK_SCHOOL_URL??DEFAULT_URL,secret:process.env.CRAFTLINK_RELAY_SECRET});console.log('初回設定をこのMacに保存しました。次回からキーの入力は不要です。');}
   // Do not pass the relay credential into Minecraft/Gradle child processes.

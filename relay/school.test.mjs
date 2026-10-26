@@ -78,3 +78,7 @@ test('different registered public key is identified from its fingerprint',async(
  const messages=[],{privateKey}=generateKeyPairSync('ed25519'),f=lifecycle({log:message=>messages.push(message)},{ownerKey:privateKey});
  try{f.connections[0].options.onRejected(403,{reason:'owner-proof',ownerFingerprint:'0'.repeat(64)});assert.equal(await f.running.done,77);assert(messages.some(line=>line.includes('Renderに登録された公開鍵がこのMacの公開鍵と一致しません')));}finally{f.running.stop();}
 });
+
+test('dev cannot start an internet relay even through direct Node invocation',()=>{
+ let connected=false;assert.throws(()=>launchSchool({url,secret,mode:'classroom',login:'guest'},{connect:()=>{connected=true;}}),/ローカル起動専用/);assert.equal(connected,false);
+});
