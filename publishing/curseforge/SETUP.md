@@ -5,7 +5,7 @@
 | 入力欄 | 設定する内容 |
 | --- | --- |
 | Project name | **CraftLink** |
-| Logo | このフォルダーの **icon.png**（1254×1254 PNG） |
+| Logo | このフォルダーの **icon.png**（512×512 PNG。32×32原画の整数倍拡大） |
 | Summary | `Turn your phone into a touch controller and let friends control their own bots over your local network.` |
 | Class | **Mods** |
 | Main category | **Utility & QoL** |
@@ -34,7 +34,7 @@
 
 ## ロゴ
 
-オリジナルの「スマホの方向ボタン＋リンク＋石色の立方体」です。バニラの石GUIになじむ、落ち着いた灰色・緑と太いドットの輪郭へ改訂しています。ゲームのロゴ・キャラクター・草ブロック素材・既存の商標アセットは使用していません。生成画像をそのままPNGで保存し、元の解像度を維持しています。使用した生成方法とプロンプトは [ICON_PROMPT.md](ICON_PROMPT.md) に記載しています。
+オリジナルの「スマホの方向ボタン＋リンク＋石色の立方体」です。バニラの石GUIになじむ、落ち着いた灰色・緑と太いドットの輪郭へ改訂しています。ゲームのロゴ・キャラクター・草ブロック素材・既存の商標アセットは使用していません。原画は [icon-32.png](icon-32.png) の32×32ピクセルです。CurseForge用の `icon.png` は原画を16倍に拡大した512×512 PNGで、補間・ぼかしは使っていません。使用した生成方法とプロンプトは [ICON_PROMPT.md](ICON_PROMPT.md) に記載しています。
 
 ## 参考
 
