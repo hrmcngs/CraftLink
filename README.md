@@ -209,3 +209,5 @@ BOTはスマホの **設定 → スキンPNG → PNGをBOTに適用**。64×64�
 対話式メニューの番号一覧：[メニューの使い方](docs/MENU.md)
 
 GitHubから配布JARを取得する場合：[配布フォルダー](releases/README.md)。通常ビルドで `releases/` のJARとSHA-256も更新され、そのままGitへコミットできます。
+
+CurseForgeへの掲載文・登録項目・アイコン：[提出用セット](publishing/curseforge/SETUP.md)
