@@ -11,12 +11,12 @@ export class LayoutEditor {
  constructor(private root:HTMLElement,private settings:()=>TouchSettings,private changed:()=>void,private finished:()=>void){
   for(const id of controlIds){const element=root.querySelector<HTMLElement>('[data-control="'+id+'"]');if(element)this.controls.set(id,element);}
   this.panel=document.createElement('aside');this.panel.id='touch-editor';this.panel.hidden=true;
-  this.panel.innerHTML='<strong>タッチ操作のカスタマイズ</strong><p>オレンジの枠をドラッグして移動</p><label>選択 <select id="edit-control"></select></label><label>サイズ <input id="edit-size" type="range" min="60" max="180" value="100"><output id="edit-size-value"></output></label><label>不透明度 <input id="edit-opacity" type="range" min="10" max="100" value="80"><output id="edit-opacity-value"></output></label><button id="edit-reset">配置を初期化</button><button id="edit-done">保存して戻る</button>';
+  this.panel.innerHTML='<strong>タッチ操作のカスタマイズ</strong><p>オレンジの枠をドラッグして移動。移動・調整したボタンは保存後も表示します。</p><label>選択 <select id="edit-control"></select></label><label>サイズ <input id="edit-size" type="range" min="60" max="180" value="100"><output id="edit-size-value"></output></label><label>不透明度 <input id="edit-opacity" type="range" min="10" max="100" value="80"><output id="edit-opacity-value"></output></label><button id="edit-reset">配置を初期化</button><button id="edit-done">保存して戻る</button>';
   root.append(this.panel);
   this.panel.querySelector<HTMLSelectElement>('#edit-control')!.onchange=e=>this.select((e.target as HTMLSelectElement).value as ControlId);
   for(const key of ['size','opacity'] as const)this.panel.querySelector<HTMLInputElement>('#edit-'+key)!.oninput=e=>{
    if(!this.selected)return;const placement=this.settings().placements[this.selected];if(!placement)return;
-   placement[key]=Number((e.target as HTMLInputElement).value);this.changed();this.select(this.selected);
+   placement[key]=Number((e.target as HTMLInputElement).value);this.reveal(this.selected);this.changed();this.select(this.selected);
   };
   this.panel.querySelector('#edit-reset')!.addEventListener('click',()=>{this.settings().placements={};this.changed();this.capturePositions();this.select(this.selected??'jump');});
   this.panel.querySelector('#edit-done')!.addEventListener('click',()=>this.close());
@@ -69,6 +69,13 @@ export class LayoutEditor {
  }
  private move(e:PointerEvent){
   if(!this.active||this.drag?.pointer!==e.pointerId)return;const p=this.settings().placements[this.drag.key];if(!p)return;
-  p.x=Math.max(0,Math.min(1,(e.clientX-this.drag.offsetX)/innerWidth));p.y=Math.max(0,Math.min(1,(e.clientY-this.drag.offsetY)/innerHeight));this.apply();e.preventDefault();e.stopImmediatePropagation();
+  p.x=Math.max(0,Math.min(1,(e.clientX-this.drag.offsetX)/innerWidth));p.y=Math.max(0,Math.min(1,(e.clientY-this.drag.offsetY)/innerHeight));this.reveal(this.drag.key);this.apply();e.preventDefault();e.stopImmediatePropagation();
+ }
+ private reveal(key:ControlId){
+  // Opening the editor alone must not enable controls that the user hid.
+  // A deliberate edit, however, must remain visible after the editor closes.
+  const settings=this.settings();settings.showButtons=true;
+  if(key==='attack'||key==='use')settings.showActions=true;
+  if(key==='drop')settings.showDrop=true;
  }
 }

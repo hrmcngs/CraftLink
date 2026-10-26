@@ -593,3 +593,16 @@ BOT建築操作の検証：隔離した実際のMinecraftで、サバイバル�
 最終のJavaテスト64件・Webテスト14件が通っています。追加の実機再起動ではForgeのEarlyDisplayがプライマリーモニターを検出できず起動できませんでした。実ワールドの上記検証はその前の実行で確認したもので、最後の水中判定の絞り込み後の実機再確認は未実施です。最終Web画面のブラウザ検証は完了しています。
 
 名前・スキンの検証：Javaテスト68件・Webテスト16件が通っています。Chromiumで不正な名前の拒否、9種類の顔プレビュー、変更の送信・表示、ブラウザ保存・次回接続への適用と既存タッチ操作を確認しました。隔離した実Minecraftで「はると / Zuri」の頭上名とクライアント描画テクスチャ、参加中の「さくら / Alex」への更新、BOTのUUIDを維持した再接続、9種類の8×8 PNGプレビューの生成を確認しました。
+
+### BOTの配置変更後にボタンが消える場合
+
+タップ操作で「攻撃・使用ボタンを表示」や「捨てるボタンを表示」をオフにしていると、編集画面では見えても保存後に隠れる問題を修正しました。配置エディターでボタンを移動、またはサイズ・不透明度を調整した場合は、そのボタンに対応する表示設定もオンにして保存します。編集画面を開いて閉じるだけなら非表示設定を維持します。
+
+開発用のブラウザ回帰確認は `web/checks/layout-editor.browser.mjs` です。Playwright CoreとChromeを使用し、実際の配置エディター・CSSで保存・再読み込み・3画面サイズを確認します。通常のビルドにブラウザ検証ツールは不要です。
+
+```sh
+npm install --prefix /tmp/craftlink-ui-tools --no-audit --no-fund playwright-core
+CRAFTLINK_PLAYWRIGHT_MODULE=/tmp/craftlink-ui-tools/node_modules/playwright-core/index.mjs node web/checks/layout-editor.browser.mjs
+```
+
+Macの標準Chrome以外を使う場合は、実行ファイルのパスを `CRAFTLINK_CHROME` で指定します。iOS Safari実機での確認は別途必要です。
