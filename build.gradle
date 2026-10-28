@@ -151,7 +151,7 @@ tasks.register('generateNetworkPolicy') {
         output.text = "remoteAccess=${craftlinkRemote}\n"
     }
 }
-processResources { dependsOn 'generateNetworkPolicy'; from(networkPolicyDirectory); dependsOn 'webBuild'; from('web/dist') { into 'web' }; from('publishing/curseforge') { include 'icon.png', 'logo.png'; into 'assets/craftlink' } }
+processResources { dependsOn 'generateNetworkPolicy'; from(networkPolicyDirectory); dependsOn 'webBuild'; from('web/dist') { into 'web' } }
 jar { archiveClassifier = 'thin' }
 shadowJar {
     archiveClassifier = ''

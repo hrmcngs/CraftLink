@@ -16,4 +16,6 @@ java scripts/PixelIcon.java
 
 このコマンドは `icon.png` の各16×16領域が単色であることを確認して `icon-32.png` だけを抽出します。指定アイコンやロゴを別の絵で上書きしません。
 
-通常ビルドで両方の画像をJARの `assets/craftlink/` に同梱します。Forgeの `logoFile` は横長の `logo.png` を参照します。
+MOD本体用の実ファイルは `src/main/resources/assets/craftlink/icon.png` と `logo.png` に配置しています。通常のForgeリソースとしてJARの `assets/craftlink/` に同梱します。`META-INF/mods.toml` の `logoFile` は横長の `assets/craftlink/logo.png` を参照します。
+
+画像を差し替えるときは、CurseForge用のこのフォルダーと、MOD本体用の `src/main/resources/assets/craftlink/` の両方を更新してください。
