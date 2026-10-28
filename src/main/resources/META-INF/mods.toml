@@ -5,7 +5,7 @@ license="MIT"
 modId="craftlink"
 version="0.1.0"
 displayName="CraftLink"
-logoFile="assets/craftlink/icon.png"
+logoFile="assets/craftlink/logo.png"
 displayTest="IGNORE_ALL_VERSION"
 description='''MinecraftをスマートフォンのLANタッチコントローラーから操作します。'''
 [[dependencies.craftlink]]

@@ -1,5 +1,7 @@
 # CraftLink
 
+![CraftLink](publishing/curseforge/logo.png)
+
 **開発操作の入口は `sh craftlink` に統一しました。VS Codeは ⌘ShiftB で説明付きメニューを開きます。**
 
 ```sh

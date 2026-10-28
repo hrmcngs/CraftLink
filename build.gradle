@@ -151,7 +151,7 @@ tasks.register('generateNetworkPolicy') {
         output.text = "remoteAccess=${craftlinkRemote}\n"
     }
 }
-processResources { dependsOn 'generateNetworkPolicy'; from(networkPolicyDirectory); dependsOn 'webBuild'; from('web/dist') { into 'web' }; from('publishing/curseforge/icon.png') { into 'assets/craftlink' } }
+processResources { dependsOn 'generateNetworkPolicy'; from(networkPolicyDirectory); dependsOn 'webBuild'; from('web/dist') { into 'web' }; from('publishing/curseforge') { include 'icon.png', 'logo.png'; into 'assets/craftlink' } }
 jar { archiveClassifier = 'thin' }
 shadowJar {
     archiveClassifier = ''
@@ -196,8 +196,8 @@ tasks.register('stageRelease') {
             if (archive.entries().any { it.name.startsWith('.craftlink/') || it.name.startsWith('me/djtheredstoner/devauth/') }) {
                 throw new GradleException('Development authentication data or dependency found in distribution.')
             }
-            if (archive.getEntry('META-INF/mods.toml') == null || archive.getEntry('web/classroom.html') == null) {
-                throw new GradleException('Distribution is missing its MOD metadata or web controller.')
+            if (archive.getEntry('META-INF/mods.toml') == null || archive.getEntry('web/classroom.html') == null || archive.getEntry('assets/craftlink/logo.png') == null) {
+                throw new GradleException('Distribution is missing its MOD metadata, web controller or logo.')
             }
         }
         def destination = file("releases/${artifact.name}")
