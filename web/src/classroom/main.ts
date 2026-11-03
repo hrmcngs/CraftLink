@@ -1,3 +1,4 @@
+import {installLanguagePicker} from '../i18n';
 import {nativeHudImage} from './native-ui';
 import {mawUi} from './maw-ui';
 import {remoteMenu} from './remote-menu';
@@ -373,3 +374,5 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)release();u
 setInterval(()=>{if(ready)send();for(const hold of slotHolds.values()){if(hold.cancelled)continue;if(hold.button.closest('#inventory-player')){if(hold.dropped){const total=inventoryCounts.get(hold.slot)||0;if(total){const count=holdQuantity(total,performance.now()-hold.started);if(inventoryAmount!==count)selectInventory(hold.slot,false,count);hold.button.style.setProperty('--drop-progress',String(count/total));}}}else if(!hold.dropped)hold.button.style.setProperty('--drop-progress',String(Math.min(1,(performance.now()-hold.started)/touchSettings.holdToDrop)));}video.refresh();if(videoEnabled&&videoError)document.querySelector('#video-state')!.textContent=videoError;},33);
 setInterval(()=>{if(socket?.readyState===WebSocket.OPEN){if(performance.now()-lastPong>5000){socket.close();return;}pingAt=performance.now();socket.send('{"type":"ping"}');}},1000);
 update();root.dataset.enabled='false';if(/^[A-Za-z0-9_-]{43}$/.test(token))connect();else status.textContent='主催者のQRコードからひらいてね';
+
+installLanguagePicker(root);

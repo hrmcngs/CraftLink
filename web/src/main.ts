@@ -1,3 +1,4 @@
+import {installLanguagePicker} from './i18n';
 import './styles/controller.css';
 import { addonActions } from './controller/addons';
 import { VideoView } from './video/view';
@@ -76,3 +77,5 @@ window.addEventListener('pagehide', () => link.disconnect());
 document.addEventListener('contextmenu', e => e.preventDefault());
 setInterval(() => { if (!document.hidden && link.ready) {touch.pump();link.send(touch.packet());} video.refresh(); }, 33);
 setInterval(() => link.heartbeat(), 1000);
+
+installLanguagePicker(app);

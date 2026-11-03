@@ -12,6 +12,8 @@ sh craftlink help terminal # zshの短縮コマンド・Tab補完の使い方
 
 スマホのブラウザからMinecraftを操作するMOD。**Minecraft Java 1.20.1 / Forge 47.4.10（47系） / Java 17** 対応。
 
+日本語・英語対応。スマホは設定内の「Language / 言語」で変更できます。[言語設定](docs/LANGUAGES.md)
+
 ## 自分のPCで好きなMODと遊ぶ
 
 配布ZIP `craftlink-host-forge-1.20.1-0.1.0.zip` 内のCraftLink JARを、自分のMinecraft 1.20.1 / Forge環境の `mods` へ入れます。遊びたいMODと依存MODも同じ環境に追加して、ワールド内で **F8 → みんなで参加 → 受付を開始**。スマホはQRを読み、PCで承認すれば参加できます。

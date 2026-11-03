@@ -18,33 +18,33 @@ public final class ClassroomScreen extends Screen {
     private BitMatrix qr;
     private Button start, pause;
     private Button mode;
-    public ClassroomScreen(Screen parent) { super(Component.literal("CraftLink みんなで参加 / 最大8台")); this.parent = parent; }
+    public ClassroomScreen(Screen parent) { super(Component.translatable("craftlink.ui.craftlink_friends_up_to_8_devices")); this.parent = parent; }
     @Override protected void init() {
         int x = width/2;
-        if(dev.craftlink.network.ConnectionPolicy.remoteEnabled()) addRenderableWidget(Button.builder(Component.literal("別のWi-Fi"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, true))).bounds(4, 4, 100, 20).build());
-        mode=addRenderableWidget(Button.builder(Component.literal("参加者: サバイバル"),b->{var current=Client.CLASSROOM.room();if(current!=null)current.mode(current.mode()==ClassroomRoom.Mode.SURVIVAL?ClassroomRoom.Mode.CREATIVE:ClassroomRoom.Mode.SURVIVAL);}).bounds(width-154,4,150,20).build());
-        start = addRenderableWidget(Button.builder(Component.literal("受付を開始"), b -> {
+        if(dev.craftlink.network.ConnectionPolicy.remoteEnabled()) addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.remote_connection"), b -> minecraft.setScreen(new ExternalConnectionScreen(this, true))).bounds(4, 4, 100, 20).build());
+        mode=addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.players_survival"),b->{var current=Client.CLASSROOM.room();if(current!=null)current.mode(current.mode()==ClassroomRoom.Mode.SURVIVAL?ClassroomRoom.Mode.CREATIVE:ClassroomRoom.Mode.SURVIVAL);}).bounds(width-154,4,150,20).build());
+        start = addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.open_room"), b -> {
             if (minecraft.getSingleplayerServer() != null && minecraft.player != null && !usbLaunch()) {
                 var settings = LinkConfig.launchSettings();
                 Client.CLASSROOM.start(LinkConfig.CLASSROOM_PORT.get(), settings.bindAddress(), settings.advertisedHost(), LinkConfig.externalUrl(true));
             }
         }).bounds(x-155,height-76,100,20).build());
-        addRenderableWidget(Button.builder(Component.literal("部屋を終了"), b -> Client.stopClassroom()).bounds(x-50,height-76,100,20).build());
-        addRenderableWidget(Button.builder(Component.literal("全員停止"), b -> { var room=Client.CLASSROOM.room(); if(room!=null)room.pause(true); }).bounds(x+55,height-76,100,20).build());
-        pause = addRenderableWidget(Button.builder(Component.literal("開始 / 再開"), b -> { var room=Client.CLASSROOM.room();if(room!=null){room.pause(false);minecraft.setScreen(null);} }).bounds(x-155,height-51,100,20).build());
-        addRenderableWidget(Button.builder(Component.literal("接続先切替"), b -> Client.CLASSROOM.nextAddress()).bounds(x-50,height-51,100,20).build());
-        addRenderableWidget(Button.builder(Component.literal("URLコピー"), b -> minecraft.keyboardHandler.setClipboard(Client.CLASSROOM.url())).bounds(x+55,height-51,100,20).build());
-        addRenderableWidget(Button.builder(Component.literal("前 / 次"), b -> { page=1-page;roster="";rebuildWidgets(); }).bounds(x-155,height-26,100,20).build());
-        addRenderableWidget(Button.builder(Component.literal("BOTを呼び戻す"), b -> Client.BOTS.recall()).bounds(x-50,height-26,100,20).build());
-        addRenderableWidget(Button.builder(Component.literal("戻る"), b -> onClose()).bounds(x+55,height-26,100,20).build());
+        addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.close_room"), b -> Client.stopClassroom()).bounds(x-50,height-76,100,20).build());
+        addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.pause_all"), b -> { var room=Client.CLASSROOM.room(); if(room!=null)room.pause(true); }).bounds(x+55,height-76,100,20).build());
+        pause = addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.start_resume"), b -> { var room=Client.CLASSROOM.room();if(room!=null){room.pause(false);minecraft.setScreen(null);} }).bounds(x-155,height-51,100,20).build());
+        addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.change_address"), b -> Client.CLASSROOM.nextAddress()).bounds(x-50,height-51,100,20).build());
+        addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.copy_url"), b -> minecraft.keyboardHandler.setClipboard(Client.CLASSROOM.url())).bounds(x+55,height-51,100,20).build());
+        addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.previous_next"), b -> { page=1-page;roster="";rebuildWidgets(); }).bounds(x-155,height-26,100,20).build());
+        addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.recall_bots"), b -> Client.BOTS.recall()).bounds(x-50,height-26,100,20).build());
+        addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.back"), b -> onClose()).bounds(x+55,height-26,100,20).build());
         var room = Client.CLASSROOM.room();
         List<ClassroomRoom.View> peers = room == null ? List.of() : room.views();
         for (int i=page*4;i<Math.min(peers.size(),(page+1)*4);i++) {
             var peer=peers.get(i);int y=61+(i%4)*22;
-            var allow = addRenderableWidget(Button.builder(Component.literal(font.plainSubstrByWidth(peer.number()+"号 "+peer.name()+" / "+(!peer.connected()?"再接続待ち":peer.approved()?"参加中":"接続中"),Math.max(50,width-235))),b->{var current=Client.CLASSROOM.room();if(current!=null)current.approve(peer.id());})
+            var allow = addRenderableWidget(Button.builder(Component.literal(font.plainSubstrByWidth(peer.number()+"号 "+peer.name()+" / "+(!peer.connected()?net.minecraft.client.resources.language.I18n.get("craftlink.ui.waiting_to_reconnect"):peer.approved()?net.minecraft.client.resources.language.I18n.get("craftlink.ui.playing"):net.minecraft.client.resources.language.I18n.get("craftlink.ui.connecting")),Math.max(50,width-235))),b->{var current=Client.CLASSROOM.room();if(current!=null)current.approve(peer.id());})
                 .bounds(165,y,Math.max(60,width-225),20).build());
             allow.active = peer.connected() && !peer.approved();
-            addRenderableWidget(Button.builder(Component.literal("切断"),b->{var current=Client.CLASSROOM.room();if(current!=null)current.remove(peer.id());})
+            addRenderableWidget(Button.builder(Component.translatable("craftlink.ui.disconnect"),b->{var current=Client.CLASSROOM.room();if(current!=null)current.remove(peer.id());})
                 .bounds(width-56,y,50,20).build());
         }
         roster = peers.toString();
@@ -55,15 +55,15 @@ public final class ClassroomScreen extends Screen {
         start.active = !Client.CLASSROOM.running() && minecraft.getSingleplayerServer()!=null && minecraft.player!=null && !usbLaunch();
         pause.active = Client.CLASSROOM.running();
         mode.active=room!=null;
-        mode.setMessage(Component.literal("参加者: "+(room!=null&&room.mode()==ClassroomRoom.Mode.CREATIVE?"クリエイティブ":"サバイバル")));
+        mode.setMessage(Component.literal(net.minecraft.client.resources.language.I18n.get("craftlink.ui.players")+(room!=null&&room.mode()==ClassroomRoom.Mode.CREATIVE?net.minecraft.client.resources.language.I18n.get("craftlink.ui.creative"):net.minecraft.client.resources.language.I18n.get("craftlink.ui.survival"))));
     }
     @Override public void render(GuiGraphics g,int mx,int my,float partial) {
         renderBackground(g);
         g.drawString(font,Component.literal("CraftLink"),111,9,0xffffff);
         var room=Client.CLASSROOM.room();
-        String status=Client.CLASSROOM.status()+(room==null?"":" / "+room.views().size()+"台 / BOT "+Client.BOTS.entityIds().size()+"体 / "+(room.paused()?"停止中":"操作中"));
+        String status=Client.CLASSROOM.status()+(room==null?"":" / "+room.views().size()+"台 / BOT "+Client.BOTS.entityIds().size()+"体 / "+(room.paused()?net.minecraft.client.resources.language.I18n.get("craftlink.ui.stopped"):net.minecraft.client.resources.language.I18n.get("craftlink.ui.active")));
         g.drawCenteredString(font,status,width/2,27,0xaaffaa);
-        g.drawCenteredString(font,usbLaunch()?"参加モードはLAN起動（sh run.sh）を使用してください":minecraft.getSingleplayerServer()==null?"シングルプレイのワールドで開いてください":"QRを読むだけでBOT参加 / スマホにBOT視点を配信",width/2,43,0xaaaaaa);
+        g.drawCenteredString(font,usbLaunch()?net.minecraft.client.resources.language.I18n.get("craftlink.ui.use_lan_launch_sh_run_sh_for_participation_mode"):minecraft.getSingleplayerServer()==null?net.minecraft.client.resources.language.I18n.get("craftlink.ui.open_this_screen_in_a_singleplayer_world"):net.minecraft.client.resources.language.I18n.get("craftlink.ui.scan_the_qr_to_join_as_a_bot_and_view_its_perspective"),width/2,43,0xaaaaaa);
         String url=Client.CLASSROOM.url();
         if(!url.equals(qrUrl)){qrUrl=url;qr=null;if(!url.isEmpty())try{qr=ConnectionQr.encode(url);}catch(Exception ignored){}}
         if(qr!=null){int scale=Math.max(1,Math.min(3,Math.min(145,height-150)/qr.getWidth()));int size=qr.getWidth()*scale,left=(160-size)/2;
