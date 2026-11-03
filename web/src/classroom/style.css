@@ -37,3 +37,8 @@ html,body{touch-action:manipulation}
 #classroom[data-touch-mode=joystick_crosshair] .actions [data-key=jump]{grid-column:auto;grid-row:1;width:var(--size);height:var(--size)}
 #classroom[data-touch-mode=joystick_crosshair] .actions [data-key=attack],#classroom[data-touch-mode=joystick_crosshair] .actions [data-key=use]{width:var(--size);height:var(--size)}
 #classroom[data-touch-mode=joystick_tap] .actions [data-key=jump],#classroom[data-touch-mode=dpad_tap] .actions [data-key=jump]{border-radius:50%}
+/* Fixed custom controls share the HUD stacking order, rather than being trapped
+   below the hotbar inside main/actions. Empty action space stays touch-through. */
+main{z-index:auto}
+.actions{z-index:auto}
+.actions button{position:relative;z-index:1}

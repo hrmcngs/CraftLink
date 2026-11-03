@@ -41,4 +41,22 @@ try{
  await page.locator('#edit-opacity').evaluate(input=>{input.value='60';input.dispatchEvent(new Event('input',{bubbles:true}));});
  await page.evaluate(()=>editor.close());assert.equal(await page.evaluate(()=>settings.showButtons),true);assert.equal(await page.evaluate(()=>settings.showDrop),false);
  console.log('PASS editing a control enables button graphics without enabling an untouched drop button');
+ // Saved buttons must receive touches even where the original hotbar sits.
+ await fresh();await page.evaluate(()=>{
+  settings.placements.jump={x:.5,y:.94,size:100,opacity:100};editor.apply();
+  window.jumpPresses=0;document.querySelector('[data-key=jump]').addEventListener('pointerdown',()=>window.jumpPresses++);
+ });
+ const jump=await page.locator('[data-key=jump]').boundingBox();assert(jump);
+ await page.mouse.click(jump.x+jump.width/2,jump.y+jump.height/2);
+ assert.equal(await page.evaluate(()=>window.jumpPresses),1,'custom jump button is covered by the hotbar');
+ console.log('PASS saved custom button receives input above the original hotbar');
+ await page.reload();await page.waitForFunction(()=>window.editor);
+ await page.setViewportSize({width:844,height:390});await page.evaluate(()=>editor.apply());
+ assert.equal(await page.locator('[data-key=jump]').evaluate(element=>{const box=element.getBoundingClientRect();return document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)===element;}),true);
+ console.log('PASS customized button remains touchable after reload and rotation');
+ await fresh();await page.evaluate(()=>{window.hits=[];for(const id of ['look','bot-hotbar'])document.getElementById(id).addEventListener('pointerdown',()=>window.hits.push(id));});
+ await page.mouse.click(450,200);
+ const bar=await page.locator('#bot-hotbar').boundingBox();await page.mouse.click(bar.x+10,bar.y+bar.height/2);
+ assert.deepEqual(await page.evaluate(()=>window.hits),['look','bot-hotbar']);
+ console.log('PASS default look area and hotbar still receive input');
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
