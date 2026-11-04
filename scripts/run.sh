@@ -119,6 +119,15 @@ if bash ./gradlew "${args[@]}"; then
 else
   result=$?
   printf '\nMinecraftの起動に失敗しました（終了コード %s）。\nログ: %s/run/logs/latest.log\n' "$result" "$project_dir" >&2
+  if [[ "$login" == true && "${CRAFTLINK_LOGIN_PROFILE:-run}" == school ]]; then
+    printf 'Microsoft / Xbox認証で接続エラーになった場合は、保存済み本人情報で起動できます。\n' >&2
+    if [[ "$modpack" == true ]]; then
+      printf '再実行: sh school.sh --mods --cached-login\n' >&2
+    else
+      printf '再実行: sh school.sh --cached-login\n' >&2
+    fi
+    printf 'この選択は次回も保持されます。Microsoft認証が必要なサーバー用に戻す場合: sh school.sh --login\n' >&2
+  fi
   shopt -s nullglob
   reports=(run/crash-reports/crash-*.txt)
   if (( ${#reports[@]} > 0 )); then printf 'クラッシュレポート: %s/%s\n' "$project_dir" "${reports[${#reports[@]}-1]}" >&2; fi
