@@ -267,3 +267,18 @@ tasks.register('verifyDevLogin') {
         logger.lifecycle("CraftLink: DevAuth ${auth.moduleVersion.id.version} is present on the development runtime with Microsoft account profile main; no account credentials were read.")
     }
 }
+
+// ForgeGradle's asset task contacts Mojang even with --offline. Validate the
+// complete local asset cache before skipping its network-only action.
+tasks.named('downloadAssets').configure {
+    onlyIf {
+        if (!gradle.startParameter.offline) return true
+        def verification = project.exec {
+            commandLine 'node', file('scripts/verify-assets.mjs').absolutePath,
+                meta.get().asFile.absolutePath, output.absolutePath
+            ignoreExitValue = true
+        }
+        if (verification.exitValue != 0) throw new GradleException('オフライン起動用のMinecraftデータを準備してください。sh run.sh --prepare')
+        return false
+    }
+}
